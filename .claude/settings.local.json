@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "Bash(ls:*)",
+      "Bash(adb:*)",
+      "Bash(find:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(rg:*)",
+      "Bash(git add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/update-readme-version.sh:*)",
+      "Bash(grep:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:vanniktech.github.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
