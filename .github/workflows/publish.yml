@@ -1,0 +1,83 @@
+name: Publish to Maven Central
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0)'
+        required: true
+        type: string
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Decode GPG key
+      env:
+        GPG_KEY_BASE64: ${{ secrets.GPG_KEY_BASE64 }}
+      run: |
+        echo "$GPG_KEY_BASE64" | base64 --decode > ~/secring.gpg
+
+    - name: Set version
+      run: |
+        if [ "${{ github.event_name }}" == "release" ]; then
+          VERSION="${{ github.event.release.tag_name }}"
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "libraryVersion=$VERSION" >> local.properties
+
+    - name: Build and test
+      run: |
+        ./gradlew :library:build
+        ./gradlew :library:allTests
+
+    - name: Publish to Maven Central
+      env:
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_KEY_PASSWORD }}
+      run: |
+        ./gradlew :library:publishAllPublicationsToMavenCentral --no-daemon --no-parallel
+
+    - name: Create release artifacts
+      if: github.event_name == 'release'
+      run: |
+        mkdir -p release-artifacts
+        cp library/build/outputs/aar/*.aar release-artifacts/
+        cp library/build/libs/*.jar release-artifacts/ || true
+        zip -r release-artifacts.zip release-artifacts/
+
+    - name: Upload release artifacts
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./release-artifacts.zip
+        asset_name: kmp-iap-${{ env.VERSION }}-artifacts.zip
+        asset_content_type: application/zip
