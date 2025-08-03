@@ -34,10 +34,10 @@ else
 fi
 
 echo "🔨 Building and installing app..."
-./gradlew :example:installDebug
+cd example && ./gradlew :composeApp:installDebug && cd ..
 
 echo "🚀 Launching app..."
-adb shell am start -n io.github.hyochan.kmpiap.example/.MainActivity
+adb shell am start -n io.github.hyochan.kmpiap.example/dev.hyo.martie.MainActivity
 
 echo "🎉 App launched successfully!"
 echo "📱 The app should now be running in the emulator"

@@ -18,7 +18,8 @@
       "WebFetch(domain:github.com)",
       "Bash(rm:*)",
       "Bash(git stash:*)",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "Bash(gh pr comment:*)"
     ],
     "deny": []
   }
