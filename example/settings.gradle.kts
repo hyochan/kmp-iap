@@ -32,5 +32,4 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":library")
-project(":library").projectDir = file("../library")
+include(":composeApp")

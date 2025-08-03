@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(./gradlew:*)",
@@ -16,7 +17,19 @@
       "Bash(git commit:*)",
       "WebFetch(domain:vanniktech.github.io)",
       "WebFetch(domain:github.com)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "WebFetch(domain:expo-iap.hyo.dev)",
+      "Bash(xcrun simctl spawn:*)",
+      "Bash(/opt/homebrew/bin/ios-deploy --bundle /Users/hyo/Github/hyochan/kmp-iap/example/iosApp/build/DerivedData/Build/Products/Debug-iphoneos/kmp-iap-example.app -i 00008101-0006455036D8001E --noninteractive --justlaunch)",
+      "Bash(./run-ios.sh)",
+      "Bash(ios-deploy:*)",
+      "Bash(cp:*)",
+      "Bash(tree:*)",
+      "Bash(/Users/hyo/Github/hyochan/kmp-iap/.vscode/run_android.sh:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

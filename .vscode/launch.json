@@ -23,6 +23,27 @@
       "cwd": "${workspaceFolder}"
     },
     {
+      "name": "iOS Device",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "${workspaceFolder}/.vscode/run_ios_device.sh",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "iOS Device (Open in Xcode)",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "${workspaceFolder}/.vscode/run_ios_device_xcode.sh",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "iOS Device (Direct)",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "${workspaceFolder}/.vscode/run_ios_direct.sh",
+      "cwd": "${workspaceFolder}"
+    },
+    {
       "name": "Desktop Debug",
       "type": "node",
       "request": "launch",

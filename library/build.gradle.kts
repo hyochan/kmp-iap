@@ -86,10 +86,11 @@ criticalProperties.forEach { propName ->
 }
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.vanniktechMavenPublish)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.kotlinxSerialization)
     signing
 }
 
@@ -97,7 +98,6 @@ group = "io.github.hyochan"
 version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
 
 kotlin {
-    jvm()
     androidTarget {
         publishLibraryVariants("release")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -108,23 +108,24 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-    linuxX64()
-    
-    wasmJs {
-        binaries.executable()
-        browser()
-    }
 
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                api(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.datetime)
+                implementation(libs.kotlinx.serialization.json)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+            }
+        }
+        val androidMain by getting {
+            dependencies {
+                implementation(libs.billing)
+                implementation(libs.billing.ktx)
             }
         }
     }
@@ -162,14 +163,16 @@ tasks.withType<PublishToMavenRepository> {
     dependsOn(updateReadmeVersion)
 }
 
-mavenPublishing {
-    // Explicitly use Central Portal instead of legacy Sonatype
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-    
-    // Re-enable vanniktech signing to use its built-in signing mechanism
-    signAllPublications()
-    
-    coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
+// Only configure publishing when explicitly needed
+if (project.hasProperty("publishing.enabled") || System.getenv("CI") != null) {
+    mavenPublishing {
+        // Explicitly use Central Portal instead of legacy Sonatype
+        publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+        
+        // Re-enable vanniktech signing to use its built-in signing mechanism
+        signAllPublications()
+        
+        coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
     
     // Configure publications with empty Javadoc JAR (Maven Central compatible)
     configure(
@@ -216,6 +219,7 @@ mavenPublishing {
             url.set("https://github.com/hyochan/kmp-iap/issues")
         }
     }
+}
 }
 
 // Manual signing configuration (disabled in favor of vanniktech signing)
