@@ -176,7 +176,7 @@ mavenPublishing {
     
     pom {
         name.set("KMP IAP")
-        description.set("A Kotlin Multiplatform library for in app purchase on Android, iOS, Desktop, and Web platforms")
+        description.set("A Kotlin Multiplatform library for in app purchase on Android and iOS platforms")
         inceptionYear.set("2025")
         url.set("https://github.com/hyochan/kmp-iap")
         
