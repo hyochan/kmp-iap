@@ -16,10 +16,10 @@ This project provides a complete API structure matching Flutter/expo-iap with:
 - ✅ Event flow architecture using Kotlin Coroutines
 - ✅ Android implementation (Google Play Billing Library v8)
 - ✅ useIap Hook for easy state management
-- 🚧 iOS implementation (StoreKit)
+- ✅ iOS implementation (StoreKit)
+- ✅ Example app implementation
 - ❌ Receipt validation implementation
 - ❌ Complete test coverage
-- ❌ Example app implementation
 
 ## Supported Platforms
 
