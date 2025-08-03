@@ -1,4 +1,5 @@
 rootProject.name = "KotlinProject"
+include(":composeApp")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -25,6 +26,13 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        mavenLocal()
+    }
+    
+    versionCatalogs {
+        create("libs") {
+            from(files("../gradle/libs.versions.toml"))
+        }
     }
 }
 
@@ -32,5 +40,9 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":library")
-project(":library").projectDir = file("../library")
+includeBuild("..") {
+    dependencySubstitution {
+        substitute(module("io.github.hyochan:kmp-iap")).using(project(":library"))
+    }
+}
+

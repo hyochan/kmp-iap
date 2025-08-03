@@ -97,7 +97,6 @@ group = "io.github.hyochan"
 version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
 
 kotlin {
-    jvm()
     androidTarget {
         publishLibraryVariants("release")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -108,12 +107,6 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-    linuxX64()
-    
-    wasmJs {
-        binaries.executable()
-        browser()
-    }
 
     sourceSets {
         val commonMain by getting {
@@ -167,7 +160,9 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     
     // Re-enable vanniktech signing to use its built-in signing mechanism
-    signAllPublications()
+    if (project.hasProperty("signingInMemoryKey")) {
+        signAllPublications()
+    }
     
     coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
     

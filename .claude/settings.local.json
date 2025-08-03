@@ -16,7 +16,10 @@
       "Bash(git commit:*)",
       "WebFetch(domain:vanniktech.github.io)",
       "WebFetch(domain:github.com)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git stash:*)",
+      "Bash(diff:*)",
+      "Bash(gh pr comment:*)"
     ],
     "deny": []
   }
