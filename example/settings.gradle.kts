@@ -1,4 +1,5 @@
 rootProject.name = "KotlinProject"
+include(":composeApp")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
