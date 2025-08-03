@@ -86,8 +86,8 @@ criticalProperties.forEach { propName ->
 }
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidLibrary)
     alias(libs.plugins.vanniktechMavenPublish)
     alias(libs.plugins.dokka)
     signing
@@ -97,7 +97,6 @@ group = "io.github.hyochan"
 version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
 
 kotlin {
-    jvm()
     androidTarget {
         publishLibraryVariants("release")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -108,12 +107,6 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-    linuxX64()
-    
-    wasmJs {
-        binaries.executable()
-        browser()
-    }
 
     sourceSets {
         val commonMain by getting {

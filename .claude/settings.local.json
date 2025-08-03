@@ -17,7 +17,8 @@
       "WebFetch(domain:vanniktech.github.io)",
       "WebFetch(domain:github.com)",
       "Bash(rm:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(diff:*)"
     ],
     "deny": []
   }

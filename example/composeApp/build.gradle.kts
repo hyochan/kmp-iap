@@ -1,13 +1,11 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.compose.multiplatform)
-    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
@@ -20,8 +18,6 @@ kotlin {
         instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
     }
 
-    jvm("desktop")
-
     listOf(
         iosX64(),
         iosArm64(),
@@ -33,20 +29,7 @@ kotlin {
         }
     }
 
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        moduleName = "kmpIapExample"
-        browser {
-            commonWebpackConfig {
-                outputFileName = "kmpIapExample.js"
-            }
-        }
-        binaries.executable()
-    }
-
     sourceSets {
-        val desktopMain by getting
-        
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -59,25 +42,19 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
-            implementation(libs.kotlinx.coroutines.android)
             implementation(compose.preview)
-        }
-
-        desktopMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }
 
 android {
     namespace = "io.github.hyochan.kmpiap.example"
-    compileSdk = libs.versions.compileSdk.get().toInt()
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "io.github.hyochan.kmpiap.example"
-        minSdk = libs.versions.minSdk.get().toInt()
-        targetSdk = libs.versions.targetSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+        targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
     }
@@ -100,14 +77,3 @@ android {
     }
 }
 
-compose.desktop {
-    application {
-        mainClass = "MainKt"
-
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.hyochan.kmpiap.example"
-            packageVersion = "1.0.0"
-        }
-    }
-}
