@@ -210,18 +210,10 @@ class UseIap(
         }
     }
     
-    /**
-     * Get products from store (deprecated - use requestProducts)
-     * @deprecated Use requestProducts instead
-     */
     suspend fun getProducts(skus: List<String>): List<Product> {
         return requestProducts(RequestProductsParams(skus, PurchaseType.INAPP))
     }
     
-    /**
-     * Get subscriptions from store (deprecated - use requestProducts)
-     * @deprecated Use requestProducts instead
-     */
     suspend fun getSubscriptions(skus: List<String>): List<Subscription> {
         println("[UseIap] getSubscriptions called with skus: $skus")
         return try {
