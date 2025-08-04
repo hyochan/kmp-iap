@@ -320,6 +320,7 @@ cp local.properties.template local.properties
 ### VS Code Integration
 
 The project includes VS Code launch configurations for common tasks:
+
 - Build/test library
 - Run example applications
 - Publish to Maven repositories
@@ -331,6 +332,7 @@ Open the project in VS Code and use **Run and Debug** panel.
 ## Example App
 
 The project includes a Compose Multiplatform example app demonstrating library usage:
+
 - Android, iOS, Desktop, and Web support
 - Basic UI showcasing IAP integration (to be implemented)
 - Located in the `example/` directory
