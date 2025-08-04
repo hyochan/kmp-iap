@@ -349,8 +349,7 @@ suspend fun purchaseWithOffer(iapHelper: UseIap) {
 Once iOS setup is complete:
 
 1. **[Basic Implementation](/docs/guides/purchases)** - Start implementing purchases
-2. **[Testing Guide](/docs/guides/testing)** - Test your implementation thoroughly
-3. **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
+2. **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
 
 ---
 

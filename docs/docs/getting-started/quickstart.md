@@ -175,7 +175,7 @@ class StoreViewModel : ViewModel() {
 
 ## Next Steps
 
-- Learn about [Product Management](../guides/products.md)
+- Learn about [Basic Setup](../guides/basic-setup.md)
 - Understand [Purchase Flow](../guides/purchases.md)
-- Implement [Receipt Validation](../guides/receipt-validation.md)
-- Handle [Subscriptions](../guides/subscriptions.md)
+- Master [Purchase Lifecycle](../guides/lifecycle.md)
+- Check [Troubleshooting](../guides/troubleshooting.md)

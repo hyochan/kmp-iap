@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # Types
 
-Comprehensive type definitions for kmp-iap v1.0.0. All types are fully documented with Kotlin data classes for complete type safety.
+Comprehensive type definitions for kmp-iap v1.0.0-beta.2. All types are fully documented with Kotlin data classes for complete type safety.
 
 ## Core Types
 
@@ -432,4 +432,4 @@ inline fun <reified T> Any.safeCast(): T? {
 
 - [Core Methods](./core-methods.md) - Using these types in method calls
 - [Error Codes](./error-codes.md) - Detailed error handling
-- [Migration Guide](../migration/from-flutter.md) - Migrating from Flutter
+- [FAQ](../guides/faq.md) - Including Flutter to KMP migration tips

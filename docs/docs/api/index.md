@@ -3,9 +3,13 @@ title: API Reference
 sidebar_position: 1
 ---
 
+import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+
 # API Reference
 
-Complete reference for kmp-iap v1.0.0 - A unified Kotlin Multiplatform API for implementing in-app purchases across iOS and Android platforms.
+<AdFitTopFixed />
+
+Complete reference for kmp-iap v1.0.0-beta.2 - A unified Kotlin Multiplatform API for implementing in-app purchases across iOS and Android platforms.
 
 ## Available APIs
 
@@ -91,6 +95,6 @@ kmp-iap provides full type safety with Kotlin's strong typing and coroutines sup
 ## Need Help?
 
 - Check our [Troubleshooting Guide](../guides/troubleshooting.md)
-- Review [Migration Guide](../migration/from-flutter.md) for Flutter to KMP migration
+- Review Flutter to KMP migration tips in our [FAQ](../guides/faq.md)
 - Browse [example implementations](https://github.com/hyochan/kmp-iap/tree/main/example)
 - Join the [Kotlin Community](https://kotlinlang.org/community/) for support

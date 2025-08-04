@@ -4,7 +4,11 @@ sidebar_label: Introduction
 sidebar_position: 1
 ---
 
+import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+
 # 🛒 kmp-iap
+
+<AdFitTopFixed />
 
 A comprehensive Kotlin Multiplatform library for implementing in-app purchases on iOS and Android platforms.
 
@@ -51,7 +55,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-alpha04
+- **Current Version**: 1.0.0-beta.2
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 11.0+
 - **Android Requirements**: API level 24+
@@ -63,7 +67,7 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha04")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
 }
 ```
 

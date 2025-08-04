@@ -5,7 +5,7 @@ sidebar_position: 6
 
 # Error Codes
 
-Comprehensive error handling reference for kmp-iap v1.0.0. Understanding error codes helps implement robust error recovery and provide better user experiences.
+Comprehensive error handling reference for kmp-iap v1.0.0-beta.2. Understanding error codes helps implement robust error recovery and provide better user experiences.
 
 ## Error Types
 
@@ -653,5 +653,5 @@ Key differences in error handling:
 
 - [Core Methods](./core-methods.md) - Methods that may throw errors
 - [State Management](./listeners.md) - Error state observation
-- [Troubleshooting](../troubleshooting.md) - Common error solutions
-- [Examples](../examples/error-handling.md) - Complete error handling examples
+- [Troubleshooting](../guides/troubleshooting.md) - Common error solutions
+- [Examples](../examples/complete-implementation.md) - Complete error handling examples

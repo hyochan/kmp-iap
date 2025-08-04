@@ -1,0 +1,114 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--ifm-background-color) 0%, var(--hero-background) 100%);
+}
+
+.featureEmoji {
+  font-size: 4rem;
+  line-height: 1;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #f5f0e8 100%);
+  box-shadow: 0 8px 25px rgba(184, 149, 106, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.featureEmoji:hover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 35px rgba(184, 149, 106, 0.25);
+}
+
+/* Feature title and description styling */
+.features h3 {
+  color: var(--ifm-color-primary-darkest);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.features p {
+  color: var(--ifm-font-color-base);
+  line-height: 1.6;
+}
+
+.features a {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+.features a:hover {
+  color: var(--ifm-color-primary-dark);
+}
+
+/* Grid adjustments */
+.features .container {
+  max-width: 1200px;
+}
+
+.features .row {
+  margin: 0 -1rem;
+}
+
+.features .col {
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Mobile responsive styles */
+@media screen and (max-width: 996px) {
+  .features {
+    padding: 3rem 0;
+  }
+  
+  .features .col--4 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .features {
+    padding: 2rem 1rem;
+  }
+  
+  .featureEmoji {
+    width: 100px;
+    height: 100px;
+    font-size: 3rem;
+  }
+  
+  .features .col--4 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .featureEmoji {
+    width: 80px;
+    height: 80px;
+    font-size: 2.5rem;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .features {
+  background: linear-gradient(to bottom, var(--ifm-background-color) 0%, var(--hero-background) 100%);
+}
+
+[data-theme='dark'] .featureEmoji {
+  background: linear-gradient(135deg, #3a3530 0%, #4a453a 100%);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .featureEmoji:hover {
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+}

@@ -3,9 +3,13 @@ sidebar_position: 3
 title: Purchases
 ---
 
+import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+
 # Purchases
 
-Complete guide to implementing in-app purchases with kmp-iap v1.0.0, covering everything from basic setup to advanced purchase handling using Kotlin Multiplatform.
+<AdFitTopFixed />
+
+Complete guide to implementing in-app purchases with kmp-iap v1.0.0-beta.2, covering everything from basic setup to advanced purchase handling using Kotlin Multiplatform.
 
 ## Purchase Flow Overview
 
@@ -729,4 +733,4 @@ fun PurchaseScreen(viewModel: PurchaseService = viewModel()) {
 }
 ```
 
-This guide covers the complete purchase flow using the kmp-iap v1.0.0 API, with examples demonstrating the Kotlin Multiplatform approach to in-app purchases.
+This guide covers the complete purchase flow using the kmp-iap v1.0.0-beta.2 API, with examples demonstrating the Kotlin Multiplatform approach to in-app purchases.

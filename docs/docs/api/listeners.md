@@ -1,575 +1,491 @@
 ---
-title: State Management
+title: Listeners
 sidebar_position: 4
 ---
 
-# State Management
+# Listeners
 
-Real-time state management using Kotlin StateFlow for monitoring purchase transactions, connection states, and other IAP events in kmp-iap v1.0.0.
+Event listeners and flow collectors for monitoring purchase updates, errors, and connection states in kmp-iap v1.0.0-beta.2.
 
-## Core StateFlow Properties
+## Purchase Update Listener
 
-### Connection State
+### purchaseUpdatedFlow
+
+```kotlin
+val purchaseUpdatedFlow: SharedFlow<Purchase>
+```
+
+**Type**: `SharedFlow<Purchase>`  
+**Description**: Emits purchase updates when transactions occur  
+**Emission**: Triggered on successful purchase completion
+
+**Example**:
+```kotlin
+import kotlinx.coroutines.flow.collectLatest
+
+class PurchaseManager(private val iap: InAppPurchase) {
+    
+    init {
+        scope.launch {
+            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+                println("Purchase updated: ${purchase.productId}")
+                println("Transaction ID: ${purchase.transactionId}")
+                println("State: ${purchase.purchaseState}")
+                
+                // Handle purchase based on state
+                when (purchase.purchaseState) {
+                    PurchaseState.PURCHASED -> {
+                        handleSuccessfulPurchase(purchase)
+                    }
+                    PurchaseState.PENDING -> {
+                        handlePendingPurchase(purchase)
+                    }
+                    else -> {
+                        println("Unexpected purchase state")
+                    }
+                }
+            }
+        }
+    }
+    
+    private suspend fun handleSuccessfulPurchase(purchase: Purchase) {
+        // Validate purchase
+        validatePurchase(purchase)
+        
+        // Grant entitlement
+        grantEntitlement(purchase.productId)
+        
+        // Finish transaction
+        iap.finishTransaction(purchase, isConsumable = true)
+    }
+}
+```
+
+---
+
+## Error Listener
+
+### purchaseErrorFlow
+
+```kotlin
+val purchaseErrorFlow: SharedFlow<PurchaseError>
+```
+
+**Type**: `SharedFlow<PurchaseError>`  
+**Description**: Emits errors that occur during purchase operations  
+**Emission**: Triggered on any purchase-related error
+
+**Example**:
+```kotlin
+scope.launch {
+    iap.purchaseErrorFlow.collectLatest { error ->
+        println("Purchase error: ${error.message}")
+        println("Error code: ${error.code}")
+        
+        when (error.code) {
+            ErrorCode.USER_CANCELLED -> {
+                // User cancelled, no action needed
+                println("User cancelled the purchase")
+            }
+            ErrorCode.NETWORK_ERROR -> {
+                showRetryDialog("Network error. Please check your connection.")
+            }
+            ErrorCode.ITEM_UNAVAILABLE -> {
+                showError("This item is not available in your region.")
+            }
+            ErrorCode.ALREADY_OWNED -> {
+                showInfo("You already own this item.")
+                refreshOwnedPurchases()
+            }
+            else -> {
+                showError("Purchase failed: ${error.message}")
+            }
+        }
+    }
+}
+```
+
+---
+
+## Connection State Listener
+
+### Connection Flow (via UseIap)
 
 ```kotlin
 val isConnected: StateFlow<Boolean>
 ```
 
 **Type**: `StateFlow<Boolean>`  
-**Description**: Current connection status to the store  
+**Description**: Connection state to the store service  
 **Initial Value**: `false`
 
 **Example**:
 ```kotlin
-import kotlinx.coroutines.flow.collectLatest
+// Direct connection monitoring
+scope.launch {
+    iapHelper.isConnected.collectLatest { connected ->
+        if (connected) {
+            enablePurchaseButtons()
+            loadProducts()
+        } else {
+            disablePurchaseButtons()
+            showConnectionError()
+        }
+    }
+}
 
-class IAPViewModel(private val iapHelper: UseIap) {
+// Connection state with retry
+class ConnectionManager(private val iap: InAppPurchase) {
+    private var retryCount = 0
+    private val maxRetries = 3
     
     init {
-        // Observe connection state
+        monitorConnection()
+    }
+    
+    private fun monitorConnection() {
         scope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                if (connected) {
-                    println("Store connected - ready for purchases")
-                    loadProducts()
-                } else {
-                    println("Store disconnected")
-                    disablePurchaseUI()
+            iap.isConnected.collectLatest { connected ->
+                if (!connected && retryCount < maxRetries) {
+                    delay(2000 * (retryCount + 1)) // Exponential backoff
+                    retryCount++
+                    try {
+                        iap.initConnection()
+                    } catch (e: Exception) {
+                        println("Retry failed: ${e.message}")
+                    }
+                } else if (connected) {
+                    retryCount = 0
                 }
             }
         }
     }
-    
-    // Get current state
-    fun checkConnection(): Boolean {
-        return iapHelper.isConnected.value
-    }
 }
 ```
 
 ---
 
-### Product Lists
+## Platform-Specific Listeners
+
+### iOS Promoted Product Listener
 
 ```kotlin
-val products: StateFlow<List<Product>>
-val subscriptions: StateFlow<List<Product>>
+val promotedProductIOS: StateFlow<Product?>
 ```
 
-**Type**: `StateFlow<List<Product>>`  
-**Description**: Available products and subscriptions  
-**Initial Value**: Empty list
-
-**Example**:
-```kotlin
-// Observe product updates
-scope.launch {
-    iapHelper.products.collectLatest { productList ->
-        updateProductUI(productList)
-    }
-}
-
-// Observe subscription updates
-scope.launch {
-    iapHelper.subscriptions.collectLatest { subList ->
-        updateSubscriptionUI(subList)
-    }
-}
-
-// Get current products
-fun getCurrentProducts(): List<Product> {
-    return iapHelper.products.value
-}
-```
-
----
-
-### Purchase States
-
-```kotlin
-val currentPurchase: StateFlow<Purchase?>
-val availablePurchases: StateFlow<List<Purchase>>
-val purchaseHistories: StateFlow<List<Purchase>>
-```
-
-**Types**: 
-- `StateFlow<Purchase?>` - Current active purchase
-- `StateFlow<List<Purchase>>` - Available and historical purchases
-
-**Example**:
-```kotlin
-// Observe current purchase
-scope.launch {
-    iapHelper.currentPurchase.collectLatest { purchase ->
-        purchase?.let {
-            handlePurchaseSuccess(it)
-        }
-    }
-}
-
-// Observe available purchases
-scope.launch {
-    iapHelper.availablePurchases.collectLatest { purchases ->
-        updateOwnedProducts(purchases)
-    }
-}
-```
-
----
-
-### Error State
-
-```kotlin
-val currentError: StateFlow<PurchaseError?>
-```
-
-**Type**: `StateFlow<PurchaseError?>`  
-**Description**: Current error state  
-**Initial Value**: `null`
-
-**Example**:
-```kotlin
-scope.launch {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            showErrorDialog(it)
-            // Clear error after showing
-            iapHelper.clearError()
-        }
-    }
-}
-```
-
-## Complete State Management Example
-
-### ViewModel Implementation
-
-```kotlin
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-
-class PurchaseViewModel : ViewModel() {
-    private val scope = viewModelScope
-    private val iapHelper = UseIap(
-        scope = scope,
-        options = UseIapOptions()
-    )
-    
-    // UI State
-    data class IAPState(
-        val isConnected: Boolean = false,
-        val products: List<Product> = emptyList(),
-        val subscriptions: List<Product> = emptyList(),
-        val ownedProducts: List<Purchase> = emptyList(),
-        val currentPurchase: Purchase? = null,
-        val error: PurchaseError? = null,
-        val isLoading: Boolean = false
-    )
-    
-    private val _uiState = MutableStateFlow(IAPState())
-    val uiState: StateFlow<IAPState> = _uiState.asStateFlow()
-    
-    init {
-        // Combine all states into UI state
-        combine(
-            iapHelper.isConnected,
-            iapHelper.products,
-            iapHelper.subscriptions,
-            iapHelper.availablePurchases,
-            iapHelper.currentPurchase,
-            iapHelper.currentError
-        ) { connected, products, subs, owned, purchase, error ->
-            IAPState(
-                isConnected = connected,
-                products = products,
-                subscriptions = subs,
-                ownedProducts = owned,
-                currentPurchase = purchase,
-                error = error,
-                isLoading = false
-            )
-        }.onEach { state ->
-            _uiState.value = state
-        }.launchIn(scope)
-        
-        // Initialize connection
-        initializeIAP()
-    }
-    
-    private fun initializeIAP() {
-        scope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true) }
-                iapHelper.initConnection()
-            } catch (e: PurchaseError) {
-                // Error will be handled by error state flow
-            } finally {
-                _uiState.update { it.copy(isLoading = false) }
-            }
-        }
-    }
-    
-    fun loadProducts(skus: List<String>) {
-        scope.launch {
-            try {
-                iapHelper.getProducts(skus)
-                // Products will be updated via StateFlow
-            } catch (e: PurchaseError) {
-                // Error will be handled by error state flow
-            }
-        }
-    }
-    
-    fun purchaseProduct(productId: String) {
-        scope.launch {
-            try {
-                iapHelper.requestPurchase(
-                    sku = productId,
-                    obfuscatedAccountIdAndroid = getUserId()
-                )
-                // Purchase result will be emitted via currentPurchase
-            } catch (e: PurchaseError) {
-                // Error will be handled by error state flow
-            }
-        }
-    }
-    
-    fun clearError() {
-        iapHelper.clearError()
-    }
-    
-    override fun onCleared() {
-        super.onCleared()
-        iapHelper.dispose()
-    }
-}
-```
-
-### Compose UI Integration
-
-```kotlin
-@Composable
-fun PurchaseScreen(viewModel: PurchaseViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-    
-    LaunchedEffect(uiState.currentPurchase) {
-        uiState.currentPurchase?.let { purchase ->
-            // Handle successful purchase
-            showSuccessMessage("Purchase successful: ${purchase.productId}")
-            viewModel.finishTransaction(purchase)
-        }
-    }
-    
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            // Show error dialog
-            showErrorDialog(error.message)
-            viewModel.clearError()
-        }
-    }
-    
-    Column {
-        // Connection indicator
-        ConnectionStatus(isConnected = uiState.isConnected)
-        
-        // Products list
-        LazyColumn {
-            items(uiState.products) { product ->
-                ProductCard(
-                    product = product,
-                    onPurchase = { viewModel.purchaseProduct(product.productId) },
-                    isOwned = uiState.ownedProducts.any { it.productId == product.productId }
-                )
-            }
-        }
-        
-        // Loading overlay
-        if (uiState.isLoading) {
-            CircularProgressIndicator()
-        }
-    }
-}
-```
-
-## Platform-Specific States
-
-### iOS Promoted Products
-
-```kotlin
-val promotedProductsIOS: StateFlow<List<Product>?>
-```
-
-**Type**: `StateFlow<List<Product>?>`  
+**Type**: `StateFlow<Product?>`  
 **Platform**: iOS only  
-**Description**: Products promoted from App Store
+**Description**: Product promoted from App Store that triggered app launch
 
 **Example**:
 ```kotlin
 if (getCurrentPlatform() == IAPPlatform.IOS) {
     scope.launch {
-        iapHelper.promotedProductsIOS.collectLatest { promotedProducts ->
-            promotedProducts?.let {
-                showPromotedProducts(it)
+        iapHelper.promotedProductIOS.collectLatest { product ->
+            product?.let {
+                // Show promoted product immediately
+                showProductDetail(it)
+                
+                // Optionally auto-purchase
+                if (userSettings.autoPromotedPurchase) {
+                    iapHelper.buyPromotedProductIOS()
+                }
             }
         }
     }
 }
 ```
 
-## State Flow Patterns
+### Android Billing Client State
 
-### Hot vs Cold Observables
-
-StateFlow is hot - it maintains current state even without collectors:
+While not exposed as a direct flow, Android billing client state changes can be monitored:
 
 ```kotlin
-// StateFlow retains latest value
-val currentProducts = iapHelper.products.value // Get current value immediately
-
-// Multiple collectors share the same state
+// Monitor through connection state
 scope.launch {
-    iapHelper.products.collect { /* Collector 1 */ }
-}
-scope.launch {
-    iapHelper.products.collect { /* Collector 2 - gets same values */ }
+    iap.isConnected.collectLatest { connected ->
+        if (connected) {
+            // BillingClient is ready
+            println("Google Play Billing connected")
+        } else {
+            // BillingClient disconnected
+            println("Google Play Billing disconnected")
+        }
+    }
 }
 ```
 
-### Combining States
+---
 
-Combine multiple states for complex UI:
+## Advanced Listener Patterns
+
+### Combined Listeners
+
+Monitor multiple events simultaneously:
 
 ```kotlin
-data class ProductWithOwnership(
-    val product: Product,
-    val isOwned: Boolean,
-    val isPurchasing: Boolean
-)
+class PurchaseFlowManager(private val iap: InAppPurchase) {
+    
+    init {
+        // Combine purchase and error flows
+        scope.launch {
+            merge(
+                iap.purchaseUpdatedFlow.map { PurchaseEvent.Success(it) },
+                iap.purchaseErrorFlow.map { PurchaseEvent.Error(it) }
+            ).collectLatest { event ->
+                when (event) {
+                    is PurchaseEvent.Success -> handleSuccess(event.purchase)
+                    is PurchaseEvent.Error -> handleError(event.error)
+                }
+            }
+        }
+    }
+    
+    sealed class PurchaseEvent {
+        data class Success(val purchase: Purchase) : PurchaseEvent()
+        data class Error(val error: PurchaseError) : PurchaseEvent()
+    }
+}
+```
 
-val productsWithOwnership = combine(
-    iapHelper.products,
-    iapHelper.availablePurchases,
-    iapHelper.currentPurchase
-) { products, purchases, currentPurchase ->
-    products.map { product ->
-        ProductWithOwnership(
-            product = product,
-            isOwned = purchases.any { it.productId == product.productId },
-            isPurchasing = currentPurchase?.productId == product.productId
+### Filtered Listeners
+
+Listen for specific events:
+
+```kotlin
+// Only listen for subscription purchases
+iap.purchaseUpdatedFlow
+    .filter { purchase ->
+        purchase.products.any { it.type == PurchaseType.SUBS }
+    }
+    .collectLatest { subscriptionPurchase ->
+        handleSubscriptionPurchase(subscriptionPurchase)
+    }
+
+// Only listen for specific error types
+iap.purchaseErrorFlow
+    .filter { error ->
+        error.code in listOf(
+            ErrorCode.NETWORK_ERROR,
+            ErrorCode.SERVICE_UNAVAILABLE
         )
     }
-}.stateIn(
-    scope = scope,
-    started = SharingStarted.WhileSubscribed(5000),
-    initialValue = emptyList()
-)
+    .collectLatest { networkError ->
+        scheduleRetry()
+    }
 ```
 
-### Debouncing and Throttling
+### Debounced Listeners
 
-Handle rapid state changes:
+Prevent rapid successive events:
 
 ```kotlin
-// Debounce error messages
-iapHelper.currentError
+// Debounce purchase updates
+iap.purchaseUpdatedFlow
     .debounce(500) // Wait 500ms for stable state
+    .collectLatest { purchase ->
+        updatePurchaseUI(purchase)
+    }
+
+// Throttle error messages
+iap.purchaseErrorFlow
+    .throttleLatest(2000) // Max one error dialog per 2 seconds
     .collectLatest { error ->
-        error?.let { showError(it) }
+        showErrorDialog(error)
     }
-
-// Throttle purchase requests
-private val purchaseRequests = MutableSharedFlow<String>()
-
-init {
-    purchaseRequests
-        .throttleLatest(1000) // Max one purchase per second
-        .collectLatest { productId ->
-            iapHelper.requestPurchase(productId)
-        }
-}
 ```
 
-## Error Handling Best Practices
+---
 
-### Centralized Error Handling
+## Lifecycle-Aware Listeners
 
-```kotlin
-class ErrorHandler(private val iapHelper: UseIap) {
-    init {
-        scope.launch {
-            iapHelper.currentError.collectLatest { error ->
-                error?.let {
-                    when (it.code) {
-                        ErrorCode.USER_CANCELLED -> {
-                            // Don't show error for user cancellation
-                            println("User cancelled purchase")
-                        }
-                        ErrorCode.NETWORK_ERROR -> {
-                            showRetryableError("Network error. Please try again.")
-                        }
-                        ErrorCode.ALREADY_OWNED -> {
-                            showInfo("You already own this item.")
-                            refreshPurchases()
-                        }
-                        else -> {
-                            showError(it.message)
-                        }
-                    }
-                    
-                    // Clear error after handling
-                    iapHelper.clearError()
-                }
-            }
-        }
-    }
-}
-```
-
-### State Recovery
-
-Implement state recovery mechanisms:
-
-```kotlin
-class IAPStateManager(private val iapHelper: UseIap) {
-    private var lastKnownProducts: List<Product> = emptyList()
-    
-    init {
-        // Save last known good state
-        scope.launch {
-            iapHelper.products.collectLatest { products ->
-                if (products.isNotEmpty()) {
-                    lastKnownProducts = products
-                }
-            }
-        }
-        
-        // Monitor connection and recover
-        scope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                if (!connected) {
-                    scheduleReconnection()
-                }
-            }
-        }
-    }
-    
-    private fun scheduleReconnection() {
-        scope.launch {
-            delay(5000) // Wait 5 seconds
-            try {
-                iapHelper.initConnection()
-                // Reload products with last known SKUs
-                if (lastKnownProducts.isNotEmpty()) {
-                    val skus = lastKnownProducts.map { it.productId }
-                    iapHelper.getProducts(skus)
-                }
-            } catch (e: Exception) {
-                // Retry again
-                scheduleReconnection()
-            }
-        }
-    }
-}
-```
-
-## Performance Optimization
-
-### Lazy Collection
-
-Only collect when needed:
+### Compose Integration
 
 ```kotlin
 @Composable
-fun ProductList(viewModel: PurchaseViewModel) {
+fun PurchaseScreen(iap: InAppPurchase) {
     val lifecycleOwner = LocalLifecycleOwner.current
     
-    DisposableEffect(lifecycleOwner) {
-        val job = lifecycleOwner.lifecycleScope.launch {
-            lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.iapHelper.products.collectLatest { products ->
-                    // Only collect when screen is visible
-                    updateUI(products)
+    // Purchase updates
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+                // Only collect when screen is visible
+                showPurchaseSuccess(purchase)
+            }
+        }
+    }
+    
+    // Error handling
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            iap.purchaseErrorFlow.collectLatest { error ->
+                showErrorSnackbar(error.message)
+            }
+        }
+    }
+}
+```
+
+### Activity/Fragment Integration
+
+```kotlin
+class PurchaseActivity : AppCompatActivity() {
+    private lateinit var iap: InAppPurchase
+    private val purchaseJobs = mutableListOf<Job>()
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        iap = createInAppPurchase()
+        setupListeners()
+    }
+    
+    private fun setupListeners() {
+        // Lifecycle-aware collection
+        purchaseJobs += lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                iap.purchaseUpdatedFlow.collectLatest { purchase ->
+                    handlePurchaseUpdate(purchase)
                 }
             }
         }
         
-        onDispose {
-            job.cancel()
+        purchaseJobs += lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                iap.purchaseErrorFlow.collectLatest { error ->
+                    handlePurchaseError(error)
+                }
+            }
         }
+    }
+    
+    override fun onDestroy() {
+        // Clean up listeners
+        purchaseJobs.forEach { it.cancel() }
+        purchaseJobs.clear()
+        super.onDestroy()
     }
 }
 ```
 
-### State Caching
+---
 
-Cache expensive computations:
+## Error Recovery Strategies
+
+### Automatic Retry with Listeners
 
 ```kotlin
-private val _sortedProducts = MutableStateFlow<List<Product>>(emptyList())
-val sortedProducts: StateFlow<List<Product>> = _sortedProducts
-
-init {
-    iapHelper.products
-        .map { products ->
-            // Expensive sorting operation
-            products.sortedBy { it.priceAmountMicros }
+class ResilientPurchaseManager(private val iap: InAppPurchase) {
+    private val retryDelays = listOf(1000L, 2000L, 4000L, 8000L)
+    private val retryAttempts = mutableMapOf<String, Int>()
+    
+    init {
+        scope.launch {
+            iap.purchaseErrorFlow.collectLatest { error ->
+                when (error.code) {
+                    ErrorCode.NETWORK_ERROR,
+                    ErrorCode.SERVICE_UNAVAILABLE -> {
+                        scheduleRetry(error)
+                    }
+                    else -> {
+                        // Non-retryable error
+                        resetRetryCount(error.message)
+                    }
+                }
+            }
         }
-        .distinctUntilChanged()
-        .onEach { sorted ->
-            _sortedProducts.value = sorted
+        
+        scope.launch {
+            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+                // Success - reset retry count
+                resetRetryCount(purchase.productId)
+            }
         }
-        .launchIn(scope)
+    }
+    
+    private suspend fun scheduleRetry(error: PurchaseError) {
+        val attempt = retryAttempts.getOrDefault(error.message, 0)
+        if (attempt < retryDelays.size) {
+            delay(retryDelays[attempt])
+            retryAttempts[error.message] = attempt + 1
+            // Retry the operation
+            retryLastOperation()
+        }
+    }
+    
+    private fun resetRetryCount(key: String) {
+        retryAttempts.remove(key)
+    }
 }
 ```
 
-## Testing
+---
 
-### Mock StateFlow for Testing
+## Testing Listeners
+
+### Mock Flow Testing
 
 ```kotlin
-class MockUseIap : UseIap {
-    private val _isConnected = MutableStateFlow(false)
-    override val isConnected: StateFlow<Boolean> = _isConnected
+class MockInAppPurchase : InAppPurchase {
+    private val _purchaseUpdated = MutableSharedFlow<Purchase>()
+    override val purchaseUpdatedFlow: SharedFlow<Purchase> = _purchaseUpdated
     
-    private val _products = MutableStateFlow<List<Product>>(emptyList())
-    override val products: StateFlow<List<Product>> = _products
+    private val _purchaseError = MutableSharedFlow<PurchaseError>()
+    override val purchaseErrorFlow: SharedFlow<PurchaseError> = _purchaseError
     
     // Test helpers
-    fun setConnected(connected: Boolean) {
-        _isConnected.value = connected
+    suspend fun emitPurchase(purchase: Purchase) {
+        _purchaseUpdated.emit(purchase)
     }
     
-    fun setProducts(products: List<Product>) {
-        _products.value = products
+    suspend fun emitError(error: PurchaseError) {
+        _purchaseError.emit(error)
     }
 }
 
 // In tests
 @Test
-fun testPurchaseFlow() = runTest {
-    val mockIap = MockUseIap()
-    val viewModel = PurchaseViewModel(mockIap)
+fun testPurchaseListener() = runTest {
+    val mockIap = MockInAppPurchase()
+    var receivedPurchase: Purchase? = null
     
-    // Simulate connection
-    mockIap.setConnected(true)
+    val job = launch {
+        mockIap.purchaseUpdatedFlow.collect { purchase ->
+            receivedPurchase = purchase
+        }
+    }
     
-    // Verify UI state
-    assertEquals(true, viewModel.uiState.value.isConnected)
+    // Emit test purchase
+    val testPurchase = Purchase(
+        productId = "test_product",
+        transactionId = "12345"
+    )
+    mockIap.emitPurchase(testPurchase)
+    
+    // Verify
+    advanceUntilIdle()
+    assertEquals("test_product", receivedPurchase?.productId)
+    
+    job.cancel()
 }
 ```
 
+---
+
 ## Best Practices
 
-1. **Use collectLatest**: Cancels previous collection on new emission
-2. **Handle all states**: Don't assume non-null values
-3. **Clear errors**: Always clear error state after handling
-4. **Lifecycle awareness**: Cancel collections when not needed
-5. **Combine states**: Use `combine` for derived states
-6. **Test states**: Mock StateFlow for unit testing
+1. **Always collect in coroutine scope**: Prevent memory leaks
+2. **Use lifecycle-aware collection**: Stop listening when UI is not visible
+3. **Handle all error types**: Provide appropriate user feedback
+4. **Debounce/throttle when needed**: Prevent UI flooding
+5. **Clean up listeners**: Cancel jobs when no longer needed
+6. **Test listener behavior**: Mock flows for unit testing
+7. **Combine related flows**: Simplify complex event handling
 
 ## See Also
 
-- [Core Methods](./core-methods.md) - Methods that update state
-- [Types](./types.md) - State data structures
-- [Error Codes](./error-codes.md) - Error state handling
-- [Examples](../examples/basic-store.md) - Complete state management examples
+- [Use IAP Hook](./use-iap.md) - StateFlow properties and state management
+- [Core Methods](./core-methods.md) - Methods that trigger events
+- [Error Codes](./error-codes.md) - Complete error code reference
+- [Examples](../examples/complete-implementation.md) - Full listener implementation

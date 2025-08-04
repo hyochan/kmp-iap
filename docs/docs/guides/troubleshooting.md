@@ -17,7 +17,7 @@ Common issues and solutions when implementing in-app purchases with kmp-iap.
 ```kotlin
 // In your module's build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha02")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
     
     // Ensure correct Kotlin version
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.20")

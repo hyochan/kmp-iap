@@ -53,7 +53,7 @@ android {
 If using ProGuard/R8, add these rules to `androidApp/proguard-rules.pro`:
 
 ```proguard title="androidApp/proguard-rules.pro"
-# KMP In-App Purchase
+# KMP IAP
 -keep class io.github.hyochan.kmpiap.** { *; }
 -keep class com.android.vending.billing.**
 -keep class com.google.android.gms.** { *; }
@@ -379,8 +379,7 @@ suspend fun openSubscriptionManagement(iapHelper: UseIap) {
 Once Android setup is complete:
 
 1. **[Basic Implementation](/docs/guides/purchases)** - Start implementing purchases
-2. **[Testing Guide](/docs/guides/testing)** - Test your implementation thoroughly
-3. **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
+2. **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
 
 ---
 

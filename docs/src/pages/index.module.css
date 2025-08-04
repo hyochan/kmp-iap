@@ -20,4 +20,108 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+@media screen and (max-width: 480px) {
+  .buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .buttons > * {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
+.logoContainer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+
+.codeExample {
+  max-width: 800px;
+  margin: 2rem auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.codeExample pre {
+  margin: 0;
+  padding: 2rem;
+  background: #2d2d2d;
+  overflow-x: auto;
+  border: none;
+}
+
+.codeExample code {
+  color: #e8e8e8;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Code syntax highlighting */
+.codeExample .token-line {
+  display: block;
+}
+
+.codeExample .token.comment {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.codeExample .token.keyword {
+  color: #ff7b72;
+}
+
+.codeExample .token.string {
+  color: #a5d6ff;
+}
+
+.codeExample .token.function {
+  color: #d2a8ff;
+}
+
+.codeExample .token.operator {
+  color: #ff7b72;
+}
+
+.codeExample .token.punctuation {
+  color: #c9d1d9;
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .codeExample {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .codeExample pre {
+  background: #1e1e1e;
+}
+
+[data-theme='dark'] .logo {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
 }

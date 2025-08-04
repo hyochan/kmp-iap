@@ -1,7 +1,7 @@
 package io.github.hyochan.kmpiap
 
 /**
- * KMP In-App Purchase Library
+ * KMP IAP Library
  * Main entry point that exports all public APIs
  * 
  * This library provides a unified API for in-app purchases across iOS and Android,
