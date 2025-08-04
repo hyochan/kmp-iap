@@ -1,7 +1,7 @@
 # kmp-iap
 
 <p align="center">
-  <img src="https://kmp-iap.hyo.dev/img/logo.png" width="200" alt="kmp-iap logo" />
+  <img src="https://private-user-images.githubusercontent.com/27461460/473827950-93810638-a5f2-48f7-9ed7-863efc569b02.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTQyNjY1MzIsIm5iZiI6MTc1NDI2NjIzMiwicGF0aCI6Ii8yNzQ2MTQ2MC80NzM4Mjc5NTAtOTM4MTA2MzgtYTVmMi00OGY3LTllZDctODYzZWZjNTY5YjAyLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTA4MDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwODA0VDAwMTAzMlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTBjYzc5ZTYxZWQyNTVlY2QzNGY3YTE2YjUyZDg5MTQyZjllYzM4MzU4MTdmYmUxNWE2ZWRmODgxNjc3MGU0NzAmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.HA94pmSJaYLR6FU7XMBSzyMRGzlwfNVc4Sj0wU74lZc" width="200" alt="kmp-iap logo" />
 </p>
 
 <p align="center">
