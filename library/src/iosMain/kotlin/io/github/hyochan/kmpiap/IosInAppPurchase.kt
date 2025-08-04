@@ -69,6 +69,10 @@ private class PaymentObserver : NSObject(), SKPaymentTransactionObserverProtocol
                     // Deferred
                     deferredHandler?.invoke(transaction)
                 }
+                else -> {
+                    // Unknown state - log for debugging
+                    println("[KMP-IAP] Unknown transaction state: ${transaction.transactionState}")
+                }
             }
         }
     }
