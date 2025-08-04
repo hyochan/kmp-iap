@@ -5,13 +5,15 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'KMP In-App Purchase',
+  title: 'KMP IAP',
   tagline: 'A Kotlin Multiplatform library for in-app purchases on iOS and Android',
   favicon: 'img/favicon.ico',
 
-  // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
-  future: {
-    v4: true, // Improve compatibility with the upcoming Docusaurus v4
+  // Custom fields can be used for any configuration not recognized by Docusaurus
+  customFields: {
+    future: {
+      v4: true, // Improve compatibility with the upcoming Docusaurus v4
+    },
   },
 
   // Set the production url of your site here
@@ -53,18 +55,17 @@ const config: Config = {
             },
           },
           lastVersion: 'current',
+          // Import MDX components
+          beforeDefaultRemarkPlugins: [],
+          remarkPlugins: [],
         },
         blog: {
           showReadingTime: true,
           feedOptions: {
             type: ['rss', 'atom'],
-            xslt: true,
           },
           editUrl:
             'https://github.com/hyochan/kmp-iap/tree/main/docs/',
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -101,19 +102,19 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://search.maven.org/search?q=g:io.github.hyochan%20a:kmp-iap',
-          label: 'Maven',
+          href: 'https://klibs.io/project/hyochan/kmp-iap',
+          label: 'Klibs',
           position: 'right',
         },
         {
-          href: 'https://x.com/hyochan',
+          href: 'https://x.com/hyodotdev',
           label: 'X',
           position: 'right',
         },
       ],
     },
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [
         {
           title: 'Docs',
@@ -153,8 +154,8 @@ const config: Config = {
               href: 'https://github.com/hyochan/kmp-iap',
             },
             {
-              label: 'Maven Central',
-              href: 'https://search.maven.org/search?q=g:io.github.hyochan%20a:kmp-iap',
+              label: 'Klibs',
+              href: 'https://klibs.io/project/hyochan/kmp-iap',
             },
           ],
         },

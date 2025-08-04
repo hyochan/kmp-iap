@@ -17,7 +17,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.github.hyochan:kmp-iap:1.0.0-alpha04")
+                implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
             }
         }
     }
@@ -412,6 +412,6 @@ fun ProductCard(product: Product, onPurchase: () -> Unit) {
 
 ## Next Steps
 
-- Implement [Receipt Validation](./receipt-validation.md)
-- Handle [Subscriptions](./subscriptions.md)
-- Set up [Error Handling](./error-handling.md)
+- Learn about [Making Purchases](./purchases.md)
+- Understand [Purchase Lifecycle](./lifecycle.md)
+- Check [Troubleshooting](./troubleshooting.md)

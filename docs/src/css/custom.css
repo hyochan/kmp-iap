@@ -6,48 +6,351 @@
 
 /* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  /* Oatmeal color palette */
+  --ifm-color-primary: #b8956a;
+  --ifm-color-primary-dark: #a78759;
+  --ifm-color-primary-darker: #9f7f52;
+  --ifm-color-primary-darkest: #866a44;
+  --ifm-color-primary-light: #c2a37b;
+  --ifm-color-primary-lighter: #c9ab84;
+  --ifm-color-primary-lightest: #d8bfa0;
+  
+  /* Background colors */
+  --ifm-background-color: #faf8f5;
+  --ifm-background-surface-color: #ffffff;
+  
+  /* Text colors */
+  --ifm-font-color-base: #3a3a3a;
+  
+  /* Code */
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  
+  /* Hero background */
+  --hero-background: #f5f0e8;
+  --hero-pattern: rgba(184, 149, 106, 0.05);
 }
 
 /* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #d4b896;
+  --ifm-color-primary-dark: #cba77e;
+  --ifm-color-primary-darker: #c69f73;
+  --ifm-color-primary-darkest: #b88754;
+  --ifm-color-primary-light: #ddc9ae;
+  --ifm-color-primary-lighter: #e2d1b9;
+  --ifm-color-primary-lightest: #f0e5d3;
+  
+  --ifm-background-color: #1a1a1a;
+  --ifm-background-surface-color: #242424;
+  
+  --hero-background: #2a2520;
+  --hero-pattern: rgba(212, 184, 150, 0.05);
+  
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
+/* Hero section with oatmeal theme */
 .hero {
-  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
-  color: white;
+  background: var(--hero-background);
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 35px,
+      var(--hero-pattern) 35px,
+      var(--hero-pattern) 70px
+    );
+  color: var(--ifm-font-color-base);
   padding: 4rem 0;
   text-align: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero__title {
-  font-size: 3rem;
+  font-size: 3.5rem;
+  font-weight: 700;
   margin-bottom: 1rem;
+  color: var(--ifm-color-primary-darkest);
 }
 
 .hero__subtitle {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   margin-bottom: 2rem;
-  opacity: 0.9;
+  color: var(--ifm-color-primary-darker);
+  font-weight: 400;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Feature cards */
+.features {
+  padding: 3rem 0;
+  background: var(--ifm-background-color);
+}
+
+.feature {
+  padding: 2rem;
+  text-align: center;
+  transition: transform 0.2s ease-in-out;
+}
+
+.feature:hover {
+  transform: translateY(-5px);
+}
+
+.feature__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary);
+  display: block;
+}
+
+.feature__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary-darkest);
+}
+
+.feature__description {
+  font-size: 1rem;
+  color: var(--ifm-font-color-base);
+  line-height: 1.6;
+}
+
+/* Buttons with oatmeal theme */
+.button {
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.button--primary {
+  background-color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: white;
+}
+
+.button--primary:hover {
+  background-color: var(--ifm-color-primary-dark);
+  border-color: var(--ifm-color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.button--secondary {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  background-color: transparent;
+}
+
+.button--secondary:hover {
+  background-color: var(--ifm-color-primary);
+  color: white;
+  transform: translateY(-2px);
 }
 
 .button--lg {
+  font-size: 1.2rem;
+  padding: 0.75rem 2rem;
+}
+
+/* Navigation bar adjustments */
+.navbar {
+  background-color: var(--ifm-background-surface-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.navbar__title {
+  font-weight: 700;
+  color: var(--ifm-color-primary-darkest);
+}
+
+/* Footer adjustments */
+.footer {
+  background-color: rgb(54, 27, 77);
+  background-image: linear-gradient(135deg, rgb(54, 27, 77) 0%, rgb(44, 22, 63) 100%);
+  color: white;
+}
+
+.footer--dark {
+  background-color: rgb(44, 22, 63);
+  background-image: linear-gradient(135deg, rgb(44, 22, 63) 0%, rgb(34, 17, 49) 100%);
+  color: white;
+}
+
+.footer__title {
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.footer__link-item:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+.footer__copyright {
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Dark mode footer - keep same as light mode */
+[data-theme='dark'] .footer__title {
+  color: white;
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='dark'] .footer__link-item:hover {
+  color: white;
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: rgba(255, 255, 255, 0.8);
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Code blocks with oatmeal accent */
+pre code {
+  background-color: transparent;
+}
+
+/* Syntax highlighting for better visibility */
+.prism-code {
+  font-size: 0.95rem !important;
+}
+
+/* Light theme code colors */
+[data-theme='light'] .token.keyword {
+  color: #d73a49;
+}
+
+[data-theme='light'] .token.string {
+  color: #032f62;
+}
+
+[data-theme='light'] .token.function {
+  color: #6f42c1;
+}
+
+[data-theme='light'] .token.comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+[data-theme='light'] .token.operator {
+  color: #d73a49;
+}
+
+[data-theme='light'] .token.class-name {
+  color: #22863a;
+}
+
+/* Links */
+a {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+a:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: underline;
+}
+
+/* Cards and surfaces */
+.card {
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid rgba(184, 149, 106, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Homepage specific styles */
+.homepage-section {
+  padding: 4rem 0;
+  background-color: var(--ifm-background-color);
+}
+
+.homepage-section:nth-child(odd) {
+  background-color: var(--hero-background);
+}
+
+.section__title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: var(--ifm-color-primary-darkest);
+  font-weight: 700;
+}
+
+/* Quick links section */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.quick-link-card {
+  background: var(--ifm-background-surface-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.quick-link-card:hover {
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.quick-link-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.quick-link-title {
   font-size: 1.25rem;
-  padding: 1rem 2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-primary-darkest);
+}
+
+/* Ensure proper spacing for main content */
+main {
+  display: block;
+}
+
+main > * {
+  margin: 0;
+}
+
+/* Remove default margins from sections */
+section {
+  margin: 0;
 }

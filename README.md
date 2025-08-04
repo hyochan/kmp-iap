@@ -5,14 +5,16 @@
 </p>
 
 <p align="center">
-  <a href="https://search.maven.org/search?q=g:io.github.hyochan%20a:kmp-iap"><img src="https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap.svg?style=flat-square" alt="Maven Central" /></a>
+  <a href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"><img src="https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap.svg?style=flat-square" alt="Maven Central" /></a>
   <a href="https://github.com/hyochan/kmp-iap/actions/workflows/gradle.yml"><img src="https://github.com/hyochan/kmp-iap/actions/workflows/gradle.yml/badge.svg" alt="Java CI with Gradle" /></a>
   <a href="https://codecov.io/gh/hyochan/kmp-iap"><img src="https://codecov.io/gh/hyochan/kmp-iap/branch/main/graph/badge.svg?token=YOUR_TOKEN" alt="Coverage Status" /></a>
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
 </p>
 
 <p align="center">
-  A comprehensive Kotlin Multiplatform library for implementing in-app purchases on Android and iOS platforms.
+  A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms.
+  <br/>
+  <strong>🎉 Beta release with full feature set now available!</strong>
 </p>
 
 ## 📚 Documentation
@@ -25,9 +27,20 @@ For comprehensive documentation, installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha04")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
 }
 ```
+
+## 🚀 Features
+
+- ✅ **Android Support** - Google Play Billing Library v7
+- ✅ **iOS Support** - StoreKit 2 with StoreKit 1 fallback
+- ✅ **Unified API** - Single API for both platforms
+- ✅ **Coroutines & Flow** - Modern async with StateFlow
+- ✅ **Type Safety** - Full Kotlin type safety
+- ✅ **UseIap Hook** - Inspired by expo-iap for easy state management
+- ✅ **Auto Finish Transactions** - Automatic transaction completion
+- ✅ **Error Handling** - Comprehensive error codes
 
 ## 🔧 Quick Start
 
@@ -92,7 +105,7 @@ lifecycleScope.launch {
 import io.github.hyochan.kmpiap.useIap.*
 
 class YourViewModel : ViewModel() {
-    // Create with options (100% compatible with expo-iap)
+    // Create with options (inspired by expo-iap)
     private val iapHelper = useIap(
         scope = viewModelScope,
         options = UseIapOptions(
@@ -322,9 +335,9 @@ cp local.properties.template local.properties
 The project includes VS Code launch configurations for common tasks:
 
 - Build/test library
-- Run example applications
+- Run example applications (Android, iOS, Desktop)
+- Documentation site (dev server, build, serve)
 - Publish to Maven repositories
-- Generate documentation
 - Code formatting
 
 Open the project in VS Code and use **Run and Debug** panel.
@@ -333,8 +346,10 @@ Open the project in VS Code and use **Run and Debug** panel.
 
 The project includes a Compose Multiplatform example app demonstrating library usage:
 
-- Android, iOS, Desktop, and Web support
-- Basic UI showcasing IAP integration (to be implemented)
+- Android and iOS support
+- Complete IAP integration examples
+- Purchase flow demonstrations
+- Subscription management
 - Located in the `example/` directory
 
 ## Documentation

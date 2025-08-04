@@ -22,7 +22,6 @@ const sidebars: SidebarsConfig = {
         'guides/offer-code-redemption',
         'guides/troubleshooting',
         'guides/faq',
-        'migration/from-flutter',
       ],
     },
     {

@@ -51,6 +51,27 @@
       "args": ["composeApp:run"],
       "cwd": "${workspaceFolder}/example",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Docs - Start Dev Server",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "cd docs && npm start",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docs - Build",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "cd docs && npm run build",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docs - Serve Production Build",
+      "request": "launch",
+      "type": "node-terminal",
+      "command": "cd docs && npm run serve",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

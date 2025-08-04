@@ -21,12 +21,14 @@
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "sharp": "^0.34.3"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.1.0",
     "@docusaurus/tsconfig": "3.0.1",
     "@docusaurus/types": "3.1.0",
+    "png-to-ico": "^2.1.8",
     "typescript": "~5.2.2"
   },
   "browserslist": {

@@ -22,3 +22,7 @@ deploy.md
 PUBLISHING.md
 gpg_key_escaped.txt
 .claude
+node_modules/
+docs/build/
+docs/.docusaurus/
+docs/.cache-loader/
