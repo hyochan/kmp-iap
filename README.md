@@ -1,63 +1,62 @@
-# KMP IAP (Kotlin Multiplatform In-App Purchase)
+# kmp-iap
 
-A Kotlin Multiplatform library for handling in-app purchases across Android and iOS platforms, designed to match the APIs of [Flutter InApp Purchase](https://github.com/dooboolab/flutter_inapp_purchase) and [expo-iap](https://github.com/dooboolab/expo-iap) for consistency across platforms.
+<p align="center">
+  <img src="https://kmp-iap.hyo.dev/img/logo.png" width="200" alt="kmp-iap logo" />
+</p>
 
-> ⚠️ **Work in Progress**: Core API design is complete, but native implementations are still in development.
+<p align="center">
+  <a href="https://search.maven.org/search?q=g:io.github.hyochan%20a:kmp-iap"><img src="https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap.svg?style=flat-square" alt="Maven Central" /></a>
+  <a href="https://github.com/hyochan/kmp-iap/actions/workflows/ci.yml"><img src="https://github.com/hyochan/kmp-iap/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://codecov.io/gh/hyochan/kmp-iap"><img src="https://codecov.io/gh/hyochan/kmp-iap/branch/main/graph/badge.svg?token=YOUR_TOKEN" alt="Coverage Status" /></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
+</p>
 
-## Status
+<p align="center">
+  A comprehensive Kotlin Multiplatform library for implementing in-app purchases on Android and iOS platforms.
+</p>
 
-This project provides a complete API structure matching Flutter/expo-iap with:
-- ✅ Project setup with Gradle configuration
-- ✅ Multi-platform source sets (Android, iOS)
-- ✅ Publishing configuration for Maven Central
-- ✅ CI/CD setup with GitHub Actions
-- ✅ Full API interface design matching Flutter/expo-iap
-- ✅ Type definitions for all platforms
-- ✅ Event flow architecture using Kotlin Coroutines
-- ✅ Android implementation (Google Play Billing Library v8)
-- ✅ useIap Hook for easy state management
-- ✅ iOS implementation (StoreKit)
-- ✅ Example app implementation
-- ❌ Receipt validation implementation
-- ❌ Complete test coverage
+## 📚 Documentation
 
-## Supported Platforms
+For comprehensive documentation, installation guides, API reference, and examples, visit:
 
-- Android (API 24+) - Google Play Billing Library v8
-- iOS (iOS 13.0+) - StoreKit 1 & 2
+**🌐 [kmp-iap.hyo.dev](https://kmp-iap.hyo.dev)**
 
-## Project Structure
-
-```
-kmp-iap/
-├── library/
-│   └── src/
-│       ├── commonMain/         # Shared code
-│       ├── androidMain/        # Android-specific
-│       ├── iosMain/           # iOS-specific
-│       ├── jvmMain/           # Desktop JVM
-│       ├── wasmJsMain/        # Web WASM
-│       └── linuxX64Main/      # Linux native
-├── example/                    # Example Compose Multiplatform app
-│   └── src/
-│       ├── commonMain/
-│       ├── androidMain/
-│       ├── iosMain/
-│       └── jvmMain/
-├── gradle/
-│   └── libs.versions.toml     # Version catalog
-├── build.gradle.kts
-└── settings.gradle.kts
-```
-
-## Installation
+## 📦 Installation
 
 ```kotlin
-// In your shared module's build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha02")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-alpha04")
 }
 ```
+
+## 🔧 Quick Start
+
+```kotlin
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
+
+// Initialize connection
+val iap = createInAppPurchase()
+iap.initConnection()
+
+// Get products
+val products = iap.requestProducts(
+    RequestProductsParams(
+        skus = listOf("product_id"),
+        type = PurchaseType.INAPP
+    )
+)
+
+// Request purchase
+iap.requestPurchase(
+    request = RequestPurchaseAndroid(skus = listOf("product_id")),
+    type = PurchaseType.INAPP
+)
+```
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Usage
 

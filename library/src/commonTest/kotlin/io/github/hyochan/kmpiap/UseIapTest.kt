@@ -2,21 +2,26 @@ package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.types.*
 import io.github.hyochan.kmpiap.useIap.UseIap
-import io.github.hyochan.kmpiap.useIap.useIap
-import kotlinx.coroutines.runBlocking
+import io.github.hyochan.kmpiap.useIap.UseIapOptions
+import kotlinx.coroutines.*
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlin.test.*
 
 class UseIapTest {
+    private lateinit var testScope: TestScope
     private lateinit var iapHelper: UseIap
     
     @BeforeTest
     fun setup() {
-        iapHelper = useIap()
+        testScope = TestScope(UnconfinedTestDispatcher())
+        iapHelper = UseIap(scope = testScope, options = UseIapOptions())
     }
     
     @AfterTest
     fun tearDown() {
         iapHelper.dispose()
+        testScope.cancel()
     }
     
     @Test
@@ -67,135 +72,151 @@ class UseIapTest {
     }
     
     @Test
-    fun testConnectionFlow() = runBlocking {
-        // Test connection flow
-        assertFalse(iapHelper.isConnected.value)
-        
-        try {
-            iapHelper.initConnection()
-            // Connection state will be updated via flow
-        } catch (e: Exception) {
-            // May fail in test environment without proper platform setup
-            assertTrue(e is PurchaseError || e is NotImplementedError)
+    fun testConnectionFlow() {
+        runBlocking {
+            // Test connection flow
+            assertFalse(iapHelper.isConnected.value)
+            
+            try {
+                iapHelper.initConnection()
+                // Connection state will be updated via flow
+            } catch (e: Exception) {
+                // May fail in test environment without proper platform setup
+                assertTrue(e is PurchaseError || e is NotImplementedError)
+            }
         }
     }
     
     @Test
-    fun testRequestProductsValidation() = runBlocking {
-        // Test that empty SKU list is handled
-        try {
-            iapHelper.getProducts(emptyList())
-        } catch (e: Exception) {
-            // Expected to fail with empty list or in test environment
-            assertTrue(e is PurchaseError || e is NotImplementedError || e is IllegalArgumentException)
-        }
-        
-        // Test with valid SKUs
-        try {
-            iapHelper.getProducts(listOf("test_product_1", "test_product_2"))
-        } catch (e: Exception) {
-            // May fail in test environment without proper platform setup
-            assertTrue(e is PurchaseError || e is NotImplementedError)
-        }
-    }
-    
-    @Test
-    fun testRequestSubscriptionsValidation() = runBlocking {
-        // Test subscription request
-        try {
-            iapHelper.getSubscriptions(listOf("test_subscription_1"))
-        } catch (e: Exception) {
-            // May fail in test environment without proper platform setup
-            assertTrue(e is PurchaseError || e is NotImplementedError)
+    fun testRequestProductsValidation() {
+        runBlocking {
+            // Test that empty SKU list is handled
+            try {
+                iapHelper.getProducts(emptyList())
+            } catch (e: Exception) {
+                // Expected to fail with empty list or in test environment
+                assertTrue(e is PurchaseError || e is NotImplementedError || e is IllegalArgumentException)
+            }
+            
+            // Test with valid SKUs
+            try {
+                iapHelper.getProducts(listOf("test_product_1", "test_product_2"))
+            } catch (e: Exception) {
+                // May fail in test environment without proper platform setup
+                assertTrue(e is PurchaseError || e is NotImplementedError)
+            }
         }
     }
     
     @Test
-    fun testPurchaseRequestValidation() = runBlocking {
-        // Test purchase request with missing product
-        try {
-            iapHelper.requestPurchase(
-                sku = "non_existent_product",
-                obfuscatedAccountIdAndroid = "test_user"
-            )
-        } catch (e: Exception) {
-            // Expected to fail
-            assertTrue(e is PurchaseError || e is NotImplementedError)
+    fun testRequestSubscriptionsValidation() {
+        runBlocking {
+            // Test subscription request
+            try {
+                iapHelper.getSubscriptions(listOf("test_subscription_1"))
+            } catch (e: Exception) {
+                // May fail in test environment without proper platform setup
+                assertTrue(e is PurchaseError || e is NotImplementedError)
+            }
         }
     }
     
     @Test
-    fun testSubscriptionRequestValidation() = runBlocking {
-        // Test subscription request
-        try {
-            iapHelper.requestSubscription(
-                sku = "test_subscription",
-                obfuscatedAccountIdAndroid = "test_user",
-                subscriptionOffers = listOf(
-                    SubscriptionOfferAndroid(
-                        sku = "test_subscription",
-                        offerToken = "test_offer"
+    fun testPurchaseRequestValidation() {
+        runBlocking {
+            // Test purchase request with missing product
+            try {
+                iapHelper.requestPurchase(
+                    sku = "non_existent_product",
+                    obfuscatedAccountIdAndroid = "test_user"
+                )
+            } catch (e: Exception) {
+                // Expected to fail
+                assertTrue(e is PurchaseError || e is NotImplementedError)
+            }
+        }
+    }
+    
+    @Test
+    fun testSubscriptionRequestValidation() {
+        runBlocking {
+            // Test subscription request
+            try {
+                iapHelper.requestSubscription(
+                    sku = "test_subscription",
+                    obfuscatedAccountIdAndroid = "test_user",
+                    subscriptionOffers = listOf(
+                        SubscriptionOfferAndroid(
+                            sku = "test_subscription",
+                            offerToken = "test_offer"
+                        )
                     )
                 )
-            )
-        } catch (e: Exception) {
-            // Expected to fail in test environment
-            assertTrue(e is PurchaseError || e is NotImplementedError)
-        }
-    }
-    
-    @Test
-    fun testFinishTransactionValidation() = runBlocking {
-        // Create a mock purchase
-        val purchase = Purchase(
-            productId = "test_product",
-            transactionId = "12345",
-            platform = getCurrentPlatform()
-        )
-        
-        try {
-            val result = iapHelper.finishTransaction(purchase, isConsumable = true)
-            // May return false if not properly connected
-            assertTrue(result || !iapHelper.isConnected.value)
-        } catch (e: Exception) {
-            // Expected to fail in test environment
-            assertTrue(e is PurchaseError || e is NotImplementedError)
-        }
-    }
-    
-    @Test
-    fun testCanMakePayments() = runBlocking {
-        try {
-            val canPay = iapHelper.canMakePayments()
-            // Should return a boolean
-            assertTrue(canPay || !canPay) // Always true, just checking it returns boolean
-        } catch (e: Exception) {
-            // May fail in test environment
-            assertTrue(e is NotImplementedError)
-        }
-    }
-    
-    @Test
-    fun testPlatformSpecificMethods() = runBlocking {
-        val platform = getCurrentPlatform()
-        
-        if (platform == IAPPlatform.IOS) {
-            // Test iOS-specific methods
-            try {
-                iapHelper.getStorefrontIOS()
-                iapHelper.presentCodeRedemptionSheetIOS()
-                iapHelper.showManageSubscriptionsIOS()
             } catch (e: Exception) {
                 // Expected to fail in test environment
-                assertTrue(e is NotImplementedError || e is PurchaseError)
+                assertTrue(e is PurchaseError || e is NotImplementedError)
             }
-        } else {
-            // Test Android-specific methods
+        }
+    }
+    
+    @Test
+    fun testFinishTransactionValidation() {
+        runBlocking {
+            // Create a mock purchase
+            val purchase = Purchase(
+                productId = "test_product",
+                transactionId = "12345",
+                platform = getCurrentPlatform()
+            )
+            
             try {
-                iapHelper.deepLinkToSubscriptionsAndroid("test_sku")
+                val result = iapHelper.finishTransaction(purchase, isConsumable = true)
+                // May return false if not properly connected
+                assertTrue(result || !iapHelper.isConnected.value)
             } catch (e: Exception) {
                 // Expected to fail in test environment
-                assertTrue(e is NotImplementedError || e is PurchaseError)
+                assertTrue(e is PurchaseError || e is NotImplementedError)
+            }
+        }
+    }
+    
+    @Test
+    fun testCanMakePayments() {
+        runBlocking {
+            try {
+                val canPay = iapHelper.canMakePayments()
+                // Should return a boolean
+                assertTrue(canPay || !canPay) // Always true, just checking it returns boolean
+            } catch (e: Exception) {
+                // May fail in test environment
+                assertTrue(e is NotImplementedError)
+            }
+        }
+    }
+    
+    @Test
+    fun testPlatformSpecificMethods() {
+        runBlocking {
+            val platform = getCurrentPlatform()
+            
+            if (platform == IAPPlatform.IOS) {
+                // Test iOS-specific methods
+                try {
+                    iapHelper.getStorefrontIOS()
+                    iapHelper.presentCodeRedemptionSheetIOS()
+                    iapHelper.showManageSubscriptionsIOS()
+                } catch (e: Exception) {
+                    // Expected to fail in test environment
+                    assertTrue(e is NotImplementedError || e is PurchaseError)
+                }
+            } else {
+                // Test Android-specific methods
+                try {
+                    iapHelper.deepLinkToSubscriptionsAndroid("test_sku")
+                } catch (e: Exception) {
+                    // Expected to fail in test environment
+                    assertTrue(e is NotImplementedError || e is PurchaseError)
+                }
             }
         }
     }

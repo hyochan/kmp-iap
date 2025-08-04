@@ -120,6 +120,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
         val androidMain by getting {
@@ -163,16 +164,20 @@ tasks.withType<PublishToMavenRepository> {
     dependsOn(updateReadmeVersion)
 }
 
-// Only configure publishing when explicitly needed
-if (project.hasProperty("publishing.enabled") || System.getenv("CI") != null) {
-    mavenPublishing {
-        // Explicitly use Central Portal instead of legacy Sonatype
-        publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-        
-        // Re-enable vanniktech signing to use its built-in signing mechanism
+// Only configure publishing when we have signing credentials
+val hasSigningKey = localProperties.getProperty("signingInMemoryKey") != null ||
+    System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null
+
+mavenPublishing {
+    // Explicitly use Central Portal instead of legacy Sonatype
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    
+    // Only sign if we have credentials
+    if (hasSigningKey) {
         signAllPublications()
-        
-        coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
+    }
+    
+    coordinates("io.github.hyochan", "kmp-iap", localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02")
     
     // Configure publications with empty Javadoc JAR (Maven Central compatible)
     configure(
@@ -219,7 +224,6 @@ if (project.hasProperty("publishing.enabled") || System.getenv("CI") != null) {
             url.set("https://github.com/hyochan/kmp-iap/issues")
         }
     }
-}
 }
 
 // Manual signing configuration (disabled in favor of vanniktech signing)
