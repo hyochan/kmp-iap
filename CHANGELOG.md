@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.3] - 2025-01-10
+
+### Added
+
+- Blog functionality with initial release announcement
+- Auto-consume feature for testing consumable products in example app
+- Support for both StoreKit 2 (iOS) and Google Play Billing Library 7.1.1 (Android)
+
+### Changed
+
+- Enhanced testing workflow with automatic consumption of purchases
+- Improved example app to handle consumable products properly
+
+### Fixed
+
+- Consumable products can now be purchased repeatedly in testing
+- Resolved "already owned" error for consumable items
+
 ## [1.0.0-beta.2] - 2025-08-04
 
 ### Added
