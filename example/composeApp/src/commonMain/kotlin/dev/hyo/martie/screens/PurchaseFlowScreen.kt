@@ -40,6 +40,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     var purchaseResult by remember { mutableStateOf<String?>(null) }
     var transactionResult by remember { mutableStateOf<String?>(null) }
     var initError by remember { mutableStateOf<String?>(null) }
+    var purchaseToConsume by remember { mutableStateOf<Purchase?>(null) }
     
     val iapHelper = remember {
         try {
@@ -48,6 +49,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                 options = UseIapOptions(
                     onPurchaseSuccess = { purchase ->
                         purchaseResult = json.encodeToString(purchase)
+                        
+                        // TEST ONLY: Store the purchase to be consumed
+                        // This is for testing purposes only - in production, consume only after
+                        // delivering the product to the user
+                        purchaseToConsume = purchase
                     },
                     onPurchaseError = { error ->
                         purchaseResult = when (error.code) {
@@ -66,6 +72,29 @@ fun PurchaseFlowScreen(navController: NavController) {
     val connected by iapHelper?.connected?.collectAsState() ?: remember { mutableStateOf(false) }
     val products by iapHelper?.products?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
     val currentError by iapHelper?.currentError?.collectAsState() ?: remember { mutableStateOf(null) }
+    
+    // TEST ONLY: Automatically consume purchases after they're successful
+    // This allows repeated testing of the same products
+    LaunchedEffect(purchaseToConsume) {
+        purchaseToConsume?.let { purchase ->
+            iapHelper?.let { helper ->
+                try {
+                    val consumeResult = helper.finishTransaction(
+                        purchase = purchase,
+                        isConsumable = true // Mark as consumable for testing
+                    )
+                    if (consumeResult) {
+                        purchaseResult = "${purchaseResult}\n\n✅ Purchase consumed for testing"
+                    } else {
+                        purchaseResult = "${purchaseResult}\n\n⚠️ Failed to consume purchase"
+                    }
+                } catch (e: Exception) {
+                    purchaseResult = "${purchaseResult}\n\n❌ Error consuming: ${e.message}"
+                }
+                purchaseToConsume = null // Reset after consuming
+            }
+        }
+    }
     
     LaunchedEffect(Unit) {
         if (iapHelper != null) {
@@ -89,6 +118,26 @@ fun PurchaseFlowScreen(navController: NavController) {
             kotlinx.coroutines.delay(500)
             isLoadingProducts = true
             try {
+                // TEST ONLY: First, get and consume any existing purchases to reset state
+                // This ensures the test products can be purchased again
+                try {
+                    iapHelper.getAvailablePurchases()
+                    kotlinx.coroutines.delay(200) // Give time for state to update
+                    val existingPurchases = iapHelper.availablePurchases.value
+                    existingPurchases.forEach { purchase ->
+                        if (PRODUCT_IDS.contains(purchase.productId)) {
+                            try {
+                                val consumed = iapHelper.finishTransaction(purchase, isConsumable = true)
+                                println("[TEST] Consumed existing purchase: ${purchase.productId} - Success: $consumed")
+                            } catch (e: Exception) {
+                                println("[TEST] Failed to consume existing purchase: ${e.message}")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("[TEST] Could not check existing purchases: ${e.message}")
+                }
+                
                 iapHelper.requestProducts(RequestProductsParams(PRODUCT_IDS, PurchaseType.INAPP))
             } catch (e: Exception) {
                 purchaseResult = "Failed to load products: ${e.message}"
@@ -365,7 +414,8 @@ fun PurchaseFlowScreen(navController: NavController) {
                     Text(
                         text = "• Use sandbox account on iOS\n" +
                               "• Use test card on Android\n" +
-                              "• Products may take time to propagate",
+                              "• Products may take time to propagate\n" +
+                              "• 🔄 Purchases are auto-consumed for testing",
                         fontSize = 14.sp,
                         color = AppColors.Secondary
                     )
