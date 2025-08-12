@@ -151,7 +151,8 @@ class IAPServiceImpl(
     
     override suspend fun getSubscriptions(subscriptionIds: List<String>): List<Product> {
         return try {
-            KmpIAP.getSubscriptions(subscriptionIds)
+            // In KMP-IAP, subscriptions are also products
+            KmpIAP.getProducts(subscriptionIds)
         } catch (e: PurchaseError) {
             println("Failed to get subscriptions: ${e.message}")
             emptyList()
@@ -160,13 +161,12 @@ class IAPServiceImpl(
     
     override suspend fun purchaseProduct(productId: String) {
         KmpIAP.requestPurchase(
-            sku = productId,
-            obfuscatedAccountIdAndroid = authService.getCurrentUserId()
+            sku = productId
         )
     }
     
     override suspend fun purchaseSubscription(productId: String) {
-        KmpIAP.requestSubscription(sku = productId)
+        KmpIAP.requestPurchase(sku = productId)
     }
     
     override suspend fun getAvailablePurchases(): List<Purchase> {
@@ -190,9 +190,9 @@ class IAPServiceImpl(
     
     private suspend fun validatePurchase(purchase: Purchase): ValidationResult {
         return try {
-            val platform = when (KmpIAP.getCurrentPlatform()) {
-                IAPPlatform.IOS -> "ios"
-                IAPPlatform.ANDROID -> "android"
+            val platform = when {
+                Platform.isIOS -> "ios"
+                Platform.isAndroid -> "android"
                 else -> "unknown"
             }
             

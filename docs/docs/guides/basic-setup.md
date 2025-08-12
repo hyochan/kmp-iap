@@ -62,7 +62,7 @@ Create a singleton manager to handle all IAP operations:
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.data.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -76,8 +76,8 @@ object IAPManager {
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products: StateFlow<List<Product>> = _products.asStateFlow()
     
-    private val _subscriptions = MutableStateFlow<List<Subscription>>(emptyList())
-    val subscriptions: StateFlow<List<Subscription>> = _subscriptions.asStateFlow()
+    private val _subscriptions = MutableStateFlow<List<Product>>(emptyList())
+    val subscriptions: StateFlow<List<Product>> = _subscriptions.asStateFlow()
     
     fun initialize() {
         scope.launch {
@@ -121,8 +121,8 @@ object IAPManager {
             )
             _products.value = productList
             
-            // Load subscriptions
-            val subsList = KmpIAP.getSubscriptions(
+            // Load subscriptions (subscriptions are also products in KMP-IAP)
+            val subsList = KmpIAP.getProducts(
                 listOf("monthly_sub", "yearly_sub")
             )
             _subscriptions.value = subsList
@@ -137,43 +137,28 @@ object IAPManager {
         )
     }
     
-    suspend fun purchaseSubscription(productId: String, offerToken: String? = null) {
-        if (offerToken != null) {
-            KmpIAP.requestSubscription(
-                sku = productId,
-                subscriptionOffers = listOf(
-                    SubscriptionOfferAndroid(productId, offerToken)
-                )
-            )
-        } else {
-            KmpIAP.requestSubscription(sku = productId)
-        }
+    suspend fun purchaseSubscription(productId: String) {
+        KmpIAP.requestPurchase(
+            sku = productId
+        )
     }
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-        when (purchase.purchaseState) {
-            PurchaseState.PURCHASED -> {
-                // Verify purchase with your backend
-                val isValid = verifyPurchaseWithBackend(purchase)
-                
-                if (isValid) {
-                    // Grant entitlement
-                    grantEntitlement(purchase.productId)
-                    
-                    // Finish transaction
-                    KmpIAP.finishTransaction(
-                        purchase,
-                        isConsumable = isConsumableProduct(purchase.productId)
-                    )
-                }
-            }
-            PurchaseState.PENDING -> {
-                // Handle pending purchase
-                notifyUserOfPendingPurchase()
-            }
-            else -> {
-                // Handle other states
-            }
+        // Purchase is valid if returned from currentPurchase flow
+        // Process the purchase
+        // Verify purchase with your backend
+        val isValid = verifyPurchaseWithBackend(purchase)
+        
+        if (isValid) {
+            // Grant entitlement
+            grantEntitlement(purchase.productId)
+            
+            // Finish transaction
+            KmpIAP.finishTransaction(
+                purchase,
+                isConsumable = isConsumableProduct(purchase.productId)
+            )
+        }
         }
     }
     
@@ -194,13 +179,12 @@ object IAPManager {
     }
     
     suspend fun restorePurchases() {
-        try {
-            val purchases = KmpIAP.getAvailablePurchases()
-            purchases.forEach { purchase ->
-                grantEntitlement(purchase.productId)
+        scope.launch {
+            KmpIAP.availablePurchases.collect { purchases ->
+                purchases.forEach { purchase ->
+                    grantEntitlement(purchase.productId)
+                }
             }
-        } catch (e: Exception) {
-            println("Restore failed: ${e.message}")
         }
     }
     

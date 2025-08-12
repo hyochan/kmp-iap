@@ -21,7 +21,7 @@ A simple store implementation demonstrating core kmp-iap concepts and basic purc
 
 ⚠️ **Important**: This example handles key differences between iOS and Android:
 
-- **iOS**: Uses StoreKit 2 with fallback to StoreKit 1
+- **iOS**: Uses StoreKit 2 (iOS 15+) implemented in Swift
 - **Android**: Uses Google Play Billing Library v7
 - **Receipt Handling**: Different receipt formats and validation approaches
 - **Transaction States**: Platform-specific state management
@@ -301,8 +301,7 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 KmpIAP.requestPurchase(
-                    sku = productId,
-                    obfuscatedAccountIdAndroid = getUserId() // For fraud prevention
+                    sku = productId
                 )
                 
                 println("🛒 Purchase requested for: $productId")
