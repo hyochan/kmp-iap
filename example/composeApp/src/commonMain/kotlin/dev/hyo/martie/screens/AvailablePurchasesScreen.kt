@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -32,7 +32,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
-    val iap = KmpIAP
+    // KmpIAP methods are now directly accessible via wildcard import
     var connected by remember { mutableStateOf(false) }
     var availablePurchases by remember { mutableStateOf<List<Purchase>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -44,7 +44,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
     // Collect connection state
     LaunchedEffect(Unit) {
         launch {
-            iap.connectionStateFlow.collect { connectionResult ->
+            connectionStateFlow.collect { connectionResult ->
                 connected = connectionResult.connected
             }
         }
@@ -54,7 +54,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            iap.initConnection()
+            initConnection()
         } catch (e: Exception) {
             errorMessage = "Failed to initialize: ${e.message}"
             isLoading = false
@@ -67,7 +67,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             // Add a small delay to ensure connection is fully established
             kotlinx.coroutines.delay(500)
             try {
-                val purchases = iap.getAvailablePurchases()
+                val purchases = getAvailablePurchases()
                 availablePurchases = purchases
                 if (purchases.isEmpty()) {
                     errorMessage = "No active purchases found"
@@ -127,7 +127,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             isRefreshing = true
                             errorMessage = null
                             try {
-                                val purchases = iap.getAvailablePurchases()
+                                val purchases = getAvailablePurchases()
                                 availablePurchases = purchases
                                 if (purchases.isEmpty()) {
                                     errorMessage = "No active purchases found"
@@ -284,7 +284,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                         consumingPurchaseId = purchase.productId
                                         scope.launch {
                                             try {
-                                                val result = iap.finishTransaction(
+                                                val result = finishTransaction(
                                                     purchase = purchase,
                                                     isConsumable = true
                                                 )
@@ -294,7 +294,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                                     "⚠️ Failed to consume purchase"
                                                 }
                                                 // Refresh the list
-                                                val purchases = iap.getAvailablePurchases()
+                                                val purchases = getAvailablePurchases()
                                                 availablePurchases = purchases
                                             } catch (e: Exception) {
                                                 consumeResult = "❌ Error: ${e.message}"

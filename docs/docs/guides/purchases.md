@@ -44,21 +44,17 @@ Before making any purchases, set up StateFlow observers to handle purchase updat
 ```kotlin
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.data.*
 
 class PurchaseHandler(
     private val scope: CoroutineScope
 ) {
-    private val iapHelper = UseIap(
-        scope = scope,
-        options = UseIapOptions()
-    )
     
     fun setupPurchaseObservers() {
         // Observe successful purchases
         scope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     println("Purchase update received: ${it.productId}")
                     handlePurchaseUpdate(it)
@@ -68,18 +64,18 @@ class PurchaseHandler(
 
         // Observe purchase errors
         scope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            currentError.collectLatest { error ->
                 error?.let {
                     println("Purchase failed: ${it.message}")
                     handlePurchaseError(it)
-                    iapHelper.clearError()
+                    clearError()
                 }
             }
         }
     }
     
     fun dispose() {
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 ```
@@ -98,12 +94,6 @@ class ProductsViewModel : ViewModel() {
         "dev.hyo.martie.30bulbs"
     )
     
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
-            autoFinishTransactions = false // Manual control
-        )
-    )
     
     data class PurchaseState(
         val isProcessing: Boolean = false,
@@ -148,7 +138,7 @@ suspend fun handlePurchase(productId: String) {
         }
 
         // Request purchase
-        iapHelper.requestPurchase(
+        requestPurchase(
             sku = productId,
             quantityIOS = 1, // iOS only
             obfuscatedAccountIdAndroid = getUserId() // Android only
@@ -174,7 +164,7 @@ suspend fun handlePurchase(productId: String) {
 suspend fun loadProducts() {
     try {
         // Load products
-        val products = iapHelper.getProducts(productIds)
+        val products = getProducts(productIds)
         
         println("Loaded ${products.size} products")
         products.forEach { product ->
@@ -184,7 +174,7 @@ suspend fun loadProducts() {
         }
         
         // Products also available via StateFlow
-        iapHelper.products.collectLatest { productList ->
+        products.collectLatest { productList ->
             _state.update { it.copy(products = productList) }
         }
     } catch (e: PurchaseError) {
@@ -199,7 +189,7 @@ suspend fun loadProducts() {
 suspend fun loadSubscriptions() {
     try {
         val subscriptionIds = listOf("premium_monthly", "premium_yearly")
-        val subscriptions = iapHelper.getSubscriptions(subscriptionIds)
+        val subscriptions = getSubscriptions(subscriptionIds)
         
         subscriptions.forEach { sub ->
             println("Subscription: ${sub.title}")
@@ -219,7 +209,7 @@ suspend fun loadSubscriptions() {
 ```kotlin
 suspend fun requestSubscription(productId: String) {
     try {
-        iapHelper.requestSubscription(
+        requestSubscription(
             sku = productId,
             obfuscatedAccountIdAndroid = getUserId()
         )
@@ -234,7 +224,7 @@ suspend fun requestSubscriptionWithOffer(
     productId: String,
     offerToken: String
 ) {
-    iapHelper.requestSubscription(
+    requestSubscription(
         sku = productId,
         subscriptionOffers = listOf(
             SubscriptionOfferAndroid(
@@ -267,7 +257,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
     
     // Finish the transaction
     try {
-        val success = iapHelper.finishTransaction(
+        val success = finishTransaction(
             purchase = purchase,
             isConsumable = true // Set appropriately for your product type
         )
@@ -277,7 +267,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
         }
         
         // Clear the current purchase state
-        iapHelper.clearPurchase()
+        clearPurchase()
     } catch (e: Exception) {
         println("Error finishing transaction: $e")
     }
@@ -293,7 +283,7 @@ class ProductInfo(private val iapHelper: UseIap) {
     suspend fun loadProductInformation(productIds: List<String>): List<Product> {
         return try {
             // Request products from store
-            val products = iapHelper.getProducts(productIds)
+            val products = getProducts(productIds)
             
             products.forEach { product ->
                 println("Product: ${product.productId}")
@@ -325,13 +315,13 @@ class PlatformSupport(private val iapHelper: UseIap) {
             when (getCurrentPlatform()) {
                 IAPPlatform.IOS -> {
                     // Check if device can make payments
-                    iapHelper.initConnection()
+                    initConnection()
                     true
                 }
                 IAPPlatform.ANDROID -> {
                     // Check Play Store connection
-                    iapHelper.initConnection()
-                    iapHelper.isConnected.value
+                    initConnection()
+                    isConnected.value
                 }
             }
         } catch (e: PurchaseError) {
@@ -379,7 +369,7 @@ suspend fun handleConsumableProduct(purchase: Purchase) {
     deliverConsumableProduct(purchase.productId)
     
     // Finish transaction as consumable
-    val success = iapHelper.finishTransaction(
+    val success = finishTransaction(
         purchase = purchase,
         isConsumable = true
     )
@@ -400,7 +390,7 @@ suspend fun handleNonConsumableProduct(purchase: Purchase) {
     deliverPermanentProduct(purchase.productId)
     
     // Finish transaction as non-consumable
-    val success = iapHelper.finishTransaction(
+    val success = finishTransaction(
         purchase = purchase,
         isConsumable = false
     )
@@ -421,7 +411,7 @@ suspend fun handleSubscriptionProduct(purchase: Purchase) {
     activateSubscription(purchase.productId)
     
     // Finish transaction as non-consumable
-    val success = iapHelper.finishTransaction(
+    val success = finishTransaction(
         purchase = purchase,
         isConsumable = false
     )
@@ -442,7 +432,7 @@ Restore previously purchased items:
 suspend fun restorePurchases() {
     try {
         // Available purchases are automatically loaded and available via StateFlow
-        iapHelper.availablePurchases.collectLatest { purchases ->
+        availablePurchases.collectLatest { purchases ->
             println("Found ${purchases.size} available purchases")
             
             // Process each restored purchase
@@ -469,7 +459,7 @@ private fun handlePurchaseError(error: PurchaseError) {
             println("User already owns this item")
             scope.launch {
                 // Refresh available purchases
-                iapHelper.getAvailablePurchases()
+                getAvailablePurchases()
             }
         }
         ErrorCode.USER_CANCELLED -> {
@@ -493,10 +483,10 @@ suspend fun openSubscriptionManagement() {
     try {
         when (getCurrentPlatform()) {
             IAPPlatform.IOS -> {
-                iapHelper.showManageSubscriptionsIOS()
+                showManageSubscriptionsIOS()
             }
             IAPPlatform.ANDROID -> {
-                iapHelper.deepLinkToSubscriptionsAndroid("premium_monthly")
+                deepLinkToSubscriptionsAndroid("premium_monthly")
             }
         }
     } catch (e: PurchaseError) {
@@ -628,7 +618,7 @@ class PurchaseService : ViewModel() {
     private fun setupPurchaseObservers() {
         // Observe purchase success
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     handlePurchaseSuccess(it)
                 }
@@ -637,10 +627,10 @@ class PurchaseService : ViewModel() {
         
         // Observe errors
         viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    iapHelper.clearError()
+                    clearError()
                 }
             }
         }
@@ -651,7 +641,7 @@ class PurchaseService : ViewModel() {
         deliverProduct(purchase.productId)
         
         // 2. Finish transaction
-        val success = iapHelper.finishTransaction(
+        val success = finishTransaction(
             purchase = purchase,
             isConsumable = true
         )
@@ -661,20 +651,20 @@ class PurchaseService : ViewModel() {
         }
         
         // 3. Clear purchase state
-        iapHelper.clearPurchase()
+        clearPurchase()
     }
     
     private fun handlePurchaseError(error: PurchaseError) {
         if (error.code == ErrorCode.PRODUCT_ALREADY_OWNED) {
             // Handle "already owned" error
             viewModelScope.launch {
-                iapHelper.getAvailablePurchases()
+                getAvailablePurchases()
             }
         }
     }
     
     suspend fun purchaseProduct(productId: String) {
-        iapHelper.requestPurchase(
+        requestPurchase(
             sku = productId,
             quantityIOS = 1,
             obfuscatedAccountIdAndroid = getUserId()
@@ -702,8 +692,8 @@ class PurchaseService : ViewModel() {
 ```kotlin
 @Composable
 fun PurchaseScreen(viewModel: PurchaseService = viewModel()) {
-    val products by viewModel.iapHelper.products.collectAsState()
-    val isConnected by viewModel.iapHelper.isConnected.collectAsState()
+    val products by products.collectAsState()
+    val isConnected by isConnected.collectAsState()
     
     Column {
         // Connection indicator

@@ -61,13 +61,12 @@ Add to your `AndroidManifest.xml`:
 Create a singleton manager to handle all IAP operations:
 
 ```kotlin
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 object IAPManager {
-    private val iap = createInAppPurchase()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     // State management
@@ -83,7 +82,7 @@ object IAPManager {
     fun initialize() {
         scope.launch {
             try {
-                iap.initConnection()
+                initConnection()
                 _isConnected.value = true
                 
                 // Set up purchase listeners
@@ -101,15 +100,15 @@ object IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            iap.purchaseUpdatedFlow.collect { purchase ->
-                handlePurchaseUpdate(purchase)
+            currentPurchase.collect { purchase ->
+                purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            iap.purchaseErrorFlow.collect { error ->
-                handlePurchaseError(error)
+            currentError.collect { error ->
+                error?.let { handlePurchaseError(it) }
             }
         }
     }
@@ -117,62 +116,38 @@ object IAPManager {
     private suspend fun loadProducts() {
         try {
             // Load in-app products
-            val productList = iap.requestProducts(
-                RequestProductsParams(
-                    skus = listOf("remove_ads", "premium_features"),
-                    type = PurchaseType.INAPP
-                )
+            val productList = getProducts(
+                listOf("remove_ads", "premium_features")
             )
-            _products.value = productList.filterIsInstance<Product>()
+            _products.value = productList
             
             // Load subscriptions
-            val subsList = iap.requestProducts(
-                RequestProductsParams(
-                    skus = listOf("monthly_sub", "yearly_sub"),
-                    type = PurchaseType.SUBS
-                )
+            val subsList = getSubscriptions(
+                listOf("monthly_sub", "yearly_sub")
             )
-            _subscriptions.value = subsList.filterIsInstance<Subscription>()
+            _subscriptions.value = subsList
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
         }
     }
     
     suspend fun purchaseProduct(productId: String) {
-        val request = when (iap.getStore()) {
-            Store.PLAY_STORE -> RequestPurchaseAndroid(
-                skus = listOf(productId)
-            )
-            Store.APP_STORE -> RequestPurchaseIOS(
-                sku = productId
-            )
-            else -> return
-        }
-        
-        iap.requestPurchase(request, PurchaseType.INAPP)
+        requestPurchase(
+            sku = productId
+        )
     }
     
     suspend fun purchaseSubscription(productId: String, offerToken: String? = null) {
-        val request = when (iap.getStore()) {
-            Store.PLAY_STORE -> {
-                if (offerToken != null) {
-                    RequestSubscriptionAndroid(
-                        skus = listOf(productId),
-                        subscriptionOffers = listOf(
-                            SubscriptionOfferAndroid(productId, offerToken)
-                        )
-                    )
-                } else {
-                    RequestPurchaseAndroid(skus = listOf(productId))
-                }
-            }
-            Store.APP_STORE -> RequestPurchaseIOS(
-                sku = productId
+        if (offerToken != null) {
+            requestSubscription(
+                sku = productId,
+                subscriptionOffers = listOf(
+                    SubscriptionOfferAndroid(productId, offerToken)
+                )
             )
-            else -> return
+        } else {
+            requestSubscription(sku = productId)
         }
-        
-        iap.requestPurchase(request, PurchaseType.SUBS)
     }
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
@@ -186,7 +161,7 @@ object IAPManager {
                     grantEntitlement(purchase.productId)
                     
                     // Finish transaction
-                    iap.finishTransaction(
+                    finishTransaction(
                         purchase,
                         isConsumable = isConsumableProduct(purchase.productId)
                     )
@@ -204,10 +179,10 @@ object IAPManager {
     
     private fun handlePurchaseError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED -> {
+            ErrorCode.USER_CANCELLED -> {
                 // User cancelled, no action needed
             }
-            ErrorCode.E_ITEM_ALREADY_OWNED -> {
+            ErrorCode.PRODUCT_ALREADY_OWNED -> {
                 // Item already owned, restore it
                 restorePurchases()
             }
@@ -220,7 +195,7 @@ object IAPManager {
     
     suspend fun restorePurchases() {
         try {
-            val purchases = iap.getAvailablePurchases()
+            val purchases = getAvailablePurchases()
             purchases.forEach { purchase ->
                 grantEntitlement(purchase.productId)
             }
@@ -262,7 +237,7 @@ object IAPManager {
     
     fun cleanup() {
         scope.cancel()
-        iap.endConnection()
+        dispose()
     }
 }
 

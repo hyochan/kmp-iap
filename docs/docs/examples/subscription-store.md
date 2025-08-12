@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.data.*
 import io.github.hyochan.kmpiap.IAPPlatform
 import io.github.hyochan.kmpiap.getCurrentPlatform
@@ -41,12 +41,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
 class SubscriptionStoreViewModel : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
-            autoFinishTransactions = false // Manual control for subscriptions
-        )
-    )
     
     // State management
     data class SubscriptionState(
@@ -78,7 +72,7 @@ class SubscriptionStoreViewModel : ViewModel() {
             _state.update { it.copy(isLoading = true, error = null) }
             
             try {
-                iapHelper.initConnection()
+                initConnection()
                 loadSubscriptions()
             } catch (e: PurchaseError) {
                 showError("Failed to initialize store: ${e.message}")
@@ -89,21 +83,21 @@ class SubscriptionStoreViewModel : ViewModel() {
     private fun observeStates() {
         // Observe connection
         viewModelScope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
+            isConnected.collectLatest { connected ->
                 _state.update { it.copy(isConnected = connected) }
             }
         }
         
         // Observe subscriptions
         viewModelScope.launch {
-            iapHelper.subscriptions.collectLatest { subs ->
+            subscriptions.collectLatest { subs ->
                 _state.update { it.copy(subscriptions = subs) }
             }
         }
         
         // Observe active purchases
         viewModelScope.launch {
-            iapHelper.availablePurchases.collectLatest { purchases ->
+            availablePurchases.collectLatest { purchases ->
                 val activeSubscriptions = purchases.filter { purchase ->
                     subscriptionIds.contains(purchase.productId) &&
                     isSubscriptionActive(purchase)
@@ -114,17 +108,17 @@ class SubscriptionStoreViewModel : ViewModel() {
         
         // Observe purchase updates
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            currentPurchase.collectLatest { purchase ->
                 purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         // Observe errors
         viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    iapHelper.clearError()
+                    clearError()
                 }
             }
         }
@@ -134,7 +128,7 @@ class SubscriptionStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, error = null) }
         
         try {
-            val subscriptions = iapHelper.getSubscriptions(subscriptionIds)
+            val subscriptions = getSubscriptions(subscriptionIds)
             println("Loaded ${subscriptions.size} subscriptions")
         } catch (e: PurchaseError) {
             showError("Failed to load subscriptions: ${e.message}")
@@ -158,7 +152,7 @@ class SubscriptionStoreViewModel : ViewModel() {
                 completeTransaction(purchase)
                 
                 // Clear current purchase
-                iapHelper.clearPurchase()
+                clearPurchase()
                 
                 showMessage("Subscription activated!")
             } else {
@@ -194,7 +188,7 @@ class SubscriptionStoreViewModel : ViewModel() {
                     
                     if (!offers.isNullOrEmpty()) {
                         // Use the first offer (you might want to let user choose)
-                        iapHelper.requestSubscription(
+                        requestSubscription(
                             sku = productId,
                             subscriptionOffers = listOf(
                                 SubscriptionOfferAndroid(
@@ -204,11 +198,11 @@ class SubscriptionStoreViewModel : ViewModel() {
                             )
                         )
                     } else {
-                        iapHelper.requestSubscription(sku = productId)
+                        requestSubscription(sku = productId)
                     }
                 } else {
                     // iOS doesn't need offer tokens
-                    iapHelper.requestSubscription(sku = productId)
+                    requestSubscription(sku = productId)
                 }
             } catch (e: PurchaseError) {
                 showError("Failed to request subscription: ${e.message}")
@@ -222,7 +216,7 @@ class SubscriptionStoreViewModel : ViewModel() {
             
             try {
                 // Get available purchases - this automatically refreshes
-                val purchases = iapHelper.availablePurchases.value
+                val purchases = availablePurchases.value
                 val activeCount = purchases.count { 
                     subscriptionIds.contains(it.productId) && isSubscriptionActive(it)
                 }
@@ -248,7 +242,7 @@ class SubscriptionStoreViewModel : ViewModel() {
     }
     
     private suspend fun completeTransaction(purchase: Purchase) {
-        val success = iapHelper.finishTransaction(
+        val success = finishTransaction(
             purchase = purchase,
             isConsumable = false // Subscriptions are non-consumable
         )
@@ -307,7 +301,7 @@ class SubscriptionStoreViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        dispose()
     }
 }
 
@@ -697,7 +691,7 @@ private fun checkSubscriptionWithGracePeriod(purchase: Purchase): SubscriptionSt
 // iOS specific - check for promotional offers
 if (getCurrentPlatform() == IAPPlatform.IOS) {
     viewModelScope.launch {
-        iapHelper.promotedProductsIOS.collectLatest { promotedProducts ->
+        promotedProductsIOS.collectLatest { promotedProducts ->
             // Handle App Store promoted products
         }
     }
@@ -710,7 +704,7 @@ if (getCurrentPlatform() == IAPPlatform.IOS) {
 // Android specific - deep link to subscription management
 suspend fun openSubscriptionManagement(productId: String) {
     if (getCurrentPlatform() == IAPPlatform.ANDROID) {
-        iapHelper.deepLinkToSubscriptionsAndroid(productId)
+        deepLinkToSubscriptionsAndroid(productId)
     }
 }
 ```

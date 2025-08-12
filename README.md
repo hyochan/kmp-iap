@@ -32,14 +32,14 @@ dependencies {
 ## 🚀 Quick Start
 
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.types.*
 
 // Initialize connection
-KmpIAP.initConnection()
+initConnection()
 
 // Get products
-val products = KmpIAP.requestProducts(
+val products = requestProducts(
     RequestProductsParams(
         skus = listOf("product_id"),
         type = PurchaseType.INAPP
@@ -47,7 +47,7 @@ val products = KmpIAP.requestProducts(
 )
 
 // Request purchase
-KmpIAP.requestPurchase(
+requestPurchase(
     request = RequestPurchaseAndroid(sku = "product_id"),
     type = PurchaseType.INAPP
 )

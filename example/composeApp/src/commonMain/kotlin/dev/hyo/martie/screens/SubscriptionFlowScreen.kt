@@ -20,7 +20,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.types.*
 import io.github.hyochan.kmpiap.RequestSubscriptionIOS
 import kotlinx.coroutines.launch
@@ -42,7 +42,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var transactionResult by remember { mutableStateOf<String?>(null) }
     var initError by remember { mutableStateOf<String?>(null) }
     
-    val iap = KmpIAP
+    // KmpIAP methods are now directly accessible via wildcard import
     var connected by remember { mutableStateOf(false) }
     var subscriptions by remember { mutableStateOf<List<Subscription>>(emptyList()) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
@@ -51,14 +51,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
     // Collect purchase events
     LaunchedEffect(Unit) {
         launch {
-            iap.purchaseUpdatedFlow.collect { purchase ->
+            purchaseUpdatedFlow.collect { purchase ->
                 currentPurchase = purchase
                 purchaseResult = "✅ Subscription successful!\n\n${json.encodeToString(purchase)}"
             }
         }
         
         launch {
-            iap.purchaseErrorFlow.collect { error ->
+            purchaseErrorFlow.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.E_USER_CANCELLED -> "Subscription cancelled"
@@ -68,7 +68,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
         }
         
         launch {
-            iap.connectionStateFlow.collect { connectionResult ->
+            connectionStateFlow.collect { connectionResult ->
                 connected = connectionResult.connected
                 if (!connectionResult.connected) {
                     initError = connectionResult.message
@@ -81,7 +81,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isConnecting = true
         try {
-            iap.initConnection()
+            initConnection()
         } catch (e: Exception) {
             purchaseResult = "Initialization error: ${e.message}"
         } finally {
@@ -95,7 +95,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
             kotlinx.coroutines.delay(500)
             isLoadingProducts = true
             try {
-                val result = iap.requestProducts(
+                val result = requestProducts(
                     RequestProductsParams(
                         type = PurchaseType.SUBS,
                         skus = SUBSCRIPTION_IDS
@@ -157,7 +157,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         CircularProgressIndicator(color = Color.White)
                     } else {
                         Text(
-                            text = if (connected) "✓ Connected to ${iap.getStore()}" else "⚠ Not connected",
+                            text = if (connected) "✓ Connected to ${getStore()}" else "⚠ Not connected",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -311,7 +311,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                         else -> throw IllegalStateException("Unsupported platform")
                                                     }
                                                     
-                                                    iap.requestPurchase(request, PurchaseType.SUBS)
+                                                    requestPurchase(request, PurchaseType.SUBS)
                                                 } catch (e: Exception) {
                                                     purchaseResult = "Subscription failed: ${e.message}"
                                                 } finally {
@@ -346,7 +346,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     onClick = {
                         scope.launch {
                             try {
-                                iap.deepLinkToSubscriptionsAndroid(null)
+                                deepLinkToSubscriptionsAndroid(null)
                             } catch (e: Exception) {
                                 transactionResult = "Error opening subscriptions: ${e.message}"
                             }

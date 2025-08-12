@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.KmpIAP.*
 import io.github.hyochan.kmpiap.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -58,13 +58,6 @@ class BasicStoreApp : ComponentActivity() {
 }
 
 class BasicStoreViewModel : ViewModel() {
-    // IAP instance
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
-            autoFinishTransactions = false // Manual control
-        )
-    )
     
     // State management
     data class StoreState(
@@ -98,7 +91,7 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Initialize connection
-                iapHelper.initConnection()
+                initConnection()
                 
                 // Load products after connection
                 loadProducts()
@@ -112,7 +105,7 @@ class BasicStoreViewModel : ViewModel() {
     private fun observeStates() {
         // Observe connection state
         viewModelScope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
+            isConnected.collectLatest { connected ->
                 _state.update { it.copy(isConnected = connected) }
                 
                 if (connected) {
@@ -125,7 +118,7 @@ class BasicStoreViewModel : ViewModel() {
         
         // Observe purchase success
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     handlePurchaseSuccess(it)
                 }
@@ -134,17 +127,17 @@ class BasicStoreViewModel : ViewModel() {
         
         // Observe purchase errors
         viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    iapHelper.clearError()
+                    clearError()
                 }
             }
         }
         
         // Observe products
         viewModelScope.launch {
-            iapHelper.products.collectLatest { productList ->
+            products.collectLatest { productList ->
                 _state.update { it.copy(products = productList) }
                 println("✅ Loaded ${productList.size} products")
             }
@@ -155,7 +148,7 @@ class BasicStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, errorMessage = null) }
         
         try {
-            val products = iapHelper.getProducts(productIds)
+            val products = getProducts(productIds)
             
             products.forEach { product ->
                 println("Product: ${product.productId} - ${product.price}")
@@ -188,7 +181,7 @@ class BasicStoreViewModel : ViewModel() {
                 deliverProduct(purchase.productId)
                 
                 // 3. Finish the transaction
-                val success = iapHelper.finishTransaction(
+                val success = finishTransaction(
                     purchase = purchase,
                     isConsumable = isConsumableProduct(purchase.productId)
                 )
@@ -198,7 +191,7 @@ class BasicStoreViewModel : ViewModel() {
                 }
                 
                 // 4. Clear purchase state
-                iapHelper.clearPurchase()
+                clearPurchase()
                 _state.update { it.copy(latestPurchase = null) }
             } else {
                 showError("Purchase verification failed")
@@ -307,7 +300,7 @@ class BasicStoreViewModel : ViewModel() {
             }
             
             try {
-                iapHelper.requestPurchase(
+                requestPurchase(
                     sku = productId,
                     obfuscatedAccountIdAndroid = getUserId() // For fraud prevention
                 )
@@ -328,14 +321,14 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Get available purchases
-                iapHelper.availablePurchases.value.forEach { purchase ->
+                availablePurchases.value.forEach { purchase ->
                     // Process non-consumable purchases
                     if (!isConsumableProduct(purchase.productId)) {
                         deliverProduct(purchase.productId)
                     }
                 }
                 
-                val count = iapHelper.availablePurchases.value.size
+                val count = availablePurchases.value.size
                 showMessage("Restored $count purchases")
                 
             } catch (e: PurchaseError) {
@@ -372,7 +365,7 @@ class BasicStoreViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        dispose()
     }
 }
 
@@ -691,7 +684,7 @@ fun getProductIcon(productId: String): ImageVector {
 
 ### 1. Connection Management
 ```kotlin
-iapHelper.initConnection()
+initConnection()
 ```
 - Initializes connection to App Store or Google Play
 - Must be called before any other IAP operations
@@ -699,7 +692,7 @@ iapHelper.initConnection()
 
 ### 2. Product Loading
 ```kotlin
-val products = iapHelper.getProducts(productIds)
+val products = getProducts(productIds)
 ```
 - Fetches product information from the store
 - Returns localized pricing and descriptions
@@ -707,7 +700,7 @@ val products = iapHelper.getProducts(productIds)
 
 ### 3. Purchase Flow
 ```kotlin
-iapHelper.requestPurchase(
+requestPurchase(
     sku = productId,
     obfuscatedAccountIdAndroid = getUserId()
 )
@@ -718,7 +711,7 @@ iapHelper.requestPurchase(
 
 ### 4. Transaction Finishing
 ```kotlin
-val success = iapHelper.finishTransaction(
+val success = finishTransaction(
     purchase = purchase,
     isConsumable = true // or false for non-consumables
 )

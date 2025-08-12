@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.KmpIAP.*
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.types.IAPPlatform
@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun OfferCodeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val iap = KmpIAP
+    // KmpIAP methods are now directly accessible via wildcard import
     val platform = getCurrentPlatform()
     
     var isConnected by remember { mutableStateOf(false) }
@@ -36,7 +36,7 @@ fun OfferCodeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         try {
-            iap.initConnection()
+            initConnection()
             isConnected = true
         } catch (e: Exception) {
             result = "Connection failed: ${e.message}"
@@ -127,7 +127,7 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    iap.presentCodeRedemptionSheetIOS()
+                                    presentCodeRedemptionSheetIOS()
                                     result = "Redemption sheet presented"
                                 } catch (e: Exception) {
                                     result = "Failed to present sheet: ${e.message}"
