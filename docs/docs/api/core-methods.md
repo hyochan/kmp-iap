@@ -101,7 +101,8 @@ try {
 ```
 
 **Platform Differences**:
-- **iOS**: Uses `SKProductsRequest` (StoreKit)
+
+- **iOS**: Uses StoreKit 2 API for product requests
 - **Android**: Uses `queryProductDetails()` (Billing Client)
 
 ---

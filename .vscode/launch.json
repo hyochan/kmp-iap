@@ -37,13 +37,6 @@
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "iOS Device (Direct)",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "${workspaceFolder}/.vscode/run_ios_direct.sh",
-      "cwd": "${workspaceFolder}"
-    },
-    {
       "name": "Desktop Debug",
       "type": "node",
       "request": "launch",
