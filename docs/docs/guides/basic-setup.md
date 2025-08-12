@@ -63,7 +63,7 @@ Create a singleton manager to handle all IAP operations:
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
-import kotlinx.coroutines.*
+import kotlinxcoroutines.*
 import kotlinx.coroutines.flow.*
 
 object IAPManager {

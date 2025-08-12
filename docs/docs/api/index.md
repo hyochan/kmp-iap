@@ -89,7 +89,7 @@ kmp-iap provides full type safety with Kotlin's strong typing and coroutines sup
 
 ## Platform Compatibility
 
-- **iOS**: 11.0+ with StoreKit 2 (iOS 15.0+) and StoreKit 1 fallback
+- **iOS**: 15.0+ with StoreKit 2
 - **Android**: API level 24+ with Google Play Billing Client v7
 
 ## Need Help?

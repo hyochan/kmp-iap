@@ -31,7 +31,7 @@ The in-app purchase flow follows this standardized pattern:
 - **Subscriptions**: Recurring purchases with auto-renewal
 
 ### Platform Differences
-- **iOS**: Uses StoreKit 2 (iOS 15.0+) with fallback to StoreKit 1
+- **iOS**: Uses StoreKit 2 (iOS 15.0+)
 - **Android**: Uses Google Play Billing Client v7
 - Both platforms use the same API surface in kmp-iap
 

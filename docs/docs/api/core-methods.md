@@ -22,7 +22,7 @@ suspend fun initConnection()
 **Description**: Establishes connection with the App Store (iOS) or Google Play Store (Android). Must be called before any other IAP operations.
 
 **Platform Differences**:
-- **iOS**: Connects to StoreKit 2 (iOS 15+) or StoreKit 1 (fallback)
+- **iOS**: Connects to StoreKit 2 (iOS 15+)
 - **Android**: Connects to Google Play Billing Client v7
 
 **Example**:
