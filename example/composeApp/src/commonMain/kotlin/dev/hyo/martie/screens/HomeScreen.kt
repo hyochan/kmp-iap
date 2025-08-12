@@ -21,8 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpInAppPurchase
-import io.github.hyochan.kmpiap.createInAppPurchase
+import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.types.IAPPlatform
@@ -32,13 +31,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val iap = remember { createInAppPurchase() }
     var storefrontInfo by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(Unit) {
         if (getCurrentPlatform() == IAPPlatform.IOS) {
             try {
-                val storefront = iap.getStorefrontIOS()
+                val storefront = KmpIAP.getStorefrontIOS()
                 storefront?.let {
                     storefrontInfo = "Storefront: ${it.countryCode} (${it.identifier})"
                 }

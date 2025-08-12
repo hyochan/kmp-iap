@@ -61,13 +61,12 @@ Add to your `AndroidManifest.xml`:
 Create a singleton manager to handle all IAP operations:
 
 ```kotlin
-import io.github.hyochan.kmpiap.*
-import io.github.hyochan.kmpiap.types.*
-import kotlinx.coroutines.*
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.data.*
+import kotlinxcoroutines.*
 import kotlinx.coroutines.flow.*
 
 object IAPManager {
-    private val iap = createInAppPurchase()
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     // State management
@@ -77,13 +76,13 @@ object IAPManager {
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products: StateFlow<List<Product>> = _products.asStateFlow()
     
-    private val _subscriptions = MutableStateFlow<List<Subscription>>(emptyList())
-    val subscriptions: StateFlow<List<Subscription>> = _subscriptions.asStateFlow()
+    private val _subscriptions = MutableStateFlow<List<Product>>(emptyList())
+    val subscriptions: StateFlow<List<Product>> = _subscriptions.asStateFlow()
     
     fun initialize() {
         scope.launch {
             try {
-                iap.initConnection()
+                KmpIAP.initConnection()
                 _isConnected.value = true
                 
                 // Set up purchase listeners
@@ -101,15 +100,15 @@ object IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            iap.purchaseUpdatedFlow.collect { purchase ->
-                handlePurchaseUpdate(purchase)
+            KmpIAP.currentPurchase.collect { purchase ->
+                purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            iap.purchaseErrorFlow.collect { error ->
-                handlePurchaseError(error)
+            KmpIAP.currentError.collect { error ->
+                error?.let { handlePurchaseError(it) }
             }
         }
     }
@@ -117,97 +116,58 @@ object IAPManager {
     private suspend fun loadProducts() {
         try {
             // Load in-app products
-            val productList = iap.requestProducts(
-                RequestProductsParams(
-                    skus = listOf("remove_ads", "premium_features"),
-                    type = PurchaseType.INAPP
-                )
+            val productList = KmpIAP.getProducts(
+                listOf("remove_ads", "premium_features")
             )
-            _products.value = productList.filterIsInstance<Product>()
+            _products.value = productList
             
-            // Load subscriptions
-            val subsList = iap.requestProducts(
-                RequestProductsParams(
-                    skus = listOf("monthly_sub", "yearly_sub"),
-                    type = PurchaseType.SUBS
-                )
+            // Load subscriptions (subscriptions are also products in KMP-IAP)
+            val subsList = KmpIAP.getProducts(
+                listOf("monthly_sub", "yearly_sub")
             )
-            _subscriptions.value = subsList.filterIsInstance<Subscription>()
+            _subscriptions.value = subsList
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
         }
     }
     
     suspend fun purchaseProduct(productId: String) {
-        val request = when (iap.getStore()) {
-            Store.PLAY_STORE -> RequestPurchaseAndroid(
-                skus = listOf(productId)
-            )
-            Store.APP_STORE -> RequestPurchaseIOS(
-                sku = productId
-            )
-            else -> return
-        }
-        
-        iap.requestPurchase(request, PurchaseType.INAPP)
+        KmpIAP.requestPurchase(
+            sku = productId
+        )
     }
     
-    suspend fun purchaseSubscription(productId: String, offerToken: String? = null) {
-        val request = when (iap.getStore()) {
-            Store.PLAY_STORE -> {
-                if (offerToken != null) {
-                    RequestSubscriptionAndroid(
-                        skus = listOf(productId),
-                        subscriptionOffers = listOf(
-                            SubscriptionOfferAndroid(productId, offerToken)
-                        )
-                    )
-                } else {
-                    RequestPurchaseAndroid(skus = listOf(productId))
-                }
-            }
-            Store.APP_STORE -> RequestPurchaseIOS(
-                sku = productId
-            )
-            else -> return
-        }
-        
-        iap.requestPurchase(request, PurchaseType.SUBS)
+    suspend fun purchaseSubscription(productId: String) {
+        KmpIAP.requestPurchase(
+            sku = productId
+        )
     }
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-        when (purchase.purchaseState) {
-            PurchaseState.PURCHASED -> {
-                // Verify purchase with your backend
-                val isValid = verifyPurchaseWithBackend(purchase)
-                
-                if (isValid) {
-                    // Grant entitlement
-                    grantEntitlement(purchase.productId)
-                    
-                    // Finish transaction
-                    iap.finishTransaction(
-                        purchase,
-                        isConsumable = isConsumableProduct(purchase.productId)
-                    )
-                }
-            }
-            PurchaseState.PENDING -> {
-                // Handle pending purchase
-                notifyUserOfPendingPurchase()
-            }
-            else -> {
-                // Handle other states
-            }
+        // Purchase is valid if returned from currentPurchase flow
+        // Process the purchase
+        // Verify purchase with your backend
+        val isValid = verifyPurchaseWithBackend(purchase)
+        
+        if (isValid) {
+            // Grant entitlement
+            grantEntitlement(purchase.productId)
+            
+            // Finish transaction
+            KmpIAP.finishTransaction(
+                purchase,
+                isConsumable = isConsumableProduct(purchase.productId)
+            )
+        }
         }
     }
     
     private fun handlePurchaseError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED -> {
+            ErrorCode.USER_CANCELLED -> {
                 // User cancelled, no action needed
             }
-            ErrorCode.E_ITEM_ALREADY_OWNED -> {
+            ErrorCode.PRODUCT_ALREADY_OWNED -> {
                 // Item already owned, restore it
                 restorePurchases()
             }
@@ -219,13 +179,12 @@ object IAPManager {
     }
     
     suspend fun restorePurchases() {
-        try {
-            val purchases = iap.getAvailablePurchases()
-            purchases.forEach { purchase ->
-                grantEntitlement(purchase.productId)
+        scope.launch {
+            KmpIAP.availablePurchases.collect { purchases ->
+                purchases.forEach { purchase ->
+                    grantEntitlement(purchase.productId)
+                }
             }
-        } catch (e: Exception) {
-            println("Restore failed: ${e.message}")
         }
     }
     
@@ -262,7 +221,7 @@ object IAPManager {
     
     fun cleanup() {
         scope.cancel()
-        iap.endConnection()
+        KmpIAP.dispose()
     }
 }
 

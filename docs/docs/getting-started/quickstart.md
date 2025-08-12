@@ -11,20 +11,19 @@ Get up and running with KMP IAP in just a few minutes!
 Here's a complete example to get you started with in-app purchases:
 
 ```kotlin
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
-    private val iap = createInAppPurchase()
     
     suspend fun initialize() {
         try {
             // Initialize connection
-            iap.initConnection()
+            KmpIAP.initConnection()
             
             // Listen to purchase updates
-            iap.purchaseUpdatedFlow.collect { purchase ->
+            KmpIAP.purchaseUpdatedFlow.collect { purchase ->
                 handlePurchaseUpdate(purchase)
             }
         } catch (e: Exception) {
@@ -35,7 +34,7 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // Load in-app products
-            val products = iap.requestProducts(
+            val products = KmpIAP.requestProducts(
                 RequestProductsParams(
                     skus = listOf("remove_ads", "premium_upgrade"),
                     type = PurchaseType.INAPP
@@ -53,7 +52,7 @@ class IAPManager {
     suspend fun purchaseProduct(productId: String) {
         try {
             // Request purchase based on platform
-            val request = when (iap.getStore()) {
+            val request = when (KmpIAP.getStore()) {
                 Store.PLAY_STORE -> RequestPurchaseAndroid(
                     skus = listOf(productId)
                 )
@@ -63,7 +62,7 @@ class IAPManager {
                 else -> RequestPurchaseGeneric(sku = productId)
             }
             
-            iap.requestPurchase(
+            KmpIAP.requestPurchase(
                 request = request,
                 type = PurchaseType.INAPP
             )
@@ -91,7 +90,7 @@ class IAPManager {
             deliverProduct(purchase.productId)
             
             // Finish the transaction
-            iap.finishTransaction(purchase, isConsumable = true)
+            KmpIAP.finishTransaction(purchase, isConsumable = true)
         }
     }
     
@@ -107,7 +106,7 @@ class IAPManager {
     }
     
     fun disconnect() {
-        iap.endConnection()
+        KmpIAP.endConnection()
     }
 }
 ```

@@ -157,7 +157,3 @@ interface KmpInAppPurchase {
     suspend fun canMakePayments(): Boolean
 }
 
-/**
- * Factory function to create platform-specific InAppPurchase implementation.
- */
-expect fun createInAppPurchase(): KmpInAppPurchase

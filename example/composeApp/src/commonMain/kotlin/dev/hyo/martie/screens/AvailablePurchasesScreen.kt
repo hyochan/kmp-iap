@@ -20,60 +20,67 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.types.Purchase
-import io.github.hyochan.kmpiap.useIap.useIap
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val iapHelper = remember { useIap(scope = scope) }
+    val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
-    var isLoading by remember { mutableStateOf(true) }  // Start with true
+    var connected by remember { mutableStateOf(false) }
+    var availablePurchases by remember { mutableStateOf<List<Purchase>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var consumeResult by remember { mutableStateOf<String?>(null) }
+    var consumingPurchaseId by remember { mutableStateOf<String?>(null) }
     
-    val connected by iapHelper.connected.collectAsState()
-    val availablePurchases by iapHelper.availablePurchases.collectAsState()
+    // Collect connection state
+    LaunchedEffect(Unit) {
+        launch {
+            KmpIAP.connectionStateFlow.collect { connectionResult ->
+                connected = connectionResult.connected
+            }
+        }
+    }
     
-    // Initialize connection and load purchases automatically
+    // Initialize connection
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            iapHelper.initConnection()
+            KmpIAP.initConnection()
         } catch (e: Exception) {
-            error = "Failed to initialize: ${e.message}"
+            errorMessage = "Failed to initialize: ${e.message}"
             isLoading = false
         }
     }
     
-    // Load purchases when connected
+    // Load available purchases when connected
     LaunchedEffect(connected) {
         if (connected) {
-            // Add delay to ensure connection is fully established
+            // Add a small delay to ensure connection is fully established
             kotlinx.coroutines.delay(500)
             try {
-                println("[AvailablePurchasesScreen] Calling getAvailablePurchases...")
-                iapHelper.getAvailablePurchases()
-                println("[AvailablePurchasesScreen] getAvailablePurchases completed")
+                val purchases = KmpIAP.getAvailablePurchases()
+                availablePurchases = purchases
+                if (purchases.isEmpty()) {
+                    errorMessage = "No active purchases found"
+                } else {
+                    errorMessage = null
+                }
             } catch (e: Exception) {
-                error = "Failed to load purchases: ${e.message}"
-                println("[AvailablePurchasesScreen] Error: ${e.message}")
+                errorMessage = "Failed to load purchases: ${e.message}"
             } finally {
                 isLoading = false
             }
         }
     }
     
-    DisposableEffect(Unit) {
-        onDispose {
-            iapHelper.dispose()
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -117,14 +124,17 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     onClick = {
                         scope.launch {
                             isRefreshing = true
-                            error = null
+                            errorMessage = null
                             try {
-                                println("[AvailablePurchasesScreen] Refreshing purchases...")
-                                iapHelper.getAvailablePurchases()
-                                println("[AvailablePurchasesScreen] Refresh completed")
+                                val purchases = KmpIAP.getAvailablePurchases()
+                                availablePurchases = purchases
+                                if (purchases.isEmpty()) {
+                                    errorMessage = "No active purchases found"
+                                } else {
+                                    errorMessage = null
+                                }
                             } catch (e: Exception) {
-                                error = "Failed to refresh purchases: ${e.message}"
-                                println("[AvailablePurchasesScreen] Refresh error: ${e.message}")
+                                errorMessage = "Failed to refresh: ${e.message}"
                             } finally {
                                 isRefreshing = false
                             }
@@ -148,98 +158,197 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 }
             }
             
-            // Error Display
-            error?.let {
-                Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Status: ${if (connected) "Connected" else "Not Connected"}",
+                fontSize = 14.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            
+            // Loading state
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = AppColors.Primary)
+                }
+            }
+            
+            // Error state
+            errorMessage?.let { error ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Error)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
                 ) {
                     Text(
-                        text = it,
+                        text = error,
                         modifier = Modifier.padding(16.dp),
-                        color = Color.White
+                        color = Color(0xFFC62828)
                     )
                 }
             }
             
-            // Purchases List or Loading/Empty State
-            when {
-                isLoading -> {
-                    Box(
+            // Consume result
+            consumeResult?.let { result ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = when {
+                            result.contains("✅") -> Color(0xFFE8F5E9)
+                            result.contains("❌") -> Color(0xFFFFEBEE)
+                            else -> Color(0xFFFFF8E1)
+                        }
+                    )
+                ) {
+                    Text(
+                        text = result,
+                        modifier = Modifier.padding(16.dp),
+                        color = when {
+                            result.contains("✅") -> Color(0xFF2E7D32)
+                            result.contains("❌") -> Color(0xFFC62828)
+                            else -> Color(0xFFF57F17)
+                        }
+                    )
+                }
+            }
+            
+            // Purchases list
+            if (!isLoading && availablePurchases.isNotEmpty()) {
+                availablePurchases.forEach { purchase ->
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator(
-                                color = AppColors.Primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Loading purchases...",
-                                color = AppColors.Secondary,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-                }
-                availablePurchases.isEmpty() -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.padding(16.dp)
                         ) {
                             Text(
-                                text = "No purchases found",
+                                text = purchase.productId,
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
-                                color = AppColors.Secondary
+                                color = AppColors.OnSurface
                             )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            purchase.purchaseToken?.let { token ->
+                                Text(
+                                    text = "Token: ${token.take(20)}...",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            
+                            Text(
+                                text = "Date: ${purchase.transactionDate}",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            
+                            if (purchase.platform == IAPPlatform.ANDROID) {
+                                Row(
+                                    modifier = Modifier.padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "State: ${purchase.purchaseStateAndroid ?: "unknown"}",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                    Text(
+                                        text = "Acknowledged: ${purchase.isAcknowledgedAndroid ?: false}",
+                                        fontSize = 12.sp,
+                                        color = if (purchase.isAcknowledgedAndroid == true) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                                    )
+                                }
+                            }
+                            
+                            // Consume button for testing (Android only)
+                            if (purchase.platform == IAPPlatform.ANDROID && purchase.purchaseToken != null) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        consumingPurchaseId = purchase.productId
+                                        scope.launch {
+                                            try {
+                                                val result = KmpIAP.finishTransaction(
+                                                    purchase = purchase,
+                                                    isConsumable = true
+                                                )
+                                                consumeResult = if (result) {
+                                                    "✅ Purchase consumed successfully"
+                                                } else {
+                                                    "⚠️ Failed to consume purchase"
+                                                }
+                                                // Refresh the list
+                                                val purchases = KmpIAP.getAvailablePurchases()
+                                                availablePurchases = purchases
+                                            } catch (e: Exception) {
+                                                consumeResult = "❌ Error: ${e.message}"
+                                            } finally {
+                                                consumingPurchaseId = null
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = consumingPurchaseId != purchase.productId,
+                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                                ) {
+                                    if (consumingPurchaseId == purchase.productId) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text("Consume (Test Only)")
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-                else -> {
-                    availablePurchases.forEach { purchase ->
-                        PurchaseCard(purchase)
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-            
-            // Info Section
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+            } else if (!isLoading && connected && availablePurchases.isEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Text(
-                        text = "ℹ️ Available Purchases",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = AppColors.OnSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "• Shows purchased items that haven't been consumed\n" +
-                              "• Useful for restoring purchases on new devices\n" +
-                              "• Automatically refreshes when you open this screen",
-                        fontSize = 14.sp,
-                        color = AppColors.Secondary
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No Active Purchases",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = AppColors.OnSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "You don't have any active purchases yet",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -247,50 +356,52 @@ fun AvailablePurchasesScreen(navController: NavController) {
 }
 
 @Composable
-fun PurchaseCard(purchase: Purchase) {
+private fun ExpansionCard(
+    title: String,
+    content: String
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(8.dp)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
-            Text(
-                text = purchase.productId,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = AppColors.OnSurface
-            )
-            
-            purchase.transactionId?.let {
-                Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Color.Transparent,
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Transaction: $it",
+                    title,
                     fontSize = 12.sp,
-                    color = AppColors.Secondary,
-                    fontFamily = FontFamily.Monospace
+                    fontWeight = FontWeight.Medium
                 )
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide" else "Show", fontSize = 12.sp)
+                }
             }
             
-            purchase.transactionDate?.let { date ->
-                Spacer(modifier = Modifier.height(4.dp))
-                val localDate = date.toLocalDateTime(TimeZone.currentSystemDefault())
+            if (expanded) {
                 Text(
-                    text = "Date: ${localDate.date} ${localDate.time}",
-                    fontSize = 12.sp,
-                    color = AppColors.Secondary
-                )
-            }
-            
-            purchase.transactionState?.let {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "State: $it",
-                    fontSize = 12.sp,
-                    color = AppColors.Secondary
+                    content,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Color.White,
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(8.dp)
                 )
             }
         }

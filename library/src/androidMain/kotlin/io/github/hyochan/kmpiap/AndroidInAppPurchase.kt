@@ -1,7 +1,9 @@
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.os.Bundle
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
@@ -20,31 +22,37 @@ import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-private var androidInAppPurchaseInstance: AndroidInAppPurchaseImpl? = null
 
-public actual fun createInAppPurchase(): KmpInAppPurchase {
-    if (androidInAppPurchaseInstance == null) {
-        androidInAppPurchaseInstance = AndroidInAppPurchaseImpl()
-    }
-    return androidInAppPurchaseInstance!!
-}
-
-public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
+internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
     private var billingClient: BillingClient? = null
-    private var context: Context? = null
-    private var activity: Activity? = null
     private var isConnected = false
+    private var context: Context? = null
+    private var currentActivity: Activity? = null
     
-    companion object {
-        /**
-         * Initialize the Android IAP with context and activity.
-         * This should be called once from your MainActivity.
-         */
-        fun initializeAndroid(context: Context, activity: Activity? = null) {
-            val instance = createInAppPurchase()
-            if (instance is AndroidInAppPurchaseImpl) {
-                instance.initialize(context, activity)
-            }
+    
+    // Activity lifecycle callbacks
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+        // Automatically capture the first activity created
+        if (currentActivity == null) {
+            currentActivity = activity
+            println("[KMP-IAP] Activity auto-captured on create: $activity")
+        }
+    }
+    override fun onActivityStarted(activity: Activity) {}
+    override fun onActivityResumed(activity: Activity) {
+        currentActivity = activity
+        println("[KMP-IAP] Activity resumed: $activity")
+    }
+    override fun onActivityPaused(activity: Activity) {
+        // Don't clear the activity on pause, only on destroy
+        // This prevents losing the activity reference during purchase flow
+    }
+    override fun onActivityStopped(activity: Activity) {}
+    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+    override fun onActivityDestroyed(activity: Activity) {
+        if (currentActivity == activity) {
+            currentActivity = null
+            println("[KMP-IAP] Activity destroyed and cleared: $activity")
         }
     }
     
@@ -77,15 +85,6 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
     )
     override val promotedProductFlow: Flow<String?> = _promotedProductFlow.asSharedFlow()
     
-    /**
-     * Initialize with Android context
-     */
-    fun initialize(context: Context, activity: Activity? = null) {
-        println("[KMP-IAP] Initializing AndroidInAppPurchase with context: $context")
-        this.context = context.applicationContext
-        this.activity = activity
-        println("[KMP-IAP] Context initialized: ${this.context != null}")
-    }
     
     override fun getVersion(): String {
         return "KMP-IAP v0.0.0-alpha1 (Android)"
@@ -93,8 +92,49 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
     
     override suspend fun initConnection() {
         println("[KMP-IAP] initConnection called")
+        
+        // Try to get context and register for activity lifecycle if not already done
+        if (context == null) {
+            try {
+                // Try to get application context through reflection
+                val activityThreadClass = Class.forName("android.app.ActivityThread")
+                val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+                val getApplication = activityThreadClass.getMethod("getApplication")
+                val application = getApplication.invoke(currentActivityThread) as? Application
+                
+                if (application != null) {
+                    context = application.applicationContext
+                    // Register activity lifecycle callbacks to track current activity
+                    application.registerActivityLifecycleCallbacks(this)
+                    println("[KMP-IAP] Context obtained automatically and lifecycle callbacks registered")
+                    
+                    // Try to get current activity through reflection
+                    try {
+                        val activitiesField = activityThreadClass.getDeclaredField("mActivities")
+                        activitiesField.isAccessible = true
+                        val activities = activitiesField.get(currentActivityThread) as? Map<*, *>
+                        if (!activities.isNullOrEmpty()) {
+                            val activityRecord = activities.values.firstOrNull()
+                            if (activityRecord != null) {
+                                val activityField = activityRecord.javaClass.getDeclaredField("activity")
+                                activityField.isAccessible = true
+                                currentActivity = activityField.get(activityRecord) as? Activity
+                                if (currentActivity != null) {
+                                    println("[KMP-IAP] Current activity found through reflection: $currentActivity")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        println("[KMP-IAP] Could not get current activity through reflection: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                println("[KMP-IAP] Failed to get context automatically: ${e.message}")
+            }
+        }
+        
         context ?: throw PurchaseError(
-            message = "Context not initialized. Call initialize() first.",
+            message = "Context not available. Please ensure your app is properly initialized.",
             code = ErrorCode.E_NOT_INITIALIZED
         )
         
@@ -164,6 +204,17 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
         isConnected = false
         cleanupState()
         _connectionStateFlow.emit(ConnectionResult(connected = false, message = "Disconnected from Google Play"))
+        
+        // Unregister activity callbacks if we registered them
+        try {
+            val activityThreadClass = Class.forName("android.app.ActivityThread")
+            val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+            val getApplication = activityThreadClass.getMethod("getApplication")
+            val application = getApplication.invoke(currentActivityThread) as? Application
+            application?.unregisterActivityLifecycleCallbacks(this)
+        } catch (e: Exception) {
+            // Ignore errors during cleanup
+        }
     }
     
     override suspend fun requestProducts(params: RequestProductsParams): List<BaseProduct> {
@@ -219,27 +270,39 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
     override suspend fun requestPurchase(request: RequestPurchase, type: PurchaseType) {
         ensureConnection()
         
-        val currentActivity = activity ?: throw PurchaseError(
-            message = "Activity not available for purchase",
+        println("[KMP-IAP] requestPurchase - currentActivity: $currentActivity")
+        
+        val purchaseActivity = currentActivity ?: throw PurchaseError(
+            message = "Activity not available for purchase. Make sure to call AndroidInAppPurchaseImpl.initializeAndroid() from your MainActivity",
             code = ErrorCode.E_ACTIVITY_UNAVAILABLE
         )
         
         val androidRequest = when (request) {
             is RequestPurchaseAndroid -> request
-            is RequestPurchaseIOS -> throw PurchaseError(
+            is RequestSubscriptionAndroid -> request
+            is RequestPurchaseIOS, is RequestSubscriptionIOS -> throw PurchaseError(
                 message = "iOS request on Android platform",
                 code = ErrorCode.E_DEVELOPER_ERROR
             )
             else -> throw PurchaseError(
-                message = "Invalid request type",
+                message = "Invalid request type: ${request::class.simpleName}",
                 code = ErrorCode.E_DEVELOPER_ERROR
             )
         }
         
         // First, query product details
+        val productId = when (androidRequest) {
+            is RequestPurchaseAndroid -> androidRequest.sku
+            is RequestSubscriptionAndroid -> androidRequest.sku
+            else -> throw PurchaseError(
+                message = "Unexpected request type",
+                code = ErrorCode.E_DEVELOPER_ERROR
+            )
+        }
+        
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(androidRequest.sku)
+                .setProductId(productId)
                 .setProductType(
                     when (type) {
                         PurchaseType.INAPP -> BillingClient.ProductType.INAPP
@@ -273,20 +336,35 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
                 val billingFlowParams = BillingFlowParams.newBuilder()
                     .setProductDetailsParamsList(productDetailsParamsList)
                     .apply {
-                        androidRequest.obfuscatedAccountIdAndroid?.let {
-                            setObfuscatedAccountId(it)
-                        }
-                        androidRequest.obfuscatedProfileIdAndroid?.let {
-                            setObfuscatedProfileId(it)
+                        when (androidRequest) {
+                            is RequestPurchaseAndroid -> {
+                                androidRequest.obfuscatedAccountIdAndroid?.let {
+                                    setObfuscatedAccountId(it)
+                                }
+                                androidRequest.obfuscatedProfileIdAndroid?.let {
+                                    setObfuscatedProfileId(it)
+                                }
+                            }
+                            is RequestSubscriptionAndroid -> {
+                                androidRequest.obfuscatedAccountIdAndroid?.let {
+                                    setObfuscatedAccountId(it)
+                                }
+                                androidRequest.obfuscatedProfileIdAndroid?.let {
+                                    setObfuscatedProfileId(it)
+                                }
+                            }
+                            else -> {
+                                // Other request types don't have Android-specific fields
+                            }
                         }
                     }
                     .build()
                     
-                billingClient?.launchBillingFlow(currentActivity, billingFlowParams)
+                billingClient?.launchBillingFlow(purchaseActivity, billingFlowParams)
             } else {
                 _purchaseErrorFlow.tryEmit(
                     PurchaseError(
-                        message = "Product not found: ${androidRequest.sku}",
+                        message = "Product not found: $productId",
                         code = ErrorCode.E_ITEM_UNAVAILABLE
                     )
                 )
@@ -373,7 +451,7 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
     }
     
     override suspend fun deepLinkToSubscriptionsAndroid(sku: String?) {
-        val currentActivity = activity ?: context ?: return
+        val launchActivity = currentActivity ?: context ?: return
         
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
             data = if (sku != null) {
@@ -384,7 +462,11 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
             flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
         }
         
-        currentActivity.startActivity(intent)
+        if (launchActivity is Activity) {
+            launchActivity.startActivity(intent)
+        } else if (launchActivity is Context) {
+            launchActivity.startActivity(intent)
+        }
     }
     
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
@@ -477,6 +559,7 @@ public class AndroidInAppPurchaseImpl : KmpInAppPurchase {
             )
         }
     }
+    
 }
 
 // Extension functions
@@ -559,4 +642,5 @@ private fun com.android.billingclient.api.ProductDetails.toSubscription(): Subsc
         }
     )
 }
+
 

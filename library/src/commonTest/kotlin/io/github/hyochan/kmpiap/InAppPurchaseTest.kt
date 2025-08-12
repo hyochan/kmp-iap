@@ -8,23 +8,20 @@ import kotlin.test.*
 
 class InAppPurchaseTest {
     @Test
-    fun testCreateInAppPurchase() {
-        val iap = createInAppPurchase()
-        assertNotNull(iap)
+    fun testKmpIAPSingleton() {
+        assertNotNull(KmpIAP)
     }
     
     @Test
     fun testGetVersion() {
-        val iap = createInAppPurchase()
-        val version = iap.getVersion()
+        val version = KmpIAP.getVersion()
         assertTrue(version.contains("KMP-IAP"))
         assertTrue(version.contains("alpha"))
     }
     
     @Test
     fun testGetStore() {
-        val iap = createInAppPurchase()
-        val store = iap.getStore()
+        val store = KmpIAP.getStore()
         assertTrue(
             store == Store.PLAY_STORE || store == Store.APP_STORE,
             "Store should be either PLAY_STORE or APP_STORE"

@@ -19,9 +19,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
+import io.github.hyochan.kmpiap.ErrorCode
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
-import io.github.hyochan.kmpiap.useIap.UseIapOptions
-import io.github.hyochan.kmpiap.useIap.useIap
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -34,7 +34,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
-    var isConnecting by remember { mutableStateOf(true) }  // Start with true
+    var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var purchaseResult by remember { mutableStateOf<String?>(null) }
@@ -42,92 +42,88 @@ fun PurchaseFlowScreen(navController: NavController) {
     var initError by remember { mutableStateOf<String?>(null) }
     var purchaseToConsume by remember { mutableStateOf<Purchase?>(null) }
     
-    val iapHelper = remember {
-        try {
-            useIap(
-                scope = scope,
-                options = UseIapOptions(
-                    onPurchaseSuccess = { purchase ->
-                        purchaseResult = json.encodeToString(purchase)
-                        
-                        // TEST ONLY: Store the purchase to be consumed
-                        // This is for testing purposes only - in production, consume only after
-                        // delivering the product to the user
-                        purchaseToConsume = purchase
-                    },
-                    onPurchaseError = { error ->
-                        purchaseResult = when (error.code) {
-                            io.github.hyochan.kmpiap.utils.ErrorCode.E_USER_CANCELLED -> "Purchase cancelled"
-                            else -> "Error: ${error.message}\nCode: ${error.code}"
-                        }
-                    }
-                )
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+    var connected by remember { mutableStateOf(false) }
+    var products by remember { mutableStateOf<List<BaseProduct>>(emptyList()) }
+    var currentError by remember { mutableStateOf<PurchaseError?>(null) }
+    var currentPurchase by remember { mutableStateOf<Purchase?>(null) }
+    
+    // Collect purchase events
+    LaunchedEffect(Unit) {
+        launch {
+            KmpIAP.purchaseUpdatedFlow.collect { purchase ->
+                currentPurchase = purchase
+                purchaseResult = "✅ Purchase successful!\n\n${json.encodeToString(purchase)}"
+                
+                // TEST ONLY: Auto-consume for testing
+                purchaseToConsume = purchase
+            }
+        }
+        
+        launch {
+            KmpIAP.purchaseErrorFlow.collect { error ->
+                currentError = error
+                purchaseResult = when (error.code) {
+                    ErrorCode.E_USER_CANCELLED -> "Purchase cancelled"
+                    else -> "Error: ${error.message}\nCode: ${error.code}"
+                }
+            }
+        }
+        
+        launch {
+            KmpIAP.connectionStateFlow.collect { connectionResult ->
+                connected = connectionResult.connected
+                if (!connectionResult.connected) {
+                    initError = connectionResult.message
+                }
+            }
         }
     }
     
-    val connected by iapHelper?.connected?.collectAsState() ?: remember { mutableStateOf(false) }
-    val products by iapHelper?.products?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
-    val currentError by iapHelper?.currentError?.collectAsState() ?: remember { mutableStateOf(null) }
-    
-    // TEST ONLY: Automatically consume purchases after they're successful
-    // This allows repeated testing of the same products
+    // TEST ONLY: Auto-consume purchases for testing
     LaunchedEffect(purchaseToConsume) {
         purchaseToConsume?.let { purchase ->
-            iapHelper?.let { helper ->
-                try {
-                    val consumeResult = helper.finishTransaction(
-                        purchase = purchase,
-                        isConsumable = true // Mark as consumable for testing
-                    )
-                    if (consumeResult) {
-                        purchaseResult = "${purchaseResult}\n\n✅ Purchase consumed for testing"
-                    } else {
-                        purchaseResult = "${purchaseResult}\n\n⚠️ Failed to consume purchase"
-                    }
-                } catch (e: Exception) {
-                    purchaseResult = "${purchaseResult}\n\n❌ Error consuming: ${e.message}"
+            try {
+                val consumeResult = KmpIAP.finishTransaction(
+                    purchase = purchase,
+                    isConsumable = true
+                )
+                if (consumeResult) {
+                    purchaseResult = "${purchaseResult}\n\n✅ Purchase consumed for testing"
+                } else {
+                    purchaseResult = "${purchaseResult}\n\n⚠️ Failed to consume purchase"
                 }
-                purchaseToConsume = null // Reset after consuming
+            } catch (e: Exception) {
+                purchaseResult = "${purchaseResult}\n\n❌ Error consuming: ${e.message}"
             }
+            purchaseToConsume = null
         }
     }
     
+    // Initialize connection
     LaunchedEffect(Unit) {
-        if (iapHelper != null) {
-            isConnecting = true
-            try {
-                iapHelper.initConnection()
-            } catch (e: Exception) {
-                purchaseResult = "Initialization error: ${e.message}"
-            } finally {
-                isConnecting = false
-            }
-        } else {
-            purchaseResult = "Failed to initialize IAP helper"
+        isConnecting = true
+        try {
+            KmpIAP.initConnection()
+        } catch (e: Exception) {
+            purchaseResult = "Initialization error: ${e.message}"
+        } finally {
+            isConnecting = false
         }
     }
     
     // Load products when connected
     LaunchedEffect(connected) {
-        if (connected && iapHelper != null) {
-            // Add small delay to ensure connection is fully established
+        if (connected) {
             kotlinx.coroutines.delay(500)
             isLoadingProducts = true
             try {
-                // TEST ONLY: First, get and consume any existing purchases to reset state
-                // This ensures the test products can be purchased again
+                // TEST ONLY: Clear existing purchases first
                 try {
-                    iapHelper.getAvailablePurchases()
-                    kotlinx.coroutines.delay(200) // Give time for state to update
-                    val existingPurchases = iapHelper.availablePurchases.value
+                    val existingPurchases = KmpIAP.getAvailablePurchases()
                     existingPurchases.forEach { purchase ->
                         if (PRODUCT_IDS.contains(purchase.productId)) {
                             try {
-                                val consumed = iapHelper.finishTransaction(purchase, isConsumable = true)
+                                val consumed = KmpIAP.finishTransaction(purchase, isConsumable = true)
                                 println("[TEST] Consumed existing purchase: ${purchase.productId} - Success: $consumed")
                             } catch (e: Exception) {
                                 println("[TEST] Failed to consume existing purchase: ${e.message}")
@@ -138,18 +134,21 @@ fun PurchaseFlowScreen(navController: NavController) {
                     println("[TEST] Could not check existing purchases: ${e.message}")
                 }
                 
-                iapHelper.requestProducts(RequestProductsParams(PRODUCT_IDS, PurchaseType.INAPP))
+                val result = KmpIAP.requestProducts(
+                    RequestProductsParams(
+                        type = PurchaseType.INAPP,
+                        skus = PRODUCT_IDS
+                    )
+                )
+                products = result
+                if (products.isEmpty()) {
+                    purchaseResult = "No products found for IDs: ${PRODUCT_IDS.joinToString()}"
+                }
             } catch (e: Exception) {
                 purchaseResult = "Failed to load products: ${e.message}"
             } finally {
                 isLoadingProducts = false
             }
-        }
-    }
-    
-    DisposableEffect(Unit) {
-        onDispose {
-            iapHelper?.dispose()
         }
     }
 
@@ -199,27 +198,25 @@ fun PurchaseFlowScreen(navController: NavController) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (connected) AppColors.Success else AppColors.Secondary
+                    containerColor = if (connected) AppColors.Primary else AppColors.Secondary
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (connected) "Connected" else if (isConnecting) "Connecting..." else "Disconnected",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold
-                    )
                     if (isConnecting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                        CircularProgressIndicator(color = Color.White)
+                    } else {
+                        Text(
+                            text = if (connected) "✓ Connected to ${KmpIAP.getStore()}" else "⚠ Not connected",
                             color = Color.White,
-                            strokeWidth = 2.dp
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
                         )
                     }
                 }
@@ -228,261 +225,221 @@ fun PurchaseFlowScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(20.dp))
             
             // Products Section
-            if (!connected && isConnecting) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
+            if (connected && !isLoadingProducts) {
+                Text(
+                    "Available Products",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = AppColors.OnSurface,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                
+                if (products.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = AppColors.Primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Connecting to store...",
-                            fontSize = 16.sp,
-                            color = AppColors.Secondary
+                            "No products available",
+                            color = Color.Gray,
+                            modifier = Modifier.padding(20.dp),
+                            fontSize = 16.sp
                         )
                     }
-                }
-            } else if (connected && isLoadingProducts) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = AppColors.Primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading products...",
-                            fontSize = 16.sp,
-                            color = AppColors.Secondary
-                        )
-                    }
-                }
-            } else if (connected) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Available Products",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AppColors.OnSurface
-                    )
-                    if (isLoadingProducts) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = AppColors.Primary,
-                            strokeWidth = 2.dp
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            if (products.isEmpty() && !isLoadingProducts) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
-                ) {
-                    Text(
-                        text = "No products available",
-                        modifier = Modifier.padding(16.dp),
-                        color = AppColors.Secondary
-                    )
-                }
-            }
-            
-            products.forEach { product ->
-                ProductCard(
-                    product = product,
-                    onPurchase = {
-                        scope.launch {
-                            isProcessing = true
-                            try {
-                                iapHelper?.requestPurchase(
-                                    sku = product.productId,
-                                    quantity = 1
-                                ) ?: run {
-                                    purchaseResult = "IAP not initialized"
+                } else {
+                    products.forEach { product ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text(
+                                    product.title ?: product.productId,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = AppColors.OnSurface
+                                )
+                                
+                                Spacer(modifier = Modifier.height(4.dp))
+                                
+                                Text(
+                                    product.description ?: "",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                
+                                Text(
+                                    "Price: ${product.localizedPrice}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = AppColors.Primary,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                
+                                Button(
+                                    onClick = {
+                                        if (!isProcessing) {
+                                            scope.launch {
+                                                isProcessing = true
+                                                purchaseResult = "Processing purchase..."
+                                                try {
+                                                    val platform = getCurrentPlatform()
+                                                    val request = when (platform) {
+                                                        IAPPlatform.ANDROID -> {
+                                                            RequestPurchaseAndroid(
+                                                                sku = product.productId,
+                                                                skus = listOf(product.productId),
+                                                                obfuscatedAccountIdAndroid = null,
+                                                                obfuscatedProfileIdAndroid = null
+                                                            )
+                                                        }
+                                                        IAPPlatform.IOS -> {
+                                                            RequestPurchaseIOS(
+                                                                sku = product.productId,
+                                                                quantity = 1
+                                                            )
+                                                        }
+                                                        else -> throw IllegalStateException("Unsupported platform")
+                                                    }
+                                                    
+                                                    KmpIAP.requestPurchase(request, PurchaseType.INAPP)
+                                                } catch (e: Exception) {
+                                                    purchaseResult = "Purchase failed: ${e.message}"
+                                                } finally {
+                                                    isProcessing = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isProcessing,
+                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                                ) {
+                                    if (isProcessing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text("Purchase", color = Color.White)
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                purchaseResult = "Purchase error: ${e.message}\n${e.stackTraceToString()}"
-                            } finally {
-                                isProcessing = false
                             }
                         }
-                    },
-                    isLoading = isProcessing
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-            
-            // Results Section
-            purchaseResult?.let { result ->
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                Text(
-                    text = "Purchase Result",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AppColors.OnSurface
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = result,
-                        modifier = Modifier.padding(16.dp),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = AppColors.OnSurface
-                    )
+                    }
                 }
-            }
-            
-            // iOS Transaction Test
-            if (getCurrentPlatform() == IAPPlatform.IOS) {
+                
+                // Get Available Purchases button
                 Spacer(modifier = Modifier.height(20.dp))
                 
                 Button(
                     onClick = {
                         scope.launch {
-                            // TODO: Implement getAppTransactionIOS when available
-                            transactionResult = "getAppTransactionIOS not yet implemented"
+                            transactionResult = "Loading purchases..."
+                            try {
+                                val purchases = KmpIAP.getAvailablePurchases()
+                                transactionResult = if (purchases.isEmpty()) {
+                                    "No active purchases found"
+                                } else {
+                                    "Active Purchases:\n" + purchases.joinToString("\n") { purchase ->
+                                        "• ${purchase.productId} (${purchase.transactionDate})"
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                transactionResult = "Error loading purchases: ${e.message}"
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Secondary)
                 ) {
-                    Text("Test getAppTransactionIOS()")
+                    Text("Get Available Purchases", color = Color.White)
                 }
+            }
+            
+            // Results Section
+            if (purchaseResult != null) {
+                Spacer(modifier = Modifier.height(20.dp))
                 
-                transactionResult?.let { result ->
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = when {
+                            purchaseResult?.contains("✅") == true -> Color(0xFFE8F5E9)
+                            purchaseResult?.contains("❌") == true -> Color(0xFFFFEBEE)
+                            else -> Color(0xFFF5F5F5)
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = result,
-                            modifier = Modifier.padding(16.dp),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 12.sp
+                            "Purchase Result",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.OnSurface
                         )
-                    }
-                }
-            }
-            
-            // Info Section
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = AppColors.Surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "ℹ️ Testing Tips",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = AppColors.OnSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "• Use sandbox account on iOS\n" +
-                              "• Use test card on Android\n" +
-                              "• Products may take time to propagate\n" +
-                              "• 🔄 Purchases are auto-consumed for testing",
-                        fontSize = 14.sp,
-                        color = AppColors.Secondary
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ProductCard(
-    product: Product,
-    onPurchase: () -> Unit,
-    isLoading: Boolean
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = product.title ?: product.productId,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        color = AppColors.OnSurface
-                    )
-                    product.description?.let {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = it,
-                            fontSize = 14.sp,
-                            color = AppColors.Secondary
+                            purchaseResult ?: "",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(8.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = product.localizedPrice ?: product.price,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.Primary
-                    )
                 }
+            }
+            
+            if (transactionResult != null) {
+                Spacer(modifier = Modifier.height(12.dp))
                 
-                Button(
-                    onClick = onPurchase,
-                    enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            "Transaction Result",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.OnSurface
                         )
-                    } else {
-                        Text("Buy")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            transactionResult ?: "",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(8.dp)
+                        )
                     }
                 }
             }

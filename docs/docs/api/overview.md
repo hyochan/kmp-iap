@@ -211,7 +211,7 @@ iap.purchaseErrorFlow.collect { error ->
 - Handles obfuscated account IDs
 
 ### iOS
-- Uses StoreKit 1 and 2
+- Uses StoreKit 2 (iOS 15+)
 - Supports promotional offers
 - Handles receipt validation
 

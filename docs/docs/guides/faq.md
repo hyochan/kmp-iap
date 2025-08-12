@@ -12,7 +12,7 @@ Common questions and answers about kmp-iap.
 ### Q: What platforms does kmp-iap support?
 
 **A:** The library supports:
-- **iOS**: 15.0+ with StoreKit 2 (with StoreKit 1 fallback)
+- **iOS**: 15.0+ with StoreKit 2
 - **Android**: API 21+ (Android 5.0) with Google Play Billing Library v7+
 - **Desktop & Web**: Planned for future releases
 

@@ -19,8 +19,6 @@ import kotlin.coroutines.resumeWithException
 
 @OptIn(ExperimentalForeignApi::class)
 
-public actual fun createInAppPurchase(): KmpInAppPurchase = IosInAppPurchaseImpl()
-
 // Separate Objective-C observer class
 private class PaymentObserver : NSObject(), SKPaymentTransactionObserverProtocol, SKProductsRequestDelegateProtocol {
     var purchaseHandler: ((SKPaymentTransaction) -> Unit)? = null
@@ -115,7 +113,7 @@ private class PaymentObserver : NSObject(), SKPaymentTransactionObserverProtocol
     }
 }
 
-public class IosInAppPurchaseImpl : KmpInAppPurchase {
+internal class IosInAppPurchase : KmpInAppPurchase {
     // Event flows
     private val _purchaseUpdatedFlow = MutableSharedFlow<Purchase>(
         replay = 0,

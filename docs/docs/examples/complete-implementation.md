@@ -24,7 +24,7 @@ This implementation includes:
 
 ```kotlin
 // services/IAPService.kt
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -55,12 +55,6 @@ class IAPServiceImpl(
     private val localCache: LocalCache
 ) : IAPService {
     
-    private val iapHelper = UseIap(
-        scope = scope,
-        options = UseIapOptions(
-            autoFinishTransactions = false
-        )
-    )
     
     private val _purchaseUpdates = MutableSharedFlow<PurchaseUpdate>()
     override val purchaseUpdates: SharedFlow<PurchaseUpdate> = _purchaseUpdates.asSharedFlow()
@@ -71,7 +65,7 @@ class IAPServiceImpl(
     
     override suspend fun initialize(): Boolean {
         return try {
-            iapHelper.initConnection()
+            KmpIAP.initConnection()
             true
         } catch (e: PurchaseError) {
             println("IAP initialization failed: ${e.message}")
@@ -82,14 +76,14 @@ class IAPServiceImpl(
     private fun observeStates() {
         // Observe purchase updates
         scope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            KmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         // Observe errors
         scope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            KmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     _purchaseUpdates.emit(
                         PurchaseUpdate(
@@ -98,7 +92,7 @@ class IAPServiceImpl(
                             error = it.message
                         )
                     )
-                    iapHelper.clearError()
+                    KmpIAP.clearError()
                 }
             }
         }
@@ -125,7 +119,7 @@ class IAPServiceImpl(
                 )
                 
                 // Clear purchase state
-                iapHelper.clearPurchase()
+                KmpIAP.clearPurchase()
             } else {
                 _purchaseUpdates.emit(
                     PurchaseUpdate(
@@ -148,7 +142,7 @@ class IAPServiceImpl(
     
     override suspend fun getProducts(productIds: List<String>): List<Product> {
         return try {
-            iapHelper.getProducts(productIds)
+            KmpIAP.getProducts(productIds)
         } catch (e: PurchaseError) {
             println("Failed to get products: ${e.message}")
             emptyList()
@@ -157,7 +151,8 @@ class IAPServiceImpl(
     
     override suspend fun getSubscriptions(subscriptionIds: List<String>): List<Product> {
         return try {
-            iapHelper.getSubscriptions(subscriptionIds)
+            // In KMP-IAP, subscriptions are also products
+            KmpIAP.getProducts(subscriptionIds)
         } catch (e: PurchaseError) {
             println("Failed to get subscriptions: ${e.message}")
             emptyList()
@@ -165,18 +160,17 @@ class IAPServiceImpl(
     }
     
     override suspend fun purchaseProduct(productId: String) {
-        iapHelper.requestPurchase(
-            sku = productId,
-            obfuscatedAccountIdAndroid = authService.getCurrentUserId()
+        KmpIAP.requestPurchase(
+            sku = productId
         )
     }
     
     override suspend fun purchaseSubscription(productId: String) {
-        iapHelper.requestSubscription(sku = productId)
+        KmpIAP.requestPurchase(sku = productId)
     }
     
     override suspend fun getAvailablePurchases(): List<Purchase> {
-        return iapHelper.availablePurchases.value
+        return KmpIAP.availablePurchases.value
     }
     
     override suspend fun restorePurchases() {
@@ -196,9 +190,9 @@ class IAPServiceImpl(
     
     private suspend fun validatePurchase(purchase: Purchase): ValidationResult {
         return try {
-            val platform = when (getCurrentPlatform()) {
-                IAPPlatform.IOS -> "ios"
-                IAPPlatform.ANDROID -> "android"
+            val platform = when {
+                Platform.isIOS -> "ios"
+                Platform.isAndroid -> "android"
                 else -> "unknown"
             }
             
@@ -255,7 +249,7 @@ class IAPServiceImpl(
     private suspend fun completeTransaction(purchase: Purchase) {
         val isConsumable = isConsumableProduct(purchase.productId)
         
-        val success = iapHelper.finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = isConsumable
         )
@@ -272,7 +266,7 @@ class IAPServiceImpl(
     }
     
     override fun dispose() {
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 
