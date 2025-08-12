@@ -32,10 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
 import io.github.hyochan.kmpiap.IAPPlatform
-import io.github.hyochan.kmpiap.getCurrentPlatform
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -72,7 +71,7 @@ class SubscriptionStoreViewModel : ViewModel() {
             _state.update { it.copy(isLoading = true, error = null) }
             
             try {
-                initConnection()
+                KmpIAP.initConnection()
                 loadSubscriptions()
             } catch (e: PurchaseError) {
                 showError("Failed to initialize store: ${e.message}")
@@ -83,21 +82,21 @@ class SubscriptionStoreViewModel : ViewModel() {
     private fun observeStates() {
         // Observe connection
         viewModelScope.launch {
-            isConnected.collectLatest { connected ->
+            KmpIAP.isConnected.collectLatest { connected ->
                 _state.update { it.copy(isConnected = connected) }
             }
         }
         
         // Observe subscriptions
         viewModelScope.launch {
-            subscriptions.collectLatest { subs ->
+            KmpIAP.subscriptions.collectLatest { subs ->
                 _state.update { it.copy(subscriptions = subs) }
             }
         }
         
         // Observe active purchases
         viewModelScope.launch {
-            availablePurchases.collectLatest { purchases ->
+            KmpIAP.availablePurchases.collectLatest { purchases ->
                 val activeSubscriptions = purchases.filter { purchase ->
                     subscriptionIds.contains(purchase.productId) &&
                     isSubscriptionActive(purchase)
@@ -108,17 +107,17 @@ class SubscriptionStoreViewModel : ViewModel() {
         
         // Observe purchase updates
         viewModelScope.launch {
-            currentPurchase.collectLatest { purchase ->
+            KmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         // Observe errors
         viewModelScope.launch {
-            currentError.collectLatest { error ->
+            KmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    clearError()
+                    KmpIAP.clearError()
                 }
             }
         }
@@ -128,7 +127,7 @@ class SubscriptionStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, error = null) }
         
         try {
-            val subscriptions = getSubscriptions(subscriptionIds)
+            val subscriptions = KmpIAP.getSubscriptions(subscriptionIds)
             println("Loaded ${subscriptions.size} subscriptions")
         } catch (e: PurchaseError) {
             showError("Failed to load subscriptions: ${e.message}")
@@ -152,7 +151,7 @@ class SubscriptionStoreViewModel : ViewModel() {
                 completeTransaction(purchase)
                 
                 // Clear current purchase
-                clearPurchase()
+                KmpIAP.clearPurchase()
                 
                 showMessage("Subscription activated!")
             } else {
@@ -181,14 +180,14 @@ class SubscriptionStoreViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 // For Android, you might want to handle subscription offers
-                if (getCurrentPlatform() == IAPPlatform.ANDROID) {
+                if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
                     // Get available offers for the subscription
                     val product = _state.value.subscriptions.find { it.productId == productId }
                     val offers = product?.subscriptionOffers
                     
                     if (!offers.isNullOrEmpty()) {
                         // Use the first offer (you might want to let user choose)
-                        requestSubscription(
+                        KmpIAP.requestSubscription(
                             sku = productId,
                             subscriptionOffers = listOf(
                                 SubscriptionOfferAndroid(
@@ -198,11 +197,11 @@ class SubscriptionStoreViewModel : ViewModel() {
                             )
                         )
                     } else {
-                        requestSubscription(sku = productId)
+                        KmpIAP.requestSubscription(sku = productId)
                     }
                 } else {
                     // iOS doesn't need offer tokens
-                    requestSubscription(sku = productId)
+                    KmpIAP.requestSubscription(sku = productId)
                 }
             } catch (e: PurchaseError) {
                 showError("Failed to request subscription: ${e.message}")
@@ -216,7 +215,7 @@ class SubscriptionStoreViewModel : ViewModel() {
             
             try {
                 // Get available purchases - this automatically refreshes
-                val purchases = availablePurchases.value
+                val purchases = KmpIAP.availablePurchases.value
                 val activeCount = purchases.count { 
                     subscriptionIds.contains(it.productId) && isSubscriptionActive(it)
                 }
@@ -242,7 +241,7 @@ class SubscriptionStoreViewModel : ViewModel() {
     }
     
     private suspend fun completeTransaction(purchase: Purchase) {
-        val success = finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = false // Subscriptions are non-consumable
         )
@@ -301,7 +300,7 @@ class SubscriptionStoreViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        dispose()
+        KmpIAP.dispose()
     }
 }
 
@@ -616,10 +615,10 @@ fun getTierColor(tier: String): Color {
 Handles Android subscription offers properly:
 
 ```kotlin
-if (getCurrentPlatform() == IAPPlatform.ANDROID) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
     val offers = product?.subscriptionOffers
     if (!offers.isNullOrEmpty()) {
-        iapHelper.requestSubscription(
+        KmpIAP.requestSubscription(
             sku = productId,
             subscriptionOffers = listOf(
                 SubscriptionOfferAndroid(
@@ -689,9 +688,9 @@ private fun checkSubscriptionWithGracePeriod(purchase: Purchase): SubscriptionSt
 
 ```kotlin
 // iOS specific - check for promotional offers
-if (getCurrentPlatform() == IAPPlatform.IOS) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
     viewModelScope.launch {
-        promotedProductsIOS.collectLatest { promotedProducts ->
+        KmpIAP.promotedProductsIOS.collectLatest { promotedProducts ->
             // Handle App Store promoted products
         }
     }
@@ -703,8 +702,8 @@ if (getCurrentPlatform() == IAPPlatform.IOS) {
 ```kotlin
 // Android specific - deep link to subscription management
 suspend fun openSubscriptionManagement(productId: String) {
-    if (getCurrentPlatform() == IAPPlatform.ANDROID) {
-        deepLinkToSubscriptionsAndroid(productId)
+    if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
+        KmpIAP.deepLinkToSubscriptionsAndroid(productId)
     }
 }
 ```

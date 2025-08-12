@@ -24,7 +24,7 @@ This implementation includes:
 
 ```kotlin
 // services/IAPService.kt
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -65,7 +65,7 @@ class IAPServiceImpl(
     
     override suspend fun initialize(): Boolean {
         return try {
-            initConnection()
+            KmpIAP.initConnection()
             true
         } catch (e: PurchaseError) {
             println("IAP initialization failed: ${e.message}")
@@ -76,14 +76,14 @@ class IAPServiceImpl(
     private fun observeStates() {
         // Observe purchase updates
         scope.launch {
-            currentPurchase.collectLatest { purchase ->
+            KmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let { handlePurchaseUpdate(it) }
             }
         }
         
         // Observe errors
         scope.launch {
-            currentError.collectLatest { error ->
+            KmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     _purchaseUpdates.emit(
                         PurchaseUpdate(
@@ -92,7 +92,7 @@ class IAPServiceImpl(
                             error = it.message
                         )
                     )
-                    clearError()
+                    KmpIAP.clearError()
                 }
             }
         }
@@ -119,7 +119,7 @@ class IAPServiceImpl(
                 )
                 
                 // Clear purchase state
-                clearPurchase()
+                KmpIAP.clearPurchase()
             } else {
                 _purchaseUpdates.emit(
                     PurchaseUpdate(
@@ -159,18 +159,18 @@ class IAPServiceImpl(
     }
     
     override suspend fun purchaseProduct(productId: String) {
-        requestPurchase(
+        KmpIAP.requestPurchase(
             sku = productId,
             obfuscatedAccountIdAndroid = authService.getCurrentUserId()
         )
     }
     
     override suspend fun purchaseSubscription(productId: String) {
-        requestSubscription(sku = productId)
+        KmpIAP.requestSubscription(sku = productId)
     }
     
     override suspend fun getAvailablePurchases(): List<Purchase> {
-        return availablePurchases.value
+        return KmpIAP.availablePurchases.value
     }
     
     override suspend fun restorePurchases() {
@@ -190,7 +190,7 @@ class IAPServiceImpl(
     
     private suspend fun validatePurchase(purchase: Purchase): ValidationResult {
         return try {
-            val platform = when (getCurrentPlatform()) {
+            val platform = when (KmpIAP.getCurrentPlatform()) {
                 IAPPlatform.IOS -> "ios"
                 IAPPlatform.ANDROID -> "android"
                 else -> "unknown"
@@ -249,7 +249,7 @@ class IAPServiceImpl(
     private suspend fun completeTransaction(purchase: Purchase) {
         val isConsumable = isConsumableProduct(purchase.productId)
         
-        val success = finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = isConsumable
         )

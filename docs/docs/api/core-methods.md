@@ -27,10 +27,10 @@ suspend fun initConnection()
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 try {
-    initConnection()
+    KmpIAP.initConnection()
     println("IAP connection initialized successfully")
 } catch (e: PurchaseError) {
     println("Failed to initialize IAP: $e")
@@ -55,11 +55,11 @@ fun dispose()
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // In your cleanup code
 override fun onCleared() {
-    dispose()
+    KmpIAP.dispose()
     scope.cancel()
 }
 ```
@@ -83,10 +83,10 @@ suspend fun getProducts(skus: List<String>): List<Product>
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 try {
-    val products = getProducts(
+    val products = KmpIAP.getProducts(
         listOf("coins_100", "coins_500", "remove_ads")
     )
     
@@ -121,10 +121,10 @@ suspend fun getSubscriptions(skus: List<String>): List<Product>
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 try {
-    val subscriptions = getSubscriptions(
+    val subscriptions = KmpIAP.getSubscriptions(
         listOf("premium_monthly", "premium_yearly")
     )
     
@@ -163,18 +163,18 @@ suspend fun requestPurchase(
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // Basic purchase
 try {
-    requestPurchase(
+    KmpIAP.requestPurchase(
         sku = "premium_upgrade",
         quantityIOS = 1,  // iOS only
         obfuscatedAccountIdAndroid = "user_123"  // Android only
     )
     
     // Listen to purchase state flow for result
-    currentPurchase.collectLatest { purchase ->
+    KmpIAP.currentPurchase.collectLatest { purchase ->
         purchase?.let {
             println("Purchase successful: ${it.productId}")
         }
@@ -214,14 +214,14 @@ suspend fun requestSubscription(
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 try {
     // Simple subscription
-    requestSubscription(sku = "premium_monthly")
+    KmpIAP.requestSubscription(sku = "premium_monthly")
     
     // Android with offers
-    requestSubscription(
+    KmpIAP.requestSubscription(
         sku = "premium_yearly",
         subscriptionOffers = listOf(
             SubscriptionOfferAndroid(
@@ -257,18 +257,18 @@ suspend fun finishTransaction(
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // In your purchase success handler
 scope.launch {
-    currentPurchase.collectLatest { purchase ->
+    KmpIAP.currentPurchase.collectLatest { purchase ->
         purchase?.let {
             try {
                 // Deliver the product to user
                 deliverProduct(it.productId)
                 
                 // Finish the transaction
-                val success = finishTransaction(
+                val success = KmpIAP.finishTransaction(
                     purchase = it,
                     isConsumable = true  // For consumable products
                 )
@@ -305,12 +305,12 @@ suspend fun consumePurchase(purchaseToken: String): Boolean
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // Android-specific consumption
-if (getCurrentPlatform() == IAPPlatform.ANDROID) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
     purchase.purchaseToken?.let { token ->
-        val consumed = consumePurchase(token)
+        val consumed = KmpIAP.consumePurchase(token)
         if (consumed) {
             println("Purchase consumed successfully")
         }
@@ -334,11 +334,11 @@ suspend fun getAvailablePurchases(): List<Purchase>
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // Observe available purchases
 scope.launch {
-    availablePurchases.collectLatest { purchases ->
+    KmpIAP.availablePurchases.collectLatest { purchases ->
         println("Found ${purchases.size} available purchases")
         purchases.forEach { purchase ->
             println("Product: ${purchase.productId}")
@@ -348,7 +348,7 @@ scope.launch {
 }
 
 // Or get current value
-val currentPurchases = availablePurchases.value
+val currentPurchases = KmpIAP.availablePurchases.value
 ```
 
 ---
@@ -365,11 +365,11 @@ suspend fun getPurchaseHistories(): List<Purchase>
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // Observe purchase history
 scope.launch {
-    purchaseHistories.collectLatest { history ->
+    KmpIAP.purchaseHistories.collectLatest { history ->
         println("Purchase history: ${history.size} items")
         history.forEach { purchase ->
             println("${purchase.productId} - ${purchase.transactionDate}")
@@ -390,11 +390,11 @@ suspend fun requestPurchaseHistoryAndroid()
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
-if (getCurrentPlatform() == IAPPlatform.ANDROID) {
-    requestPurchaseHistoryAndroid()
-    // Results will be available in purchaseHistories StateFlow
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
+    KmpIAP.requestPurchaseHistoryAndroid()
+    // Results will be available in KmpIAP.purchaseHistories StateFlow
 }
 ```
 
@@ -412,11 +412,11 @@ suspend fun presentCodeRedemptionSheetIOS()
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
-if (getCurrentPlatform() == IAPPlatform.IOS) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
     try {
-        presentCodeRedemptionSheetIOS()
+        KmpIAP.presentCodeRedemptionSheetIOS()
     } catch (e: PurchaseError) {
         println("Failed to present redemption sheet: $e")
     }
@@ -437,11 +437,11 @@ suspend fun showManageSubscriptionsIOS()
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
-if (getCurrentPlatform() == IAPPlatform.IOS) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
     try {
-        showManageSubscriptionsIOS()
+        KmpIAP.showManageSubscriptionsIOS()
     } catch (e: PurchaseError) {
         println("Failed to show subscription management: $e")
     }
@@ -462,10 +462,10 @@ suspend fun getStorefrontIOS(): Map<String, Any?>?
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
-if (getCurrentPlatform() == IAPPlatform.IOS) {
-    val storefront = getStorefrontIOS()
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
+    val storefront = KmpIAP.getStorefrontIOS()
     storefront?.let {
         println("Storefront: $it")
     }
@@ -487,11 +487,11 @@ suspend fun deepLinkToSubscriptionsAndroid(sku: String)
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
-if (getCurrentPlatform() == IAPPlatform.ANDROID) {
+if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
     try {
-        deepLinkToSubscriptionsAndroid("premium_monthly")
+        KmpIAP.deepLinkToSubscriptionsAndroid("premium_monthly")
     } catch (e: PurchaseError) {
         println("Failed to open subscription management: $e")
     }
@@ -524,21 +524,21 @@ val promotedProductsIOS: StateFlow<List<Product>?>
 
 **Example Usage**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 
 // Observe connection state
 scope.launch {
-    isConnected.collectLatest { connected ->
+    KmpIAP.isConnected.collectLatest { connected ->
         updateUI(connected)
     }
 }
 
 // Observe errors
 scope.launch {
-    currentError.collectLatest { error ->
+    KmpIAP.currentError.collectLatest { error ->
         error?.let {
             showErrorDialog(it.message)
-            clearError()
+            KmpIAP.clearError()
         }
     }
 }

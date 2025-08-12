@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.types.IAPPlatform
@@ -31,13 +31,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    // KmpIAP methods are now directly accessible via wildcard import
     var storefrontInfo by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(Unit) {
         if (getCurrentPlatform() == IAPPlatform.IOS) {
             try {
-                val storefront = getStorefrontIOS()
+                val storefront = KmpIAP.getStorefrontIOS()
                 storefront?.let {
                     storefrontInfo = "Storefront: ${it.countryCode} (${it.identifier})"
                 }

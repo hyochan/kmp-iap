@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -91,7 +91,7 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Initialize connection
-                initConnection()
+                KmpIAP.initConnection()
                 
                 // Load products after connection
                 loadProducts()
@@ -105,7 +105,7 @@ class BasicStoreViewModel : ViewModel() {
     private fun observeStates() {
         // Observe connection state
         viewModelScope.launch {
-            isConnected.collectLatest { connected ->
+            KmpIAP.isConnected.collectLatest { connected ->
                 _state.update { it.copy(isConnected = connected) }
                 
                 if (connected) {
@@ -118,7 +118,7 @@ class BasicStoreViewModel : ViewModel() {
         
         // Observe purchase success
         viewModelScope.launch {
-            currentPurchase.collectLatest { purchase ->
+            KmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     handlePurchaseSuccess(it)
                 }
@@ -127,17 +127,17 @@ class BasicStoreViewModel : ViewModel() {
         
         // Observe purchase errors
         viewModelScope.launch {
-            currentError.collectLatest { error ->
+            KmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    clearError()
+                    KmpIAP.clearError()
                 }
             }
         }
         
         // Observe products
         viewModelScope.launch {
-            products.collectLatest { productList ->
+            KmpIAP.products.collectLatest { productList ->
                 _state.update { it.copy(products = productList) }
                 println("✅ Loaded ${productList.size} products")
             }
@@ -148,7 +148,7 @@ class BasicStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, errorMessage = null) }
         
         try {
-            val products = getProducts(productIds)
+            val products = KmpIAP.getProducts(productIds)
             
             products.forEach { product ->
                 println("Product: ${product.productId} - ${product.price}")
@@ -181,7 +181,7 @@ class BasicStoreViewModel : ViewModel() {
                 deliverProduct(purchase.productId)
                 
                 // 3. Finish the transaction
-                val success = finishTransaction(
+                val success = KmpIAP.finishTransaction(
                     purchase = purchase,
                     isConsumable = isConsumableProduct(purchase.productId)
                 )
@@ -191,7 +191,7 @@ class BasicStoreViewModel : ViewModel() {
                 }
                 
                 // 4. Clear purchase state
-                clearPurchase()
+                KmpIAP.clearPurchase()
                 _state.update { it.copy(latestPurchase = null) }
             } else {
                 showError("Purchase verification failed")
@@ -300,7 +300,7 @@ class BasicStoreViewModel : ViewModel() {
             }
             
             try {
-                requestPurchase(
+                KmpIAP.requestPurchase(
                     sku = productId,
                     obfuscatedAccountIdAndroid = getUserId() // For fraud prevention
                 )
@@ -321,14 +321,14 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Get available purchases
-                availablePurchases.value.forEach { purchase ->
+                KmpIAP.availablePurchases.value.forEach { purchase ->
                     // Process non-consumable purchases
                     if (!isConsumableProduct(purchase.productId)) {
                         deliverProduct(purchase.productId)
                     }
                 }
                 
-                val count = availablePurchases.value.size
+                val count = KmpIAP.availablePurchases.value.size
                 showMessage("Restored $count purchases")
                 
             } catch (e: PurchaseError) {
@@ -365,7 +365,7 @@ class BasicStoreViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        dispose()
+        KmpIAP.dispose()
     }
 }
 
@@ -684,7 +684,7 @@ fun getProductIcon(productId: String): ImageVector {
 
 ### 1. Connection Management
 ```kotlin
-initConnection()
+KmpIAP.initConnection()
 ```
 - Initializes connection to App Store or Google Play
 - Must be called before any other IAP operations
@@ -692,7 +692,7 @@ initConnection()
 
 ### 2. Product Loading
 ```kotlin
-val products = getProducts(productIds)
+val products = KmpIAP.getProducts(productIds)
 ```
 - Fetches product information from the store
 - Returns localized pricing and descriptions
@@ -700,7 +700,7 @@ val products = getProducts(productIds)
 
 ### 3. Purchase Flow
 ```kotlin
-requestPurchase(
+KmpIAP.requestPurchase(
     sku = productId,
     obfuscatedAccountIdAndroid = getUserId()
 )
@@ -711,7 +711,7 @@ requestPurchase(
 
 ### 4. Transaction Finishing
 ```kotlin
-val success = finishTransaction(
+val success = KmpIAP.finishTransaction(
     purchase = purchase,
     isConsumable = true // or false for non-consumables
 )

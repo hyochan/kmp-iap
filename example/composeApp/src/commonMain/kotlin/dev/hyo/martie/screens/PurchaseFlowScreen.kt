@@ -20,7 +20,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.KmpIAP.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -42,7 +42,6 @@ fun PurchaseFlowScreen(navController: NavController) {
     var initError by remember { mutableStateOf<String?>(null) }
     var purchaseToConsume by remember { mutableStateOf<Purchase?>(null) }
     
-    // KmpIAP methods are now directly accessible via wildcard import
     var connected by remember { mutableStateOf(false) }
     var products by remember { mutableStateOf<List<BaseProduct>>(emptyList()) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
@@ -51,7 +50,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     // Collect purchase events
     LaunchedEffect(Unit) {
         launch {
-            purchaseUpdatedFlow.collect { purchase ->
+            KmpIAP.purchaseUpdatedFlow.collect { purchase ->
                 currentPurchase = purchase
                 purchaseResult = "✅ Purchase successful!\n\n${json.encodeToString(purchase)}"
                 
@@ -61,7 +60,7 @@ fun PurchaseFlowScreen(navController: NavController) {
         }
         
         launch {
-            purchaseErrorFlow.collect { error ->
+            KmpIAP.purchaseErrorFlow.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.E_USER_CANCELLED -> "Purchase cancelled"
@@ -71,7 +70,7 @@ fun PurchaseFlowScreen(navController: NavController) {
         }
         
         launch {
-            connectionStateFlow.collect { connectionResult ->
+            KmpIAP.connectionStateFlow.collect { connectionResult ->
                 connected = connectionResult.connected
                 if (!connectionResult.connected) {
                     initError = connectionResult.message
@@ -84,7 +83,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     LaunchedEffect(purchaseToConsume) {
         purchaseToConsume?.let { purchase ->
             try {
-                val consumeResult = finishTransaction(
+                val consumeResult = KmpIAP.finishTransaction(
                     purchase = purchase,
                     isConsumable = true
                 )
@@ -104,7 +103,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isConnecting = true
         try {
-            initConnection()
+            KmpIAP.initConnection()
         } catch (e: Exception) {
             purchaseResult = "Initialization error: ${e.message}"
         } finally {
@@ -120,11 +119,11 @@ fun PurchaseFlowScreen(navController: NavController) {
             try {
                 // TEST ONLY: Clear existing purchases first
                 try {
-                    val existingPurchases = getAvailablePurchases()
+                    val existingPurchases = KmpIAP.getAvailablePurchases()
                     existingPurchases.forEach { purchase ->
                         if (PRODUCT_IDS.contains(purchase.productId)) {
                             try {
-                                val consumed = finishTransaction(purchase, isConsumable = true)
+                                val consumed = KmpIAP.finishTransaction(purchase, isConsumable = true)
                                 println("[TEST] Consumed existing purchase: ${purchase.productId} - Success: $consumed")
                             } catch (e: Exception) {
                                 println("[TEST] Failed to consume existing purchase: ${e.message}")
@@ -135,7 +134,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                     println("[TEST] Could not check existing purchases: ${e.message}")
                 }
                 
-                val result = requestProducts(
+                val result = KmpIAP.requestProducts(
                     RequestProductsParams(
                         type = PurchaseType.INAPP,
                         skus = PRODUCT_IDS
@@ -214,7 +213,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         CircularProgressIndicator(color = Color.White)
                     } else {
                         Text(
-                            text = if (connected) "✓ Connected to ${getStore()}" else "⚠ Not connected",
+                            text = if (connected) "✓ Connected to ${KmpIAP.getStore()}" else "⚠ Not connected",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -312,7 +311,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                         else -> throw IllegalStateException("Unsupported platform")
                                                     }
                                                     
-                                                    requestPurchase(request, PurchaseType.INAPP)
+                                                    KmpIAP.requestPurchase(request, PurchaseType.INAPP)
                                                 } catch (e: Exception) {
                                                     purchaseResult = "Purchase failed: ${e.message}"
                                                 } finally {
@@ -348,7 +347,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         scope.launch {
                             transactionResult = "Loading purchases..."
                             try {
-                                val purchases = getAvailablePurchases()
+                                val purchases = KmpIAP.getAvailablePurchases()
                                 transactionResult = if (purchases.isEmpty()) {
                                     "No active purchases found"
                                 } else {
