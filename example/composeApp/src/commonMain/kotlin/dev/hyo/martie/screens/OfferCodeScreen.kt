@@ -16,9 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import io.github.hyochan.kmpiap.KmpInAppPurchase
+import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.createInAppPurchase
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.types.IAPPlatform
 import io.github.hyochan.kmpiap.types.getCurrentPlatform
@@ -28,7 +27,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun OfferCodeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val iap = remember { createInAppPurchase() }
+    val iap = KmpIAP
     val platform = getCurrentPlatform()
     
     var isConnected by remember { mutableStateOf(false) }

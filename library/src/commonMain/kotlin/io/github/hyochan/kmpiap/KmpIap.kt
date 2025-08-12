@@ -52,7 +52,38 @@ typealias IosDiscountPaymentMode = io.github.hyochan.kmpiap.types.IosDiscountPay
 typealias IosDiscountType = io.github.hyochan.kmpiap.types.IosDiscountType
 
 /**
- * Re-export the main interface and hook
+ * Re-export the main interface
  */
 typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
-typealias UseIap = io.github.hyochan.kmpiap.useIap.UseIap
+
+// Re-export request types
+typealias RequestProductsParams = io.github.hyochan.kmpiap.types.RequestProductsParams
+typealias RequestPurchase = io.github.hyochan.kmpiap.types.RequestPurchase
+typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
+typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
+
+/**
+ * Global singleton instance for In-App Purchase operations.
+ * 
+ * Usage:
+ * ```kotlin
+ * import io.github.hyochan.kmpiap.KmpIAP
+ * 
+ * // Initialize connection
+ * KmpIAP.initConnection()
+ * 
+ * // Request products
+ * val products = KmpIAP.requestProducts(
+ *     RequestProductsParams(
+ *         type = PurchaseType.INAPP,
+ *         skus = listOf("product1", "product2")
+ *     )
+ * )
+ * 
+ * // Listen to purchase updates
+ * KmpIAP.purchaseUpdatedFlow.collect { purchase ->
+ *     // Handle purchase
+ * }
+ * ```
+ */
+expect object KmpIAP : KmpInAppPurchase

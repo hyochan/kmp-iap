@@ -25,21 +25,21 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.3")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.4")
 }
 ```
 
 ## 🚀 Quick Start
 
 ```kotlin
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
 
 // Initialize connection
-val iap = createInAppPurchase()
-iap.initConnection()
+KmpIAP.initConnection()
 
 // Get products
-val products = iap.requestProducts(
+val products = KmpIAP.requestProducts(
     RequestProductsParams(
         skus = listOf("product_id"),
         type = PurchaseType.INAPP
@@ -47,8 +47,8 @@ val products = iap.requestProducts(
 )
 
 // Request purchase
-iap.requestPurchase(
-    request = RequestPurchaseAndroid(skus = listOf("product_id")),
+KmpIAP.requestPurchase(
+    request = RequestPurchaseAndroid(sku = "product_id"),
     type = PurchaseType.INAPP
 )
 ```
