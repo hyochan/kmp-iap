@@ -86,4 +86,4 @@ typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
  * }
  * ```
  */
-expect object KmpIAP : KmpInAppPurchase
+expect object KmpIAP
