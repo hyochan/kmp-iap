@@ -44,6 +44,11 @@
   --ifm-background-color: #1a1a1a;
   --ifm-background-surface-color: #242424;
   
+  /* Text colors for better contrast in dark mode */
+  --ifm-font-color-base: #e8e8e8;
+  --ifm-font-color-secondary: #d0d0d0;
+  --ifm-heading-color: #ffffff;
+  
   --hero-background: #2a2520;
   --hero-pattern: rgba(212, 184, 150, 0.05);
   
@@ -353,4 +358,203 @@ main > * {
 /* Remove default margins from sections */
 section {
   margin: 0;
+}
+
+/* Dark mode text color fixes for documentation pages */
+[data-theme='dark'] .markdown p,
+[data-theme='dark'] .markdown li,
+[data-theme='dark'] .markdown td,
+[data-theme='dark'] .markdown blockquote {
+  color: #e8e8e8;
+}
+
+[data-theme='dark'] .markdown h1,
+[data-theme='dark'] .markdown h2,
+[data-theme='dark'] .markdown h3,
+[data-theme='dark'] .markdown h4,
+[data-theme='dark'] .markdown h5,
+[data-theme='dark'] .markdown h6 {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .markdown strong,
+[data-theme='dark'] .markdown b {
+  color: #f0f0f0;
+}
+
+[data-theme='dark'] .markdown code {
+  color: #f0f0f0;
+}
+
+/* Dark mode table text */
+[data-theme='dark'] .markdown table {
+  color: #e8e8e8;
+}
+
+[data-theme='dark'] .markdown th {
+  color: #ffffff;
+}
+
+/* Next Steps Section - Improved Design */
+.next-steps-section {
+  padding: 5rem 0;
+  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--hero-background) 100%);
+}
+
+.next-steps-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.next-steps-title {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-darkest) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme='dark'] .next-steps-title {
+  background: linear-gradient(135deg, var(--ifm-color-primary-light) 0%, var(--ifm-color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.next-steps-subtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.next-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.next-step-card {
+  position: relative;
+  background: var(--ifm-background-surface-color);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+[data-theme='dark'] .next-step-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.next-step-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--card-gradient);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.next-step-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: inherit;
+}
+
+[data-theme='dark'] .next-step-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.next-step-card:hover::before {
+  opacity: 1;
+}
+
+.next-step-card:hover .next-step-icon-wrapper {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.next-step-card:hover .next-step-arrow {
+  transform: translateX(4px);
+  opacity: 1;
+}
+
+.next-step-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: var(--card-gradient);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.next-step-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.next-step-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: var(--ifm-heading-color);
+}
+
+.next-step-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ifm-font-color-secondary);
+  margin-bottom: 1rem;
+}
+
+.next-step-arrow {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .next-steps-title {
+    font-size: 2rem;
+  }
+  
+  .next-steps-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .next-step-card {
+    padding: 2rem 1.5rem;
+  }
+  
+  .next-step-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .next-step-icon {
+    font-size: 2rem;
+  }
 }

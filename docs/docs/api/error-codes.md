@@ -340,7 +340,7 @@ fun validateProductIds(ids: List<String>) {
 ```kotlin
 when (error.code) {
     ErrorCode.BILLING_UNAVAILABLE -> {
-        if (getCurrentPlatform() == IAPPlatform.ANDROID) {
+        if (getCurrentPlatform() == IapPlatform.ANDROID) {
             showError(
                 "Google Play Store is not available. " +
                 "Please install or update Google Play Store."
@@ -361,7 +361,7 @@ when (error.code) {
 // Check feature availability
 suspend fun checkFeatureSupport() {
     when (getCurrentPlatform()) {
-        IAPPlatform.IOS -> {
+        IapPlatform.IOS -> {
             if (Build.VERSION.SDK_INT < 14) {
                 throw PurchaseError(
                     code = ErrorCode.FEATURE_NOT_SUPPORTED,
@@ -369,7 +369,7 @@ suspend fun checkFeatureSupport() {
                 )
             }
         }
-        IAPPlatform.ANDROID -> {
+        IapPlatform.ANDROID -> {
             // Check Android feature support
         }
     }

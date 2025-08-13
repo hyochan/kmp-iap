@@ -27,7 +27,7 @@ data class Product(
     val subscriptionOfferDetails: List<OfferDetail>? = null,
     
     // Platform indicator
-    val platform: IAPPlatform,
+    val platform: IapPlatform,
     val originalJson: Map<String, Any>? = null
 )
 ```
@@ -52,7 +52,7 @@ data class SubscriptionProduct(
     val introductoryPriceCycles: Int? = null,
     val subscriptionGroupIdentifier: String? = null,
     
-    val platform: IAPPlatform
+    val platform: IapPlatform
 )
 ```
 
@@ -84,7 +84,7 @@ data class Purchase(
     val acknowledgedAndroid: Boolean? = null,
     
     // Platform indicator
-    val platform: IAPPlatform
+    val platform: IapPlatform
 )
 ```
 
@@ -211,12 +211,12 @@ data class PricingPhase(
 
 ## Enums
 
-### IAPPlatform
+### IapPlatform
 
 Platform identifier.
 
 ```kotlin
-enum class IAPPlatform {
+enum class IapPlatform {
     IOS,
     ANDROID
 }

@@ -115,7 +115,7 @@ kmp-iap automatically uses StoreKit 2 on iOS 15+. To ensure compatibility:
 // Check iOS version for StoreKit 2 availability
 suspend fun checkStoreKit2Support() {
     val platform = getCurrentPlatform()
-    if (platform == IAPPlatform.IOS) {
+    if (platform == IapPlatform.IOS) {
         // StoreKit 2 is available on iOS 15+
         println("Platform: iOS")
         // kmp-iap will automatically use StoreKit 2 when available
@@ -255,7 +255,7 @@ scope.launch {
 // Show subscription management page
 suspend fun showSubscriptionManagement() {
     val platform = getCurrentPlatform()
-    if (platform == IAPPlatform.IOS) {
+    if (platform == IapPlatform.IOS) {
         KmpIAP.showManageSubscriptions()
     }
 }
@@ -263,7 +263,7 @@ suspend fun showSubscriptionManagement() {
 // Present code redemption sheet
 suspend fun redeemCode() {
     val platform = getCurrentPlatform()
-    if (platform == IAPPlatform.IOS) {
+    if (platform == IapPlatform.IOS) {
         KmpIAP.presentCodeRedemptionSheet()
     }
 }

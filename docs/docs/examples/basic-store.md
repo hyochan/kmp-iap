@@ -236,13 +236,19 @@ class BasicStoreViewModel : ViewModel() {
     // Verify purchase with server (mock implementation)
     private suspend fun verifyPurchase(purchase: Purchase): Boolean {
         // In a real app, send the receipt to your server for verification
-        // For this example, we'll just simulate a successful verification
-        kotlinx.coroutines.delay(500)
-        
         println("🔍 Verifying purchase: ${purchase.productId}")
         println("Receipt: ${purchase.transactionReceipt?.take(50)}...")
         
-        return true // Assume verification successful
+        // Simulate server verification
+        return try {
+            // In production, make actual API call to your server
+            // val result = api.verifyPurchase(purchase)
+            // return result.isValid
+            true // Mock successful verification
+        } catch (e: Exception) {
+            println("Verification failed: ${e.message}")
+            false
+        }
     }
     
     // Deliver the purchased product to the user

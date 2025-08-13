@@ -271,14 +271,14 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
    // For consumable products
    scope.launch {
        val purchases = KmpIAP.getAvailablePurchases()
-           purchases.filter { isConsumable(it.productId) }
-               .forEach { purchase ->
-                   // Consume the purchase
-                   purchase.purchaseToken?.let { token ->
-                       iapHelper.consumePurchase(token)
-                   }
-               }
-       }
+       purchases.filter { isConsumable(it.productId) }
+           .forEach { purchase ->
+               // Consume the purchase
+               KmpIAP.finishTransaction(
+                   purchase = purchase,
+                   isConsumable = true
+               )
+           }
    }
    ```
 
@@ -337,13 +337,16 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
 **Solution:**
 ```kotlin
 class PurchaseManager : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions()
-    )
     
     init {
+        initializeIAP()
         setupObservers()
+    }
+    
+    private fun initializeIAP() {
+        viewModelScope.launch {
+            KmpIAP.initConnection()
+        }
     }
     
     private fun setupObservers() {
@@ -363,8 +366,8 @@ class PurchaseManager : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        // Automatically cancelled with viewModelScope
-        iapHelper.dispose()
+        // Dispose KmpIAP resources
+        KmpIAP.dispose()
     }
 }
 ```
@@ -376,12 +379,17 @@ class PurchaseManager : ViewModel() {
 **Solution:** Always clean up resources:
 ```kotlin
 class IAPService : ViewModel() {
-    private val iapHelper = UseIap(viewModelScope, UseIapOptions())
+    
+    init {
+        viewModelScope.launch {
+            KmpIAP.initConnection()
+        }
+    }
     
     override fun onCleared() {
         super.onCleared()
-        // Dispose IAP helper
-        iapHelper.dispose()
+        // Dispose IAP resources
+        KmpIAP.dispose()
     }
 }
 ```
@@ -453,8 +461,8 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
        private var cacheTime: Long = 0
        
        suspend fun getProducts(
-           iapHelper: UseIap,
-           ids: List<String>
+           skus: List<String>,
+           type: ProductType = ProductType.INAPP
        ): List<Product> {
            val now = System.currentTimeMillis()
            if (cachedProducts != null && 
@@ -462,7 +470,12 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
                return cachedProducts!!
            }
            
-           cachedProducts = iapHelper.getProducts(ids)
+           cachedProducts = KmpIAP.requestProducts(
+               ProductRequest(
+                   skus = skus,
+                   type = type
+               )
+           )
            cacheTime = now
            return cachedProducts!!
        }
@@ -472,7 +485,12 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
 2. **Batch requests:**
    ```kotlin
    // Load all products at once instead of individual requests
-   val allProducts = iapHelper.getProducts(allProductIds)
+   val allProducts = KmpIAP.requestProducts(
+       ProductRequest(
+           skus = allProductIds,
+           type = ProductType.INAPP
+       )
+   )
    ```
 
 ## Debug Tools
@@ -482,20 +500,16 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
 ```kotlin
 // Add logging to track IAP flow
 class DebugIAPHelper(scope: CoroutineScope) {
-    private val iapHelper = UseIap(scope, UseIapOptions())
     
     init {
         scope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                println("[IAP] Connection state: $connected")
-            }
+            val connected = KmpIAP.initConnection()
+            println("[IAP] Connection state: $connected")
         }
         
         scope.launch {
             KmpIAP.purchaseErrorListener.collect { error ->
-                error?.let {
-                    println("[IAP] Error: ${it.code} - ${it.message}")
-                }
+                println("[IAP] Error: ${error.code} - ${error.message}")
             }
         }
     }
@@ -506,19 +520,22 @@ class DebugIAPHelper(scope: CoroutineScope) {
 
 ```kotlin
 suspend fun debugConnection() {
-    val iapHelper = UseIap(scope, UseIapOptions())
-    
     try {
-        iapHelper.initConnection()
-        println("Connection initialized")
+        val connected = KmpIAP.initConnection()
+        println("Connection initialized: $connected")
         
         // Test with known product
         val testProductId = when (getCurrentPlatform()) {
-            IAPPlatform.ANDROID -> "android.test.purchased"
-            IAPPlatform.IOS -> "your.test.product"
+            IapPlatform.ANDROID -> "android.test.purchased"
+            IapPlatform.IOS -> "your.test.product"
         }
         
-        val products = iapHelper.getProducts(listOf(testProductId))
+        val products = KmpIAP.requestProducts(
+            ProductRequest(
+                skus = listOf(testProductId),
+                type = ProductType.INAPP
+            )
+        )
         println("Test products loaded: ${products.size}")
     } catch (e: PurchaseError) {
         println("Debug error: $e")
@@ -533,22 +550,22 @@ suspend fun debugConnection() {
 ```kotlin
 fun handleError(error: PurchaseError) {
     when (error.code) {
-        ErrorCode.USER_CANCELLED -> {
+        ErrorCode.E_USER_CANCELLED.name -> {
             // User cancelled - no action needed
         }
-        ErrorCode.NETWORK_ERROR -> {
+        ErrorCode.E_NETWORK_ERROR.name -> {
             showRetryDialog("Network error. Please try again.")
         }
-        ErrorCode.PRODUCT_ALREADY_OWNED -> {
+        ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
             // Refresh purchases
             scope.launch {
-                iapHelper.getAvailablePurchases()
+                KmpIAP.getAvailablePurchases()
             }
         }
-        ErrorCode.SERVICE_DISCONNECTED -> {
+        ErrorCode.E_SERVICE_DISCONNECTED.name -> {
             // Reconnect
             scope.launch {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
             }
         }
         else -> {

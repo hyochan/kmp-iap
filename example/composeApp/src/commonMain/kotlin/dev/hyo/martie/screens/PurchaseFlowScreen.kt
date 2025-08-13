@@ -22,7 +22,7 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -86,42 +86,51 @@ fun PurchaseFlowScreen(navController: NavController) {
         }
     }
     
-    // Initialize connection
+    // Initialize connection and load products
     LaunchedEffect(Unit) {
-        isConnecting = true
-        try {
-            val result = KmpIAP.initConnection()
-            connected = result
-            if (!result) {
-                initError = "Failed to connect to store"
-            }
-        } catch (e: Exception) {
-            purchaseResult = "Initialization error: ${e.message}"
-            connected = false
-        } finally {
-            isConnecting = false
-        }
-    }
-    
-    // Load products when connected
-    LaunchedEffect(connected) {
-        if (connected) {
-            kotlinx.coroutines.delay(500)
-            isLoadingProducts = true
-            purchaseResult = "Loading products from store..."
-            
-            // Add timeout to prevent infinite loading
-            val loadJob = scope.launch {
-                try {
-                    println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                    val result = KmpIAP.requestProducts(
-                        ProductRequest(
-                            skus = PRODUCT_IDS,
-                            type = ProductType.INAPP
+        scope.launch {
+            // Step 1: Initialize connection
+            isConnecting = true
+            try {
+                val connectionResult = KmpIAP.initConnection()
+                connected = connectionResult
+                
+                if (!connectionResult) {
+                    initError = "Failed to connect to store"
+                    return@launch
+                }
+                
+                // Step 2: Connection successful, load products immediately
+                isConnecting = false
+                isLoadingProducts = true
+                purchaseResult = "Loading products from store..."
+                
+                // Load products with timeout
+                val loadJob = async {
+                    try {
+                        println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
+                        val result = KmpIAP.requestProducts(
+                            ProductRequest(
+                                skus = PRODUCT_IDS,
+                                type = ProductType.INAPP
+                            )
                         )
-                    )
-                    println("[KMP-IAP Example] Products loaded: ${result.size} products")
-                    products = result
+                        println("[KMP-IAP Example] Products loaded: ${result.size} products")
+                        result
+                    } catch (e: Exception) {
+                        println("[KMP-IAP Example] Error loading products: ${e.message}")
+                        e.printStackTrace()
+                        throw e
+                    }
+                }
+                
+                // Wait for products or timeout after 10 seconds
+                val productsResult = withTimeoutOrNull(10000) {
+                    loadJob.await()
+                }
+                
+                if (productsResult != null) {
+                    products = productsResult
                     if (products.isEmpty()) {
                         purchaseResult = """
                             ⚠️ No products found in store!
@@ -137,27 +146,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         purchaseResult = null // Clear message when products load
                         println("[KMP-IAP Example] Product details: ${products.map { "${it.id}: ${it.price}" }}")
                     }
-                } catch (e: Exception) {
-                    purchaseResult = """
-                        ❌ Failed to load products
-                        
-                        Error: ${e.message}
-                        
-                        Check logcat for more details.
-                    """.trimIndent()
-                    println("[KMP-IAP Example] Error loading products: ${e.message}")
-                    e.printStackTrace()
-                } finally {
-                    isLoadingProducts = false
-                }
-            }
-            
-            // Cancel after 10 seconds if still loading
-            scope.launch {
-                kotlinx.coroutines.delay(10000)
-                if (isLoadingProducts) {
-                    loadJob.cancel()
-                    isLoadingProducts = false
+                } else {
                     purchaseResult = """
                         ⏱️ Product loading timed out
                         
@@ -166,6 +155,17 @@ fun PurchaseFlowScreen(navController: NavController) {
                     """.trimIndent()
                     println("[KMP-IAP Example] Product loading timed out after 10 seconds")
                 }
+                
+            } catch (e: Exception) {
+                purchaseResult = """
+                    ❌ Failed to initialize: ${e.message}
+                    
+                    Check logcat for more details.
+                """.trimIndent()
+                connected = false
+            } finally {
+                isConnecting = false
+                isLoadingProducts = false
             }
         }
     }

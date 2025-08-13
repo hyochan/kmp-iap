@@ -22,7 +22,7 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -67,47 +67,67 @@ fun SubscriptionFlowScreen(navController: NavController) {
         }
     }
     
-    // Initialize connection
+    // Initialize connection and load subscriptions
     LaunchedEffect(Unit) {
-        isConnecting = true
-        try {
-            val result = KmpIAP.initConnection()
-            connected = result
-            if (!result) {
-                initError = "Failed to connect to store"
-            }
-        } catch (e: Exception) {
-            purchaseResult = "Initialization error: ${e.message}"
-            connected = false
-        } finally {
-            isConnecting = false
-        }
-    }
-    
-    // Load subscriptions and check active purchases when connected
-    LaunchedEffect(connected) {
-        if (connected) {
-            kotlinx.coroutines.delay(500)
-            isLoadingProducts = true
+        scope.launch {
+            // Step 1: Initialize connection
+            isConnecting = true
             try {
-                // First, check for active subscriptions
-                val activePurchases = KmpIAP.getAvailablePurchases()
+                val connectionResult = KmpIAP.initConnection()
+                connected = connectionResult
+                
+                if (!connectionResult) {
+                    initError = "Failed to connect to store"
+                    return@launch
+                }
+                
+                // Step 2: Connection successful, load subscriptions immediately
+                isConnecting = false
+                isLoadingProducts = true
+                
+                // Load active purchases and subscription products in parallel
+                val activePurchasesDeferred = async {
+                    try {
+                        KmpIAP.getAvailablePurchases()
+                    } catch (e: Exception) {
+                        println("Failed to get active purchases: ${e.message}")
+                        emptyList()
+                    }
+                }
+                
+                val subscriptionProductsDeferred = async {
+                    try {
+                        KmpIAP.requestProducts(
+                            ProductRequest(
+                                skus = SUBSCRIPTION_IDS,
+                                type = ProductType.SUBS
+                            )
+                        )
+                    } catch (e: Exception) {
+                        println("Failed to load subscription products: ${e.message}")
+                        throw e
+                    }
+                }
+                
+                // Wait for both results with timeout
+                val (activePurchases, subscriptionProducts) = withTimeoutOrNull(10000) {
+                    Pair(
+                        activePurchasesDeferred.await(),
+                        subscriptionProductsDeferred.await()
+                    )
+                } ?: Pair(emptyList(), emptyList())
+                
+                // Process active subscriptions
                 activeSubscriptions = activePurchases.filter { purchase ->
                     SUBSCRIPTION_IDS.contains(purchase.productId)
                 }
                 
-                // Then load subscription products
-                val result = KmpIAP.requestProducts(
-                    ProductRequest(
-                        skus = SUBSCRIPTION_IDS,
-                        type = ProductType.SUBS
-                    )
-                )
-                subscriptions = result.filterIsInstance<SubscriptionProduct>()
-                if (subscriptions.isEmpty() && result.isNotEmpty()) {
+                // Process subscription products
+                subscriptions = subscriptionProducts.filterIsInstance<SubscriptionProduct>()
+                if (subscriptions.isEmpty() && subscriptionProducts.isNotEmpty()) {
                     // If we got products but they're not SubscriptionProduct type,
                     // convert them to subscription format
-                    subscriptions = result.map { product ->
+                    subscriptions = subscriptionProducts.map { product ->
                         SubscriptionProduct(
                             id = product.id,
                             title = product.title,
@@ -122,12 +142,16 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         )
                     }
                 }
+                
                 if (subscriptions.isEmpty()) {
                     purchaseResult = "No subscriptions found for IDs: ${SUBSCRIPTION_IDS.joinToString()}"
                 }
+                
             } catch (e: Exception) {
-                purchaseResult = "Failed to load subscriptions: ${e.message}"
+                purchaseResult = "Initialization error: ${e.message}"
+                connected = false
             } finally {
+                isConnecting = false
                 isLoadingProducts = false
             }
         }

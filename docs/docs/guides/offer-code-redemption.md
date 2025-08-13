@@ -32,7 +32,7 @@ class OfferCodeHandler(
      * Present iOS system offer code redemption sheet (iOS 14+)
      */
     suspend fun presentOfferCodeRedemption() {
-        if (getCurrentPlatform() != IAPPlatform.IOS) {
+        if (getCurrentPlatform() != IapPlatform.IOS) {
             println("Offer code redemption is only available on iOS")
             return
         }
@@ -83,7 +83,7 @@ class StorefrontHandler() {
      * Get App Store storefront information (iOS only)
      */
     suspend fun getStorefrontInfo(): Map<String, Any?>? {
-        if (getCurrentPlatform() != IAPPlatform.IOS) return null
+        if (getCurrentPlatform() != IapPlatform.IOS) return null
         
         return try {
             val storefront = KmpIAP.getStorefront()
@@ -117,7 +117,7 @@ class SubscriptionManager(
      * Show iOS subscription management screen (iOS 15+)
      */
     suspend fun showManageSubscriptions() {
-        if (getCurrentPlatform() != IAPPlatform.IOS) {
+        if (getCurrentPlatform() != IapPlatform.IOS) {
             println("Subscription management is only available on iOS")
             return
         }
@@ -162,7 +162,7 @@ class AndroidSubscriptionManager() {
      * Open Android subscription management (deep link to Play Store)
      */
     suspend fun openSubscriptionManagement(productId: String? = null) {
-        if (getCurrentPlatform() != IAPPlatform.ANDROID) {
+        if (getCurrentPlatform() != IapPlatform.ANDROID) {
             println("Android subscription management is only available on Android")
             return
         }
@@ -186,7 +186,7 @@ class AndroidSubscriptionManager() {
      * Get purchase history including subscriptions
      */
     suspend fun getSubscriptionHistory() {
-        if (getCurrentPlatform() != IAPPlatform.ANDROID) return
+        if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
             val history = KmpIAP.getAvailablePurchases()
@@ -256,7 +256,7 @@ class CrossPlatformOfferViewModel : ViewModel() {
     }
     
     private fun checkPlatformCapabilities() {
-        val canRedeem = getCurrentPlatform() == IAPPlatform.IOS
+        val canRedeem = getCurrentPlatform() == IapPlatform.IOS
         _state.update { it.copy(canRedeemCode = canRedeem) }
     }
     
@@ -268,13 +268,13 @@ class CrossPlatformOfferViewModel : ViewModel() {
         
         try {
             when (getCurrentPlatform()) {
-                IAPPlatform.IOS -> {
+                IapPlatform.IOS -> {
                     // iOS: Present code redemption sheet
                     KmpIAP.presentCodeRedemptionSheet()
                     println("iOS offer code redemption sheet presented")
                     listenForPurchases()
                 }
-                IAPPlatform.ANDROID -> {
+                IapPlatform.ANDROID -> {
                     // Android: Open subscription management
                     KmpIAP.deepLinkToSubscriptions("")
                     println("Android subscription management opened")
@@ -296,10 +296,10 @@ class CrossPlatformOfferViewModel : ViewModel() {
     suspend fun showSubscriptionManagement() {
         try {
             when (getCurrentPlatform()) {
-                IAPPlatform.IOS -> {
+                IapPlatform.IOS -> {
                     KmpIAP.showManageSubscriptions()
                 }
-                IAPPlatform.ANDROID -> {
+                IapPlatform.ANDROID -> {
                     // For Android, deep link to the first active subscription
                     val firstSub = _state.value.activeSubscriptions.firstOrNull()
                     firstSub?.let {
@@ -355,7 +355,7 @@ class PlatformSpecificFeatures(
      * iOS: Get promoted products from App Store
      */
     suspend fun getPromotedProducts(): List<Product> {
-        if (getCurrentPlatform() != IAPPlatform.IOS) return emptyList()
+        if (getCurrentPlatform() != IapPlatform.IOS) return emptyList()
         
         return try {
             // Load promoted products
@@ -383,7 +383,7 @@ class PlatformSpecificFeatures(
         productId: String,
         offerToken: String
     ) {
-        if (getCurrentPlatform() != IAPPlatform.ANDROID) return
+        if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
             KmpIAP.requestSubscription(
@@ -450,7 +450,7 @@ fun OfferRedemptionScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         when (getCurrentPlatform()) {
-                            IAPPlatform.IOS -> {
+                            IapPlatform.IOS -> {
                                 Button(
                                     onClick = {
                                         scope.launch {
@@ -469,7 +469,7 @@ fun OfferRedemptionScreen(
                                 }
                             }
                             
-                            IAPPlatform.ANDROID -> {
+                            IapPlatform.ANDROID -> {
                                 Button(
                                     onClick = {
                                         scope.launch {

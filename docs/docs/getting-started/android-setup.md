@@ -376,7 +376,7 @@ Direct users to subscription management:
 ```kotlin
 suspend fun openSubscriptionManagement() {
     val platform = getCurrentPlatform()
-    if (platform == IAPPlatform.ANDROID) {
+    if (platform == IapPlatform.ANDROID) {
         KmpIAP.deepLinkToSubscriptions("your_subscription_sku")
     }
 }

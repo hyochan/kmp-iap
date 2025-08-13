@@ -107,10 +107,12 @@ class ProductsViewModel : ViewModel() {
     init {
         setupPurchaseObservers()
         
-        // Load products after initialization
+        // Initialize connection and load products
         viewModelScope.launch {
-            delay(500) // Give time for initialization
-            loadProducts()
+            val connected = KmpIAP.initConnection()
+            if (connected) {
+                loadProducts()
+            }
         }
     }
     
@@ -306,18 +308,18 @@ class ProductInfo {
 ### Platform Support
 
 ```kotlin
-import io.github.hyochan.kmpiap.IAPPlatform
+import io.github.hyochan.kmpiap.IapPlatform
 
 class PlatformSupport {
     suspend fun checkPurchaseSupport(): Boolean {
         return try {
             when (KmpIAP.getCurrentPlatform()) {
-                IAPPlatform.IOS -> {
+                IapPlatform.IOS -> {
                     // Check if device can make payments
                     KmpIAP.initConnection()
                     true
                 }
-                IAPPlatform.ANDROID -> {
+                IapPlatform.ANDROID -> {
                     // Check Play Store connection
                     KmpIAP.initConnection()
                     KmpIAP.isConnected.value
@@ -336,7 +338,7 @@ class PlatformSupport {
 ```kotlin
 fun checkPlatformFeatures() {
     when (KmpIAP.getCurrentPlatform()) {
-        IAPPlatform.IOS -> {
+        IapPlatform.IOS -> {
             // iOS-specific features
             println("iOS platform detected")
             // Can use iOS-specific methods like:
@@ -344,7 +346,7 @@ fun checkPlatformFeatures() {
             // - KmpIAP.showManageSubscriptionsIOS()
             // - KmpIAP.getStorefrontIOS()
         }
-        IAPPlatform.ANDROID -> {
+        IapPlatform.ANDROID -> {
             // Android-specific features  
             println("Android platform detected")
             // Can use Android-specific methods like:
@@ -481,10 +483,10 @@ Open native subscription management:
 suspend fun openSubscriptionManagement() {
     try {
         when (KmpIAP.getCurrentPlatform()) {
-            IAPPlatform.IOS -> {
+            IapPlatform.IOS -> {
                 KmpIAP.showManageSubscriptionsIOS()
             }
-            IAPPlatform.ANDROID -> {
+            IapPlatform.ANDROID -> {
                 KmpIAP.deepLinkToSubscriptionsAndroid("premium_monthly")
             }
         }

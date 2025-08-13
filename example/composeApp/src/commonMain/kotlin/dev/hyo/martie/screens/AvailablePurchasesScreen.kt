@@ -22,7 +22,7 @@ import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.datetime.Instant
@@ -42,38 +42,44 @@ fun AvailablePurchasesScreen(navController: NavController) {
     var consumeResult by remember { mutableStateOf<String?>(null) }
     var consumingPurchaseId by remember { mutableStateOf<String?>(null) }
     
-    // Initialize connection
+    // Initialize connection and load available purchases
     LaunchedEffect(Unit) {
-        isConnecting = true
-        isLoading = true
-        try {
-            val result = KmpIAP.initConnection()
-            connected = result
-        } catch (e: Exception) {
-            errorMessage = "Failed to initialize: ${e.message}"
-            connected = false
-            isLoading = false
-        } finally {
-            isConnecting = false
-        }
-    }
-    
-    // Load available purchases when connected
-    LaunchedEffect(connected) {
-        if (connected) {
-            // Add a small delay to ensure connection is fully established
-            kotlinx.coroutines.delay(500)
+        scope.launch {
+            isConnecting = true
+            isLoading = true
             try {
-                val purchases = KmpIAP.getAvailablePurchases()
-                availablePurchases = purchases
-                if (purchases.isEmpty()) {
-                    errorMessage = "No active purchases found"
-                } else {
-                    errorMessage = null
+                val connectionResult = KmpIAP.initConnection()
+                connected = connectionResult
+                
+                if (!connectionResult) {
+                    errorMessage = "Failed to connect to store"
+                    return@launch
                 }
+                
+                // Connection successful, immediately load available purchases
+                isConnecting = false
+                
+                // Load purchases with timeout
+                val purchasesResult = withTimeoutOrNull(10000) {
+                    KmpIAP.getAvailablePurchases()
+                }
+                
+                if (purchasesResult != null) {
+                    availablePurchases = purchasesResult
+                    if (purchasesResult.isEmpty()) {
+                        errorMessage = "No active purchases found"
+                    } else {
+                        errorMessage = null
+                    }
+                } else {
+                    errorMessage = "Loading purchases timed out"
+                }
+                
             } catch (e: Exception) {
-                errorMessage = "Failed to load purchases: ${e.message}"
+                errorMessage = "Failed to initialize: ${e.message}"
+                connected = false
             } finally {
+                isConnecting = false
                 isLoading = false
             }
         }

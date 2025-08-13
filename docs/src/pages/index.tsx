@@ -40,43 +40,56 @@ function QuickLinks() {
   const links = [
     {
       icon: '🚀',
-      title: 'Getting Started',
-      description: 'Learn how to install and configure kmp-iap in your project.',
+      title: 'Quick Start',
+      description: 'Get up and running with kmp-iap in minutes',
       to: '/docs/getting-started/installation',
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     },
     {
-      icon: '📖',
+      icon: '📚',
       title: 'Guides',
-      description: 'Follow step-by-step guides for implementing purchases and subscriptions.',
-      to: '/docs/guides/basic-setup',
+      description: 'Step-by-step tutorials and best practices',
+      to: '/docs/guides/purchases',
+      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     },
     {
-      icon: '🔧',
+      icon: '⚡',
       title: 'API Reference',
-      description: 'Comprehensive API documentation with examples and type definitions.',
+      description: 'Complete API documentation with examples',
       to: '/docs/api',
+      gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     },
     {
-      icon: '💡',
+      icon: '💻',
       title: 'Examples',
-      description: 'Real-world examples and implementation patterns.',
+      description: 'Production-ready code samples',
       to: '/docs/examples/basic-store',
+      gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     },
   ];
 
   return (
-    <section className="homepage-section">
+    <section className="next-steps-section">
       <div className="container">
-        <h2 className="section__title">📚 What's Next?</h2>
-        <div className="quick-links">
+        <div className="next-steps-header">
+          <h2 className="next-steps-title">Start Building Today</h2>
+          <p className="next-steps-subtitle">
+            Everything you need to implement in-app purchases in your Kotlin Multiplatform app
+          </p>
+        </div>
+        <div className="next-steps-grid">
           {links.map((link, idx) => (
             <Link
               key={idx}
-              className="quick-link-card"
-              to={link.to}>
-              <span className="quick-link-icon">{link.icon}</span>
-              <h3 className="quick-link-title">{link.title}</h3>
-              <p>{link.description}</p>
+              className="next-step-card"
+              to={link.to}
+              style={{'--card-gradient': link.gradient} as React.CSSProperties}>
+              <div className="next-step-icon-wrapper">
+                <span className="next-step-icon">{link.icon}</span>
+              </div>
+              <h3 className="next-step-title">{link.title}</h3>
+              <p className="next-step-description">{link.description}</p>
+              <span className="next-step-arrow">→</span>
             </Link>
           ))}
         </div>

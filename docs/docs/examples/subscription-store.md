@@ -34,7 +34,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
-import io.github.hyochan.kmpiap.IAPPlatform
+import io.github.hyochan.kmpiap.IapPlatform
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*
@@ -180,7 +180,7 @@ class SubscriptionStoreViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 // For Android, you might want to handle subscription offers
-                if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
+                if (KmpIAP.getCurrentPlatform() == IapPlatform.ANDROID) {
                     // Get available offers for the subscription
                     val product = _state.value.subscriptions.find { it.productId == productId }
                     val offers = product?.subscriptionOffers
@@ -615,7 +615,7 @@ fun getTierColor(tier: String): Color {
 Handles Android subscription offers properly:
 
 ```kotlin
-if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
+if (KmpIAP.getCurrentPlatform() == IapPlatform.ANDROID) {
     val offers = product?.subscriptionOffers
     if (!offers.isNullOrEmpty()) {
         KmpIAP.requestSubscription(
@@ -688,7 +688,7 @@ private fun checkSubscriptionWithGracePeriod(purchase: Purchase): SubscriptionSt
 
 ```kotlin
 // iOS specific - check for promotional offers
-if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
+if (KmpIAP.getCurrentPlatform() == IapPlatform.IOS) {
     viewModelScope.launch {
         KmpIAP.promotedProductsIOS.collectLatest { promotedProducts ->
             // Handle App Store promoted products
@@ -702,7 +702,7 @@ if (KmpIAP.getCurrentPlatform() == IAPPlatform.IOS) {
 ```kotlin
 // Android specific - deep link to subscription management
 suspend fun openSubscriptionManagement(productId: String) {
-    if (KmpIAP.getCurrentPlatform() == IAPPlatform.ANDROID) {
+    if (KmpIAP.getCurrentPlatform() == IapPlatform.ANDROID) {
         KmpIAP.deepLinkToSubscriptionsAndroid(productId)
     }
 }

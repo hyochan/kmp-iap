@@ -96,41 +96,178 @@ KmpIAP.requestPurchase(
 )
 ```
 
-## 📚 What's Next?
+## 🚀 Start Building Today
 
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
-  <div className="card">
-    <div className="card-body">
-      <h3>🏁 Getting Started</h3>
-      <p>Learn how to install and configure kmp-iap in your project.</p>
-      <a href="/docs/getting-started/installation" className="button button--primary">Get Started →</a>
-    </div>
-  </div>
+<div className="next-steps-grid-intro">
+  <a href="/docs/getting-started/installation" className="next-step-card-intro gradient-purple">
+    <div className="next-step-icon-intro">🚀</div>
+    <h3 className="next-step-title-intro">Quick Start</h3>
+    <p className="next-step-desc-intro">Get up and running with kmp-iap in minutes</p>
+    <span className="next-step-arrow-intro">→</span>
+  </a>
   
-  <div className="card">
-    <div className="card-body">
-      <h3>📖 Guides</h3>
-      <p>Follow step-by-step guides for implementing purchases and subscriptions.</p>
-      <a href="/docs/guides/purchases" className="button button--secondary">View Guides →</a>
-    </div>
-  </div>
+  <a href="/docs/guides/purchases" className="next-step-card-intro gradient-pink">
+    <div className="next-step-icon-intro">📚</div>
+    <h3 className="next-step-title-intro">Guides</h3>
+    <p className="next-step-desc-intro">Step-by-step tutorials and best practices</p>
+    <span className="next-step-arrow-intro">→</span>
+  </a>
   
-  <div className="card">
-    <div className="card-body">
-      <h3>🔧 API Reference</h3>
-      <p>Comprehensive API documentation with examples and type definitions.</p>
-      <a href="/docs/api/" className="button button--secondary">API Docs →</a>
-    </div>
-  </div>
+  <a href="/docs/api" className="next-step-card-intro gradient-blue">
+    <div className="next-step-icon-intro">⚡</div>
+    <h3 className="next-step-title-intro">API Reference</h3>
+    <p className="next-step-desc-intro">Complete API documentation with examples</p>
+    <span className="next-step-arrow-intro">→</span>
+  </a>
   
-  <div className="card">
-    <div className="card-body">
-      <h3>💡 Examples</h3>
-      <p>Real-world examples and implementation patterns.</p>
-      <a href="/docs/examples/basic-store" className="button button--secondary">See Examples →</a>
-    </div>
-  </div>
+  <a href="/docs/examples/basic-store" className="next-step-card-intro gradient-green">
+    <div className="next-step-icon-intro">💻</div>
+    <h3 className="next-step-title-intro">Examples</h3>
+    <p className="next-step-desc-intro">Production-ready code samples</p>
+    <span className="next-step-arrow-intro">→</span>
+  </a>
 </div>
+
+<style>{`
+  .next-steps-grid-intro {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+  }
+  
+  .next-step-card-intro {
+    display: block;
+    padding: 2rem;
+    border-radius: 12px;
+    color: white;
+    text-decoration: none;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Light mode gradients */
+  .gradient-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  
+  .gradient-pink {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+  }
+  
+  .gradient-blue {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+  }
+  
+  .gradient-green {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    box-shadow: 0 4px 12px rgba(67, 233, 123, 0.3);
+  }
+  
+  /* Dark mode - much darker backgrounds with subtle gradients */
+  [data-theme='dark'] .gradient-purple {
+    background: linear-gradient(135deg, #4a3d7a 0%, #5a4685 100%);
+    box-shadow: 0 4px 12px rgba(74, 61, 122, 0.3);
+    border: 1px solid rgba(139, 159, 232, 0.3);
+  }
+  
+  [data-theme='dark'] .gradient-pink {
+    background: linear-gradient(135deg, #7a3d6b 0%, #85465f 100%);
+    box-shadow: 0 4px 12px rgba(122, 61, 107, 0.3);
+    border: 1px solid rgba(244, 176, 250, 0.3);
+  }
+  
+  [data-theme='dark'] .gradient-blue {
+    background: linear-gradient(135deg, #3d5a7a 0%, #466685 100%);
+    box-shadow: 0 4px 12px rgba(61, 90, 122, 0.3);
+    border: 1px solid rgba(127, 195, 254, 0.3);
+  }
+  
+  [data-theme='dark'] .gradient-green {
+    background: linear-gradient(135deg, #3d7a5a 0%, #468566 100%);
+    box-shadow: 0 4px 12px rgba(61, 122, 90, 0.3);
+    border: 1px solid rgba(111, 238, 159, 0.3);
+  }
+  
+  .next-step-card-intro:hover {
+    transform: translateY(-8px);
+    text-decoration: none;
+  }
+  
+  .next-step-card-intro:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  [data-theme='dark'] .next-step-card-intro:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  .next-step-icon-intro {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  }
+  
+  .next-step-title-intro {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: white !important;
+  }
+  
+  /* Dark mode - high contrast white text */
+  [data-theme='dark'] .next-step-title-intro {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    font-weight: 800;
+  }
+  
+  .next-step-desc-intro {
+    font-size: 1rem;
+    opacity: 0.95;
+    margin-bottom: 1rem;
+    color: white !important;
+    line-height: 1.5;
+  }
+  
+  /* Dark mode - high contrast white text for description */
+  [data-theme='dark'] .next-step-desc-intro {
+    color: #f0f0f0 !important;
+    opacity: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    font-weight: 500;
+  }
+  
+  .next-step-arrow-intro {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white !important;
+  }
+  
+  /* Dark mode - high contrast white arrow */
+  [data-theme='dark'] .next-step-arrow-intro {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    font-weight: 800;
+  }
+  
+  /* Force white text on all child elements in dark mode */
+  [data-theme='dark'] .next-step-card-intro * {
+    color: white !important;
+  }
+  
+  /* Ensure links don't change color on hover */
+  .next-step-card-intro:hover .next-step-title-intro,
+  .next-step-card-intro:hover .next-step-desc-intro,
+  .next-step-card-intro:hover .next-step-arrow-intro {
+    color: white !important;
+  }
+`}</style>
 
 ## 🤝 Community & Support
 

@@ -170,8 +170,10 @@ class PurchaseViewModel : ViewModel() {
     init {
         setupPurchaseObservers()
         viewModelScope.launch {
-            delay(500) // Give time for initialization
-            checkPendingPurchases()
+            val connected = KmpIAP.initConnection()
+            if (connected) {
+                checkPendingPurchases()
+            }
         }
     }
     
@@ -298,10 +300,9 @@ class GoodPurchaseManager : ViewModel() {
     
     private fun ensureConnection() {
         viewModelScope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                if (!connected) {
-                    scheduleReconnection()
-                }
+            val connected = KmpIAP.isConnected()
+            if (!connected) {
+                scheduleReconnection()
             }
         }
     }
@@ -309,8 +310,7 @@ class GoodPurchaseManager : ViewModel() {
     fun checkPendingTransactions() {
         viewModelScope.launch {
             val purchases = KmpIAP.getAvailablePurchases()
-                purchases.forEach { finishIfNeeded(it) }
-            }
+            purchases.forEach { finishIfNeeded(it) }
         }
     }
     
@@ -364,7 +364,7 @@ class SecurePurchaseValidator {
     suspend fun validatePurchase(purchase: Purchase): Boolean {
         return try {
             when (getCurrentPlatform()) {
-                IAPPlatform.IOS -> {
+                IapPlatform.IOS -> {
                     // iOS receipt validation
                     val result = api.validateIOSReceipt(
                         receipt = purchase.transactionReceipt,
@@ -374,7 +374,7 @@ class SecurePurchaseValidator {
                     
                     result.status == 0
                 }
-                IAPPlatform.ANDROID -> {
+                IapPlatform.ANDROID -> {
                     // Android purchase validation
                     val result = api.validateAndroidPurchase(
                         packageName = BuildConfig.APPLICATION_ID,
@@ -700,7 +700,6 @@ class LifecycleAwarePurchaseManager(
 ```kotlin
 // Solution: Implement connection resilience
 class ResilientConnectionManager(
-    private val iapHelper: UseIap,
     private val scope: CoroutineScope
 ) {
     suspend fun ensureConnectionWithRetry(): Boolean {
@@ -721,12 +720,11 @@ class ResilientConnectionManager(
     }
     
     init {
-        // Monitor connection state
+        // Check connection and retry if needed
         scope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                if (!connected) {
-                    ensureConnectionWithRetry()
-                }
+            val connected = KmpIAP.isConnected()
+            if (!connected) {
+                ensureConnectionWithRetry()
             }
         }
     }

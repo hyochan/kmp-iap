@@ -193,16 +193,15 @@ Test your setup with this verification code:
 suspend fun testConnection() {
     try {
         // Initialize connection
-        KmpIAP.initConnection()
+        val connected = KmpIAP.initConnection()
+        println("Connection status: $connected")
         
-        // Wait for connection
-        delay(1000)
+        if (!connected) {
+            println("Failed to connect to store")
+            return
+        }
         
-        // Check connection status
-        val isConnected = KmpIAP.isConnected()
-        println("Connection status: $isConnected")
-        
-        // Test product fetching
+        // Connection successful, test product fetching
         val products = KmpIAP.requestProducts(
             ProductRequest(
                 skus = listOf("test_product_id"),

@@ -178,7 +178,7 @@ val promotedProductIOS: StateFlow<Product?>
 
 **Example**:
 ```kotlin
-if (getCurrentPlatform() == IAPPlatform.IOS) {
+if (getCurrentPlatform() == IapPlatform.IOS) {
     scope.launch {
         KmpIAP.promotedProductListener.collect { product ->
             product?.let {
