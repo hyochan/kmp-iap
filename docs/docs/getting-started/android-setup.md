@@ -197,34 +197,43 @@ android {
 ### Test Accounts Configuration
 
 ```kotlin title="Testing Example"
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
-suspend fun testAndroidPurchase(iapHelper: UseIap) {
+suspend fun testAndroidPurchase() {
     try {
         // Initialize connection
-        iapHelper.initConnection()
+        KmpIAP.initConnection()
         println("Billing client connected")
         
         // Check connection state
-        val isConnected = iapHelper.isConnected.value
+        val isConnected = KmpIAP.isConnected()
         println("Connection state: $isConnected")
         
         // Get products
-        val products = iapHelper.getProducts(listOf(
-            "premium_upgrade",
-            "remove_ads"
-        ))
+        val products = KmpIAP.requestProducts(
+            ProductRequest(
+                skus = listOf(
+                    "premium_upgrade",
+                    "remove_ads"
+                ),
+                type = ProductType.INAPP
+            )
+        )
         println("Found ${products.size} products")
         
         // Test purchase
         if (products.isNotEmpty()) {
-            iapHelper.requestPurchase(
-                sku = products.first().productId,
-                obfuscatedAccountIdAndroid = "test_user_123"
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = products.first().id,
+                    quantity = 1,
+                    obfuscatedAccountIdAndroid = "test_user_123"
+                )
             )
         }
-    } catch (e: Exception) {
+    } catch (e: PurchaseError) {
         println("Android test failed: $e")
     }
 }
@@ -235,31 +244,29 @@ suspend fun testAndroidPurchase(iapHelper: UseIap) {
 ### Enhanced Error Handling
 
 ```kotlin
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 
 scope.launch {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            when (it.code) {
-                ErrorCode.SERVICE_UNAVAILABLE -> {
-                    // Google Play services unavailable
-                    showDialog("Please update Google Play services")
-                }
-                ErrorCode.BILLING_UNAVAILABLE -> {
-                    // Billing API version not supported
-                    showDialog("In-app purchases not supported on this device")
-                }
-                ErrorCode.ITEM_UNAVAILABLE -> {
-                    // Product not found or not available for purchase
-                    showDialog("This item is currently unavailable")
-                }
-                ErrorCode.DEVELOPER_ERROR -> {
-                    // Invalid arguments provided to the API
-                    println("Developer error: Check product configuration")
-                }
-                else -> {
-                    showDialog("Purchase failed: ${it.message}")
-                }
+    KmpIAP.purchaseErrorListener.collect { error ->
+        when (error.code) {
+            ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
+                // Google Play services unavailable
+                showDialog("Please update Google Play services")
+            }
+            ErrorCode.E_BILLING_UNAVAILABLE.name -> {
+                // Billing API version not supported
+                showDialog("In-app purchases not supported on this device")
+            }
+            ErrorCode.E_ITEM_UNAVAILABLE.name -> {
+                // Product not found or not available for purchase
+                showDialog("This item is currently unavailable")
+            }
+            ErrorCode.E_DEVELOPER_ERROR.name -> {
+                // Invalid arguments provided to the API
+                println("Developer error: Check product configuration")
+            }
+            else -> {
+                showDialog("Purchase failed: ${error.message}")
             }
         }
     }
@@ -270,15 +277,15 @@ scope.launch {
 
 ```kotlin
 // Monitor connection state
-suspend fun checkConnectionHealth(iapHelper: UseIap) {
-    val isConnected = iapHelper.isConnected.value
+suspend fun checkConnectionHealth() {
+    val isConnected = KmpIAP.isConnected()
     
     if (!isConnected) {
         // Reconnect if needed
         try {
-            iapHelper.initConnection()
+            KmpIAP.initConnection()
             println("Billing client reconnected")
-        } catch (e: Exception) {
+        } catch (e: PurchaseError) {
             println("Failed to reconnect: $e")
         }
     } else {
@@ -328,10 +335,13 @@ suspend fun checkConnectionHealth(iapHelper: UseIap) {
 For enhanced security, use obfuscated account IDs:
 
 ```kotlin
-iapHelper.requestPurchase(
-    sku = "premium_upgrade",
-    obfuscatedAccountIdAndroid = "user_account_123",
-    obfuscatedProfileIdAndroid = "profile_456"
+KmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "premium_upgrade",
+        quantity = 1,
+        obfuscatedAccountIdAndroid = "user_account_123",
+        obfuscatedProfileIdAndroid = "profile_456"
+    )
 )
 ```
 
@@ -341,21 +351,19 @@ Always validate purchases on your server:
 
 ```kotlin
 scope.launch {
-    iapHelper.currentPurchase.collectLatest { purchase ->
-        purchase?.let {
-            // Send to your server for validation
-            val isValid = validatePurchaseOnServer(it)
+    KmpIAP.purchaseUpdatedListener.collect { purchase ->
+        // Send to your server for validation
+        val isValid = validatePurchaseOnServer(purchase)
+        
+        if (isValid) {
+            // Grant the purchased content
+            grantPurchase(purchase)
             
-            if (isValid) {
-                // Grant the purchased content
-                grantPurchase(it)
-                
-                // Acknowledge the purchase
-                iapHelper.finishTransaction(
-                    purchase = it,
-                    isConsumable = false
-                )
-            }
+            // Acknowledge the purchase
+            KmpIAP.finishTransaction(
+                purchase = purchase,
+                isConsumable = false
+            )
         }
     }
 }
@@ -366,10 +374,10 @@ scope.launch {
 Direct users to subscription management:
 
 ```kotlin
-suspend fun openSubscriptionManagement(iapHelper: UseIap) {
+suspend fun openSubscriptionManagement() {
     val platform = getCurrentPlatform()
     if (platform == IAPPlatform.ANDROID) {
-        iapHelper.deepLinkToSubscriptionsAndroid("your_subscription_sku")
+        KmpIAP.deepLinkToSubscriptions("your_subscription_sku")
     }
 }
 ```

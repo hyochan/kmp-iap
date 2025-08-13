@@ -16,10 +16,10 @@ Complete reference for kmp-iap v1.0.0-beta.2 - A unified Kotlin Multiplatform AP
 ### 🏪 Core Methods
 Essential methods for initializing connections, loading products, and processing purchases.
 
-- **Connection Management**: `initConnection()`, `dispose()`
-- **Product Loading**: `getProducts()`, `getSubscriptions()`
-- **Purchase Processing**: `requestPurchase()`, `requestSubscription()`
-- **Transaction Management**: `finishTransaction()`, `consumePurchase()`
+- **Connection Management**: `KmpIAP.initConnection()`, `KmpIAP.dispose()`
+- **Product Loading**: `KmpIAP.requestProducts()`, `KmpIAP.requestSubscriptions()`
+- **Purchase Processing**: `KmpIAP.requestPurchase()`, `KmpIAP.requestSubscription()`
+- **Transaction Management**: `KmpIAP.finishTransaction()`, `KmpIAP.acknowledgePurchase()`
 
 ### 📱 Platform-Specific Methods
 Access iOS and Android specific features and capabilities.
@@ -44,40 +44,39 @@ Comprehensive type definitions for type-safe development.
 ## Quick Start
 
 ```kotlin
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class PurchaseManager {
     private val scope = CoroutineScope(Dispatchers.Main)
-    private lateinit var iapHelper: UseIap
     
     suspend fun initializePurchases() {
         // Initialize connection
-        iapHelper = UseIap(
-            scope = scope,
-            options = UseIapOptions()
-        )
-        iapHelper.initConnection()
+        KmpIAP.initConnection()
         
         // Set up state listeners
         scope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
-                purchase?.let { handlePurchaseSuccess(it) }
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                handlePurchaseSuccess(purchase)
             }
         }
         
         scope.launch {
-            iapHelper.currentError.collectLatest { error ->
-                error?.let { handlePurchaseError(it) }
+            KmpIAP.purchaseErrorListener.collect { error ->
+                handlePurchaseError(error)
             }
         }
     }
     
     suspend fun makePurchase(productId: String) {
-        iapHelper.requestPurchase(
-            sku = productId,
-            obfuscatedAccountIdAndroid = "user_id" // Optional
+        KmpIAP.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1,
+                obfuscatedAccountIdAndroid = "user_id" // Optional
+            )
         )
     }
 }

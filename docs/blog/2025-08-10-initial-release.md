@@ -38,17 +38,26 @@ Supporting Google Play Billing Library 7.1.1 with comprehensive features:
 
 ```kotlin
 // Initialize
-val iapHelper = useIap(scope, options)
-iapHelper.initConnection()
+KmpIAP.initConnection()
 
 // Load products
-iapHelper.getProducts(listOf("product_id"))
+val products = KmpIAP.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
 
 // Request purchase
-iapHelper.requestPurchase("product_id")
+KmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
 
 // Observe purchase state
-iapHelper.currentPurchase.collectLatest { purchase ->
+KmpIAP.purchaseUpdatedListener.collect { purchase ->
     // Handle purchase
 }
 ```

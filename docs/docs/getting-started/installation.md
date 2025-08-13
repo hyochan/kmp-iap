@@ -160,31 +160,26 @@ The library automatically adds the required billing permission to your manifest.
 ### Initialize the Plugin
 
 ```kotlin
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
     private val scope = CoroutineScope(Dispatchers.Main)
-    private lateinit var iapHelper: UseIap
     
     fun initialize() {
-        iapHelper = UseIap(
-            scope = scope,
-            options = UseIapOptions()
-        )
-        
         scope.launch {
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
                 println("IAP connection initialized successfully")
-            } catch (e: Exception) {
+            } catch (e: PurchaseError) {
                 println("Failed to initialize IAP connection: $e")
             }
         }
     }
     
     fun dispose() {
-        iapHelper.dispose()
+        KmpIAP.dispose()
         scope.cancel()
     }
 }
@@ -195,23 +190,28 @@ class IAPManager {
 Test your setup with this verification code:
 
 ```kotlin
-suspend fun testConnection(iapHelper: UseIap) {
+suspend fun testConnection() {
     try {
         // Initialize connection
-        iapHelper.initConnection()
+        KmpIAP.initConnection()
         
         // Wait for connection
         delay(1000)
         
         // Check connection status
-        val isConnected = iapHelper.isConnected.value
+        val isConnected = KmpIAP.isConnected()
         println("Connection status: $isConnected")
         
         // Test product fetching
-        val products = iapHelper.getProducts(listOf("test_product_id"))
+        val products = KmpIAP.requestProducts(
+            ProductRequest(
+                skus = listOf("test_product_id"),
+                type = ProductType.INAPP
+            )
+        )
         println("Found ${products.size} products")
         
-    } catch (e: Exception) {
+    } catch (e: PurchaseError) {
         println("Connection test failed: $e")
     }
 }

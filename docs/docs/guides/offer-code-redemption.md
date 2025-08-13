@@ -21,14 +21,12 @@ This library provides native support for:
 
 ```kotlin
 import kotlinx.coroutines.*
-import io.github.hyochan.kmpiap.useIap.*
-import io.github.hyochan.kmpiap.IAPPlatform
-import io.github.hyochan.kmpiap.getCurrentPlatform
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 
 class OfferCodeHandler(
     private val scope: CoroutineScope
 ) {
-    private val iapHelper = UseIap(scope, UseIapOptions())
     
     /**
      * Present iOS system offer code redemption sheet (iOS 14+)
@@ -41,10 +39,10 @@ class OfferCodeHandler(
         
         try {
             // Present the system offer code redemption sheet
-            iapHelper.presentCodeRedemptionSheetIOS()
+            KmpIAP.presentCodeRedemptionSheet()
             println("Offer code redemption sheet presented")
             
-            // Results will come through currentPurchase StateFlow
+            // Results will come through purchaseUpdatedListener
             listenForRedemptionResults()
             
         } catch (e: PurchaseError) {
@@ -54,12 +52,10 @@ class OfferCodeHandler(
     
     private fun listenForRedemptionResults() {
         scope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
-                purchase?.let {
-                    println("Offer code redeemed: ${it.productId}")
-                    // Handle successful redemption
-                    handleRedeemedPurchase(it)
-                }
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                println("Offer code redeemed: ${purchase.productId}")
+                // Handle successful redemption
+                handleRedeemedPurchase(purchase)
             }
         }
     }
@@ -67,7 +63,7 @@ class OfferCodeHandler(
     private suspend fun handleRedeemedPurchase(purchase: Purchase) {
         // Process the redeemed purchase
         // Verify receipt, deliver content, etc.
-        val success = iapHelper.finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
@@ -75,9 +71,6 @@ class OfferCodeHandler(
         if (success) {
             println("Redeemed purchase processed successfully")
         }
-        
-        // Clear the purchase state
-        iapHelper.clearPurchase()
     }
 }
 ```
@@ -85,9 +78,7 @@ class OfferCodeHandler(
 ### Storefront Information
 
 ```kotlin
-class StorefrontHandler(
-    private val iapHelper: UseIap
-) {
+class StorefrontHandler() {
     /**
      * Get App Store storefront information (iOS only)
      */
@@ -95,7 +86,7 @@ class StorefrontHandler(
         if (getCurrentPlatform() != IAPPlatform.IOS) return null
         
         return try {
-            val storefront = iapHelper.getStorefrontIOS()
+            val storefront = KmpIAP.getStorefront()
             println("Storefront info: $storefront")
             storefront
         } catch (e: PurchaseError) {
@@ -108,7 +99,7 @@ class StorefrontHandler(
      * Get the current store type
      */
     fun getCurrentStore(): Store {
-        return iapHelper.getStore()
+        return KmpIAP.getStore()
     }
 }
 ```
@@ -121,7 +112,6 @@ class StorefrontHandler(
 class SubscriptionManager(
     private val scope: CoroutineScope
 ) {
-    private val iapHelper = UseIap(scope, UseIapOptions())
     
     /**
      * Show iOS subscription management screen (iOS 15+)
@@ -133,7 +123,7 @@ class SubscriptionManager(
         }
         
         try {
-            iapHelper.showManageSubscriptionsIOS()
+            KmpIAP.showManageSubscriptions()
             println("Subscription management screen presented")
         } catch (e: PurchaseError) {
             println("Failed to show subscription management: $e")
@@ -143,16 +133,20 @@ class SubscriptionManager(
     /**
      * Monitor subscription state changes
      */
-    fun observeSubscriptions() {
-        scope.launch {
-            iapHelper.subscriptions.collectLatest { subscriptions ->
-                println("Active subscriptions: ${subscriptions.size}")
-                subscriptions.forEach { sub ->
-                    println("Subscription: ${sub.productId}")
-                    println("Period: ${sub.subscriptionPeriod}")
-                    println("Price: ${sub.price}")
-                }
+    suspend fun observeSubscriptions() {
+        val subscriptions = KmpIAP.requestSubscriptions(
+            ProductRequest(
+                skus = listOf("monthly_sub", "yearly_sub"),
+                type = ProductType.SUBS
+            )
+        )
+        println("Active subscriptions: ${subscriptions.size}")
+        subscriptions.forEach { sub ->
+            println("Subscription: ${sub.id}")
+            if (sub is SubscriptionProduct) {
+                println("Period: ${sub.subscriptionPeriod}")
             }
+            println("Price: ${sub.price}")
         }
     }
 }
@@ -163,9 +157,7 @@ class SubscriptionManager(
 ### Deep Linking to Subscriptions
 
 ```kotlin
-class AndroidSubscriptionManager(
-    private val iapHelper: UseIap
-) {
+class AndroidSubscriptionManager() {
     /**
      * Open Android subscription management (deep link to Play Store)
      */
@@ -178,10 +170,10 @@ class AndroidSubscriptionManager(
         try {
             // Deep link to subscription management in Play Store
             productId?.let {
-                iapHelper.deepLinkToSubscriptionsAndroid(it)
+                KmpIAP.deepLinkToSubscriptions(it)
             } ?: run {
                 // Open general subscription management
-                iapHelper.deepLinkToSubscriptionsAndroid("")
+                KmpIAP.deepLinkToSubscriptions("")
             }
             
             println("Opened Android subscription management")
@@ -197,17 +189,14 @@ class AndroidSubscriptionManager(
         if (getCurrentPlatform() != IAPPlatform.ANDROID) return
         
         try {
-            iapHelper.requestPurchaseHistoryAndroid()
+            val history = KmpIAP.getAvailablePurchases()
             
-            // Results available via StateFlow
-            iapHelper.purchaseHistories.collectLatest { history ->
-                val subscriptions = history.filter { 
-                    it.productId.contains("subscription") || 
-                    it.productId.contains("monthly") ||
-                    it.productId.contains("yearly")
-                }
-                println("Found ${subscriptions.size} subscriptions in history")
+            val subscriptions = history.filter { 
+                it.productId.contains("subscription") || 
+                it.productId.contains("monthly") ||
+                it.productId.contains("yearly")
             }
+            println("Found ${subscriptions.size} subscriptions in history")
         } catch (e: PurchaseError) {
             println("Failed to get subscription history: $e")
         }
@@ -225,10 +214,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 
 class CrossPlatformOfferViewModel : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions()
-    )
     
     data class OfferState(
         val isLoading: Boolean = false,
@@ -242,22 +227,30 @@ class CrossPlatformOfferViewModel : ViewModel() {
     val state: StateFlow<OfferState> = _state.asStateFlow()
     
     init {
+        initializeIAP()
         observeStates()
         checkPlatformCapabilities()
     }
     
-    private fun observeStates() {
-        // Observe subscriptions
+    private fun initializeIAP() {
         viewModelScope.launch {
-            iapHelper.subscriptions.collectLatest { subs ->
-                _state.update { it.copy(activeSubscriptions = subs) }
-            }
+            KmpIAP.initConnection()
         }
-        
-        // Observe promoted products (iOS)
+    }
+    
+    private fun observeStates() {
+        // Load subscriptions
         viewModelScope.launch {
-            iapHelper.promotedProductsIOS.collectLatest { promoted ->
-                _state.update { it.copy(promotedProducts = promoted) }
+            try {
+                val subs = KmpIAP.requestSubscriptions(
+                    ProductRequest(
+                        skus = listOf("monthly_sub", "yearly_sub"),
+                        type = ProductType.SUBS
+                    )
+                )
+                _state.update { it.copy(activeSubscriptions = subs) }
+            } catch (e: PurchaseError) {
+                _state.update { it.copy(error = e.message) }
             }
         }
     }
@@ -277,13 +270,13 @@ class CrossPlatformOfferViewModel : ViewModel() {
             when (getCurrentPlatform()) {
                 IAPPlatform.IOS -> {
                     // iOS: Present code redemption sheet
-                    iapHelper.presentCodeRedemptionSheetIOS()
+                    KmpIAP.presentCodeRedemptionSheet()
                     println("iOS offer code redemption sheet presented")
                     listenForPurchases()
                 }
                 IAPPlatform.ANDROID -> {
                     // Android: Open subscription management
-                    iapHelper.deepLinkToSubscriptionsAndroid("")
+                    KmpIAP.deepLinkToSubscriptions("")
                     println("Android subscription management opened")
                 }
             }
@@ -304,13 +297,13 @@ class CrossPlatformOfferViewModel : ViewModel() {
         try {
             when (getCurrentPlatform()) {
                 IAPPlatform.IOS -> {
-                    iapHelper.showManageSubscriptionsIOS()
+                    KmpIAP.showManageSubscriptions()
                 }
                 IAPPlatform.ANDROID -> {
                     // For Android, deep link to the first active subscription
                     val firstSub = _state.value.activeSubscriptions.firstOrNull()
                     firstSub?.let {
-                        iapHelper.deepLinkToSubscriptionsAndroid(it.productId)
+                        KmpIAP.deepLinkToSubscriptions(it.id)
                     }
                 }
             }
@@ -323,11 +316,9 @@ class CrossPlatformOfferViewModel : ViewModel() {
     
     private fun listenForPurchases() {
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
-                purchase?.let {
-                    println("Purchase received: ${it.productId}")
-                    handlePurchaseSuccess(it)
-                }
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                println("Purchase received: ${purchase.productId}")
+                handlePurchaseSuccess(purchase)
             }
         }
     }
@@ -337,20 +328,17 @@ class CrossPlatformOfferViewModel : ViewModel() {
         deliverContent(purchase.productId)
         
         // Finish transaction
-        iapHelper.finishTransaction(
+        KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
-        
-        // Clear purchase state
-        iapHelper.clearPurchase()
         
         _state.update { it.copy(isLoading = false) }
     }
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 ```
@@ -361,22 +349,30 @@ class CrossPlatformOfferViewModel : ViewModel() {
 
 ```kotlin
 class PlatformSpecificFeatures(
-    private val iapHelper: UseIap,
     private val scope: CoroutineScope
 ) {
     /**
      * iOS: Get promoted products from App Store
      */
-    fun observePromotedProducts() {
-        if (getCurrentPlatform() != IAPPlatform.IOS) return
+    suspend fun getPromotedProducts(): List<Product> {
+        if (getCurrentPlatform() != IAPPlatform.IOS) return emptyList()
         
-        scope.launch {
-            iapHelper.promotedProductsIOS.collectLatest { products ->
-                products?.forEach { product ->
-                    println("Promoted product: ${product.productId}")
-                    println("Price: ${product.price}")
-                }
+        return try {
+            // Load promoted products
+            val products = KmpIAP.requestProducts(
+                ProductRequest(
+                    skus = listOf("promoted_product_1", "promoted_product_2"),
+                    type = ProductType.INAPP
+                )
+            )
+            products.forEach { product ->
+                println("Promoted product: ${product.id}")
+                println("Price: ${product.price}")
             }
+            products
+        } catch (e: PurchaseError) {
+            println("Failed to get promoted products: $e")
+            emptyList()
         }
     }
     
@@ -390,13 +386,10 @@ class PlatformSpecificFeatures(
         if (getCurrentPlatform() != IAPPlatform.ANDROID) return
         
         try {
-            iapHelper.requestSubscription(
-                sku = productId,
-                subscriptionOffers = listOf(
-                    SubscriptionOfferAndroid(
-                        sku = productId,
-                        offerToken = offerToken
-                    )
+            KmpIAP.requestSubscription(
+                SubscriptionRequest(
+                    sku = productId,
+                    offerToken = offerToken
                 )
             )
         } catch (e: PurchaseError) {

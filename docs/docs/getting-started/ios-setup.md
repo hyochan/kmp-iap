@@ -113,7 +113,7 @@ kmp-iap automatically uses StoreKit 2 on iOS 15+. To ensure compatibility:
 
 ```kotlin
 // Check iOS version for StoreKit 2 availability
-suspend fun checkStoreKit2Support(iapHelper: UseIap) {
+suspend fun checkStoreKit2Support() {
     val platform = getCurrentPlatform()
     if (platform == IAPPlatform.IOS) {
         // StoreKit 2 is available on iOS 15+
@@ -176,37 +176,45 @@ Create a `.storekit` file for testing:
 ### Test Purchase Flow
 
 ```kotlin title="iOS Testing Example"
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
-suspend fun testIOSPurchase(iapHelper: UseIap) {
+suspend fun testIOSPurchase() {
     try {
         // Initialize connection
-        iapHelper.initConnection()
+        KmpIAP.initConnection()
         println("StoreKit connected")
         
         // Get products
-        val products = iapHelper.getProducts(listOf(
-            "com.yourapp.premium_upgrade",
-            "com.yourapp.remove_ads"
-        ))
+        val products = KmpIAP.requestProducts(
+            ProductRequest(
+                skus = listOf(
+                    "com.yourapp.premium_upgrade",
+                    "com.yourapp.remove_ads"
+                ),
+                type = ProductType.INAPP
+            )
+        )
         println("Found ${products.size} products")
         
         // Display products
         products.forEach { product ->
-            println("Product: ${product.productId}")
+            println("Product: ${product.id}")
             println("Price: ${product.price}")
             println("Title: ${product.title}")
         }
         
         // Test purchase
         if (products.isNotEmpty()) {
-            iapHelper.requestPurchase(
-                sku = products.first().productId,
-                // iOS specific parameters can be added here
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = products.first().id,
+                    quantity = 1
+                )
             )
         }
-    } catch (e: Exception) {
+    } catch (e: PurchaseError) {
         println("iOS test failed: $e")
     }
 }
@@ -218,26 +226,24 @@ suspend fun testIOSPurchase(iapHelper: UseIap) {
 
 ```kotlin
 // Listen for transaction updates
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 
 scope.launch {
-    iapHelper.currentPurchase.collectLatest { purchase ->
-        purchase?.let {
-            println("Transaction updated: ${it.transactionId}")
+    KmpIAP.purchaseUpdatedListener.collect { purchase ->
+        println("Transaction updated: ${purchase.transactionId}")
+        
+        // Verify the purchase
+        val isValid = verifyPurchase(purchase)
+        
+        if (isValid) {
+            // Deliver content
+            deliverContent(purchase)
             
-            // Verify the purchase
-            val isValid = verifyPurchase(it)
-            
-            if (isValid) {
-                // Deliver content
-                deliverContent(it)
-                
-                // Finish transaction
-                iapHelper.finishTransaction(
-                    purchase = it,
-                    isConsumable = false
-                )
-            }
+            // Finish transaction
+            KmpIAP.finishTransaction(
+                purchase = purchase,
+                isConsumable = false
+            )
         }
     }
 }
@@ -247,18 +253,18 @@ scope.launch {
 
 ```kotlin
 // Show subscription management page
-suspend fun showSubscriptionManagement(iapHelper: UseIap) {
+suspend fun showSubscriptionManagement() {
     val platform = getCurrentPlatform()
     if (platform == IAPPlatform.IOS) {
-        iapHelper.showManageSubscriptionsIOS()
+        KmpIAP.showManageSubscriptions()
     }
 }
 
 // Present code redemption sheet
-suspend fun redeemCode(iapHelper: UseIap) {
+suspend fun redeemCode() {
     val platform = getCurrentPlatform()
     if (platform == IAPPlatform.IOS) {
-        iapHelper.presentCodeRedemptionSheetIOS()
+        KmpIAP.presentCodeRedemptionSheet()
     }
 }
 ```
@@ -305,18 +311,16 @@ Always validate receipts on your server:
 
 ```kotlin
 scope.launch {
-    iapHelper.currentPurchase.collectLatest { purchase ->
-        purchase?.let {
-            // Send receipt to your server
-            val validationResult = validateReceiptOnServer(
-                receipt = it.purchaseToken ?: "",
-                productId = it.productId
-            )
-            
-            if (validationResult.isValid) {
-                // Grant access to content
-                grantPurchase(it)
-            }
+    KmpIAP.purchaseUpdatedListener.collect { purchase ->
+        // Send receipt to your server
+        val validationResult = validateReceiptOnServer(
+            receipt = purchase.transactionReceipt ?: "",
+            productId = purchase.productId
+        )
+        
+        if (validationResult.isValid) {
+            // Grant access to content
+            grantPurchase(purchase)
         }
     }
 }
@@ -336,10 +340,13 @@ Configure promotional offers for subscriptions:
 
 ```kotlin
 // Request purchase with promotional offer
-suspend fun purchaseWithOffer(iapHelper: UseIap) {
-    iapHelper.requestSubscription(
-        sku = "monthly_subscription",
-        // Add promotional offer parameters if needed
+suspend fun purchaseWithOffer() {
+    KmpIAP.requestPurchase(
+        UnifiedPurchaseRequest(
+            sku = "monthly_subscription",
+            quantity = 1
+            // Add promotional offer parameters if needed
+        )
     )
 }
 ```

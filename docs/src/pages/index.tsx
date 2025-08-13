@@ -93,17 +93,26 @@ function CodeExample() {
         <div className={styles.codeExample}>
           <pre>
             <code className="language-kotlin">{`// Initialize
-val iapHelper = useIap(scope, options)
-iapHelper.initConnection()
+KmpIAP.initConnection()
 
 // Load products
-iapHelper.getProducts(listOf("product_id"))
+val products = KmpIAP.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
 
 // Make purchase
-iapHelper.requestPurchase("product_id")
+KmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
 
 // Listen to updates
-iapHelper.currentPurchase.collectLatest { purchase ->
+KmpIAP.purchaseUpdatedListener.collect { purchase ->
     // Handle purchase
 }`}</code>
           </pre>
