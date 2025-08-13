@@ -128,15 +128,13 @@ dependencies {
 1. **Verify product IDs:**
    ```kotlin
    // Enable debug logging
-   val iapHelper = UseIap(
-       scope = scope,
-       options = UseIapOptions()
-   )
-   
    // Check exact product ID matching
    try {
-       val products = iapHelper.getProducts(
-           listOf("exact.product.id.from.store")
+       val products = KmpIAP.requestProducts(
+           ProductRequest(
+               skus = listOf("exact.product.id.from.store"),
+               type = ProductType.INAPP
+           )
        )
        println("Loaded products: ${products.size}")
    } catch (e: PurchaseError) {
@@ -197,7 +195,7 @@ dependencies {
 1. **Check initialization:**
    ```kotlin
    // Ensure IAP is initialized before purchase
-   val isConnected = iapHelper.isConnected.value
+   val isConnected = KmpIAP.isConnected()
    if (!isConnected) {
        println("IAP not initialized")
        return
@@ -206,7 +204,8 @@ dependencies {
 
 2. **Verify product exists:**
    ```kotlin
-   val products = iapHelper.products.value
+   // Check if products are loaded
+   val products = loadedProducts
    if (products.none { it.productId == productId }) {
        println("Product not found: $productId")
        return
@@ -217,7 +216,7 @@ dependencies {
    ```kotlin
    // Ensure observers are set up before purchase
    scope.launch {
-       iapHelper.currentPurchase.collectLatest { purchase ->
+       KmpIAP.purchaseUpdatedListener.collect { purchase ->
            purchase?.let {
                println("Purchase updated: ${it.productId}")
            }
@@ -225,7 +224,7 @@ dependencies {
    }
    
    scope.launch {
-       iapHelper.currentError.collectLatest { error ->
+       KmpIAP.purchaseErrorListener.collect { error ->
            error?.let {
                println("Purchase error: ${it.message}")
            }
@@ -242,7 +241,7 @@ dependencies {
 private suspend fun handlePurchaseUpdate(purchase: Purchase) {
     try {
         // IMPORTANT: Always complete transactions
-        val success = iapHelper.finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = isConsumable(purchase.productId)
         )
@@ -254,7 +253,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
         }
         
         // Clear purchase state
-        iapHelper.clearPurchase()
+        // No need to clear purchase with new API
     } catch (e: Exception) {
         println("Failed to complete transaction: $e")
     }
@@ -271,7 +270,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
    ```kotlin
    // For consumable products
    scope.launch {
-       iapHelper.availablePurchases.collectLatest { purchases ->
+       val purchases = KmpIAP.getAvailablePurchases()
            purchases.filter { isConsumable(it.productId) }
                .forEach { purchase ->
                    // Consume the purchase
@@ -315,7 +314,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
 **Solutions:**
 
 1. **License testers:**
-   ```
+   ```text
    Play Console > Setup > License testing > License Testers
    Add Gmail accounts for testing
    ```
@@ -350,13 +349,13 @@ class PurchaseManager : ViewModel() {
     private fun setupObservers() {
         // Use viewModelScope for automatic cancellation
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
                 handlePurchase(purchase)
             }
         }
         
         viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            KmpIAP.purchaseErrorListener.collect { error ->
                 handleError(error)
             }
         }
@@ -493,7 +492,7 @@ class DebugIAPHelper(scope: CoroutineScope) {
         }
         
         scope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            KmpIAP.purchaseErrorListener.collect { error ->
                 error?.let {
                     println("[IAP] Error: ${it.code} - ${it.message}")
                 }
@@ -573,7 +572,7 @@ If you're still experiencing issues:
 
 When reporting issues, include:
 
-```
+```text
 **Platform:** iOS/Android/Both
 **Library Version:** kmp-iap x.x.x
 **Kotlin Version:** x.x.x
@@ -594,14 +593,13 @@ What should happen
 What actually happens
 
 **Logs:**
-```
+```text
 Relevant console output
 ```
 
 **Sample Code:**
 ```kotlin
 // Minimal code that reproduces the issue
-```
 ```
 
 This comprehensive troubleshooting guide should help developers resolve most common issues with kmp-iap.

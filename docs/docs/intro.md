@@ -72,24 +72,27 @@ dependencies {
 ```
 
 ```kotlin
-import io.github.hyochan.kmpiap.useIap.*
-
-// Initialize
-val iapHelper = UseIap(
-    scope = CoroutineScope(Dispatchers.Main),
-    options = UseIapOptions()
-)
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 
 // Initialize connection
-iapHelper.initConnection()
+KmpIAP.initConnection()
 
 // Get products
-iapHelper.getProducts(listOf("product_id"))
+val products = KmpIAP.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
 
 // Request purchase
-iapHelper.requestPurchase(
-    sku = "product_id",
-    obfuscatedAccountIdAndroid = "user_id" // Optional
+KmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1,
+        obfuscatedAccountIdAndroid = "user_id" // Optional
+    )
 )
 ```
 

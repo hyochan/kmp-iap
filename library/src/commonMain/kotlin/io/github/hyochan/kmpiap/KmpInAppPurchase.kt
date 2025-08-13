@@ -14,135 +14,158 @@ interface KmpInAppPurchase {
      */
     fun getVersion(): String
 
+    // ===== Event Listeners =====
+    
     /**
-     * Purchase update event flow
+     * Listener for observing purchase updates
+     * Collect this Flow to receive purchase completion events
      */
-    val purchaseUpdatedFlow: Flow<Purchase>
+    val purchaseUpdatedListener: Flow<Purchase>
 
     /**
-     * Purchase error event flow
+     * Listener for observing purchase errors
+     * Collect this Flow to receive error events
      */
-    val purchaseErrorFlow: Flow<PurchaseError>
+    val purchaseErrorListener: Flow<PurchaseError>
 
     /**
-     * Connection state event flow
+     * Listener for observing promoted products (iOS only)
+     * Collect this Flow to receive promoted product events
      */
-    val connectionStateFlow: Flow<ConnectionResult>
+    val promotedProductListener: Flow<String?>
+
+
+    // ===== Connection Management =====
+    
+    /**
+     * Initialize connection to the store service
+     * @return True if successful
+     */
+    suspend fun initConnection(): Boolean
 
     /**
-     * iOS-only: Promoted product event flow
+     * End connection to the store service
+     * @return True if successful
      */
-    val promotedProductFlow: Flow<String?>
+    suspend fun endConnection(): Boolean
+
+    // ===== Product Management =====
+    
+    /**
+     * Retrieve products or subscriptions from the store
+     * @param params Product request with SKUs and type
+     * @return List of products matching the provided SKUs
+     */
+    suspend fun requestProducts(params: ProductRequest): List<Product>
+
+    // ===== Purchase Operations =====
+    
+    /**
+     * Request a purchase (one-time or subscription)
+     * @param request Unified purchase request configuration
+     * @return The successful purchase
+     */
+    suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
 
     /**
-     * Initialize IAP connection
-     * Must be called before any other IAP operations
+     * Get all available purchases for the current user
+     * @param options Options for fetching purchases
+     * @return List of non-consumed purchases
      */
-    suspend fun initConnection()
+    suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
 
     /**
-     * End IAP connection
-     * Should be called when IAP is no longer needed
-     */
-    suspend fun endConnection()
-
-    /**
-     * Request products with unified API
-     * @param params Product request configuration
-     * @return List of products or subscriptions
-     */
-    suspend fun requestProducts(params: RequestProductsParams): List<BaseProduct>
-
-    /**
-     * Request a purchase
-     * @param request Purchase request configuration
-     * @param type Type of purchase: INAPP or SUBS
-     */
-    suspend fun requestPurchase(request: RequestPurchase, type: PurchaseType = PurchaseType.INAPP)
-
-    /**
-     * Get available purchases (previously purchased items)
-     * @return List of available purchases
-     */
-    suspend fun getAvailablePurchases(): List<Purchase>
-
-    /**
-     * Get purchase history
+     * Get purchase history (iOS only, returns empty on Android v8+)
+     * @param options Options for fetching purchase history
      * @return List of purchase history items
      */
-    suspend fun getPurchaseHistories(): List<Purchase>
+    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
 
     /**
-     * Finish a transaction
+     * Complete a purchase transaction
      * @param purchase The purchase to finish
      * @param isConsumable Whether the purchase is consumable
-     * @return Success status
      */
-    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = false): Boolean
+    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null)
+
+    // ===== Validation =====
+    
+    /**
+     * Validate a receipt with your server or platform servers
+     * @param options Validation options
+     * @return Validation result
+     */
+    suspend fun validateReceipt(options: ValidationOptions): ValidationResult
 
     /**
-     * iOS-only: Get storefront information
-     * @return App Store info or null on Android
+     * Quick check if a purchase is valid
+     * @param purchase The purchase to validate
+     * @return True if the purchase is valid
      */
-    suspend fun getStorefrontIOS(): AppStoreInfo?
+    suspend fun isPurchaseValid(purchase: Purchase): Boolean
+
+    // ===== iOS-specific APIs =====
+    
+    /**
+     * iOS-specific transaction completion
+     * @param transactionId Transaction ID to finish
+     */
+    suspend fun finishTransactionIOS(transactionId: String)
 
     /**
-     * iOS-only: Present code redemption sheet
+     * Clear pending transactions (iOS)
+     */
+    suspend fun clearTransactionIOS()
+
+    /**
+     * Clear the products cache (iOS)
+     */
+    suspend fun clearProductsIOS()
+
+    /**
+     * Get the current App Store storefront country code
+     * @return Storefront country code (e.g., "US", "GB", "JP")
+     */
+    suspend fun getStorefrontIOS(): String
+
+    /**
+     * Present code redemption sheet (iOS)
      */
     suspend fun presentCodeRedemptionSheetIOS()
 
     /**
-     * iOS-only: Show manage subscriptions
+     * Get promoted product (iOS)
+     * @return Product SKU if available
      */
-    suspend fun showManageSubscriptionsIOS()
+    suspend fun getPromotedProductIOS(): String?
 
     /**
-     * Android-only: Deep link to subscriptions
-     * @param sku Optional SKU to highlight
+     * Buy promoted product (iOS)
      */
-    suspend fun deepLinkToSubscriptionsAndroid(sku: String? = null)
+    suspend fun buyPromotedProductIOS()
 
+    // ===== Android-specific APIs =====
+    
     /**
-     * Android-only: Acknowledge purchase
+     * Acknowledge a non-consumable purchase or subscription
      * @param purchaseToken Purchase token to acknowledge
-     * @return Success status
      */
-    suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean
+    suspend fun acknowledgePurchaseAndroid(purchaseToken: String)
 
     /**
-     * Android-only: Consume purchase
+     * Consume a purchase (for consumable products only)
      * @param purchaseToken Purchase token to consume
-     * @return Success status
      */
-    suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
+    suspend fun consumePurchaseAndroid(purchaseToken: String)
 
+    // ===== Subscription Management =====
+    
     /**
-     * Validate receipt on iOS
-     * @param receiptBody Receipt data to validate
-     * @param isTest Whether to use sandbox environment
-     * @return Validation response
+     * Open native subscription management interface
+     * @param options Deep link options
      */
-    suspend fun validateReceiptIos(
-        receiptBody: Map<String, String>,
-        isTest: Boolean = true
-    ): Map<String, Any>?
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
 
-    /**
-     * Validate receipt on Android
-     * @param packageName Package name
-     * @param productId Product ID
-     * @param productToken Product token
-     * @param accessToken Access token
-     * @param isSub Whether it's a subscription
-     * @return Validation response
-     */
-    suspend fun validateReceiptAndroid(
-        packageName: String,
-        productId: String,
-        productToken: String,
-        accessToken: String,
-        isSub: Boolean
-    ): Map<String, Any>?
 
     /**
      * Get the current store type
@@ -155,5 +178,11 @@ interface KmpInAppPurchase {
      * @return True if payments are available
      */
     suspend fun canMakePayments(): Boolean
+}
+
+// Backward compatibility extension functions
+@Deprecated("Use 'deepLinkToSubscriptions' instead", ReplaceWith("deepLinkToSubscriptions(DeepLinkOptions(skuAndroid = sku))"))
+suspend fun KmpInAppPurchase.deepLinkToSubscriptionsAndroid(sku: String) {
+    deepLinkToSubscriptions(DeepLinkOptions(skuAndroid = sku))
 }
 

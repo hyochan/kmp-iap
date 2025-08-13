@@ -9,14 +9,14 @@ package io.github.hyochan.kmpiap
  */
 
 // Re-export all types
-typealias BaseProduct = io.github.hyochan.kmpiap.types.BaseProduct
+typealias BaseProduct = io.github.hyochan.kmpiap.types.Product
 typealias Product = io.github.hyochan.kmpiap.types.Product
-typealias Subscription = io.github.hyochan.kmpiap.types.Subscription
+typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProduct
 typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
 typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
 typealias PurchaseResult = io.github.hyochan.kmpiap.types.PurchaseResult
 typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
-typealias DiscountIOS = io.github.hyochan.kmpiap.types.DiscountIOS
+typealias Discount = io.github.hyochan.kmpiap.types.Discount
 typealias SubscriptionOffer = io.github.hyochan.kmpiap.types.SubscriptionOffer
 typealias PricingPhase = io.github.hyochan.kmpiap.types.PricingPhase
 
@@ -81,7 +81,7 @@ typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
  * )
  * 
  * // Listen to purchase updates
- * KmpIAP.purchaseUpdatedFlow.collect { purchase ->
+ * KmpIAP.purchaseUpdatedListener.collect { purchase ->
  *     // Handle purchase
  * }
  * ```

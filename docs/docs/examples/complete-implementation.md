@@ -83,17 +83,14 @@ class IAPServiceImpl(
         
         // Observe errors
         scope.launch {
-            KmpIAP.currentError.collectLatest { error ->
-                error?.let {
-                    _purchaseUpdates.emit(
-                        PurchaseUpdate(
-                            item = null,
-                            status = PurchaseStatus.ERROR,
-                            error = it.message
-                        )
+            KmpIAP.purchaseErrorListener.collect { error ->
+                _purchaseUpdates.emit(
+                    PurchaseUpdate(
+                        item = null,
+                        status = PurchaseStatus.ERROR,
+                        error = error.message
                     )
-                    KmpIAP.clearError()
-                }
+                )
             }
         }
     }

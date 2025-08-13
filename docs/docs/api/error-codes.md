@@ -73,17 +73,14 @@ enum class ErrorCode {
 
 ```kotlin
 scope.launch {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            when (it.code) {
-                ErrorCode.USER_CANCELLED -> {
+    KmpIAP.purchaseErrorListener.collect { error ->
+        when (error.code) {
+            ErrorCode.E_USER_CANCELLED.name -> {
                     // Don't show error - user intended to cancel
                     println("Purchase cancelled by user")
                 }
-                else -> showErrorDialog(it.message)
+            else -> showErrorDialog(error.message)
             }
-            iapHelper.clearError()
-        }
     }
 }
 ```
@@ -104,10 +101,10 @@ private fun handleNetworkError() {
         while (retryCount < maxRetries) {
             delay(1000L * (2.0.pow(retryCount).toLong()))
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
                 break // Success
             } catch (e: PurchaseError) {
-                if (e.code != ErrorCode.NETWORK_ERROR || ++retryCount >= maxRetries) {
+                if (e.code != ErrorCode.E_NETWORK_ERROR.name || ++retryCount >= maxRetries) {
                     showError("Network error. Please check your connection.")
                     break
                 }
@@ -124,7 +121,7 @@ private fun handleNetworkError() {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.SERVICE_UNAVAILABLE -> {
+    ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
         showRetryableError(
             message = "Store service unavailable. Please try again later.",
             retryAction = { reconnectToStore() }
@@ -139,10 +136,13 @@ when (error.code) {
 **Recovery**: Retry with longer timeout
 
 ```kotlin
-// Configure longer timeout in options
-val options = UseIapOptions(
-    connectionTimeout = 60.seconds // Increase from default 30s
-)
+// Handle timeout errors
+when (error.code) {
+    ErrorCode.E_SERVICE_TIMEOUT.name -> {
+        // Retry with exponential backoff
+        retryWithDelay()
+    }
+}
 ```
 
 #### SERVICE_DISCONNECTED
@@ -152,12 +152,12 @@ val options = UseIapOptions(
 
 ```kotlin
 scope.launch {
-    iapHelper.isConnected.collectLatest { connected ->
+    KmpIAP.isConnected.collectLatest { connected ->
         if (!connected) {
             // Attempt reconnection
             delay(2000)
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
             } catch (e: PurchaseError) {
                 scheduleReconnection()
             }
@@ -178,10 +178,10 @@ scope.launch {
 
 ```kotlin
 try {
-    val products = iapHelper.getProducts(listOf("invalid_sku"))
+    val products = KmpIAP.getProducts(listOf("invalid_sku"))
 } catch (e: PurchaseError) {
     when (e.code) {
-        ErrorCode.PRODUCT_NOT_AVAILABLE -> {
+        ErrorCode.E_ITEM_UNAVAILABLE.name -> {
             println("Product not found. Check product IDs:")
             println("- Verify product ID matches store configuration")
             println("- Ensure product is approved and available")
@@ -198,11 +198,11 @@ try {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.PRODUCT_ALREADY_OWNED -> {
+    ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
         showInfo("You already own this product.")
         // Refresh purchase state
         scope.launch {
-            iapHelper.getAvailablePurchases()
+            KmpIAP.getAvailablePurchases()
         }
     }
 }
@@ -228,7 +228,7 @@ suspend fun validatePurchase(purchase: Purchase): Boolean {
         response.isValid
     } catch (e: Exception) {
         throw PurchaseError(
-            code = ErrorCode.PURCHASE_INVALID,
+            code = ErrorCode.E_PURCHASE_INVALID.name,
             message = "Purchase validation failed",
             underlyingError = e
         )
@@ -243,7 +243,7 @@ suspend fun validatePurchase(purchase: Purchase): Boolean {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.PURCHASE_DEFERRED -> {
+    ErrorCode.E_DEFERRED_PAYMENT.name -> {
         showInfo(
             "Purchase is pending approval. " +
             "You'll be notified when it's approved."
@@ -268,11 +268,11 @@ class IAPManager {
     suspend fun ensureInitialized() {
         if (!initialized) {
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
                 initialized = true
             } catch (e: PurchaseError) {
                 throw PurchaseError(
-                    code = ErrorCode.NOT_INITIALIZED,
+                    code = ErrorCode.E_NOT_INITIALIZED.name,
                     message = "Failed to initialize IAP",
                     underlyingError = e
                 )
@@ -282,7 +282,7 @@ class IAPManager {
     
     suspend fun loadProducts(skus: List<String>) {
         ensureInitialized()
-        return iapHelper.getProducts(skus)
+        return KmpIAP.getProducts(skus)
     }
 }
 ```
@@ -295,11 +295,11 @@ class IAPManager {
 ```kotlin
 // Safe initialization
 suspend fun safeInitialize() {
-    if (!iapHelper.isConnected.value) {
+    if (!KmpIAP.isConnected.value) {
         try {
-            iapHelper.initConnection()
+            KmpIAP.initConnection()
         } catch (e: PurchaseError) {
-            if (e.code != ErrorCode.ALREADY_INITIALIZED) {
+            if (e.code != ErrorCode.E_NOT_INITIALIZED.name) {
                 throw e
             }
             // Already initialized - continue
@@ -432,7 +432,7 @@ class IAPErrorHandler(
 ) {
     init {
         scope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            KmpIAP.currentError.collectLatest { error ->
                 error?.let { handleError(it) }
             }
         }
@@ -453,11 +453,11 @@ class IAPErrorHandler(
             ErrorCode.USER_CANCELLED -> {
                 // Silent - user action
             }
-            ErrorCode.NETWORK_ERROR,
-            ErrorCode.SERVICE_UNAVAILABLE -> {
+            ErrorCode.E_NETWORK_ERROR.name,
+            ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
                 showRetryableError(error)
             }
-            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+            ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
                 handleAlreadyOwned()
             }
             else -> {
@@ -466,7 +466,7 @@ class IAPErrorHandler(
         }
         
         // Clear error
-        iapHelper.clearError()
+        KmpIAP.clearError()
     }
 }
 ```
@@ -477,11 +477,11 @@ class IAPErrorHandler(
 fun getErrorMessage(error: PurchaseError): String {
     return when (error.code) {
         ErrorCode.USER_CANCELLED -> "Purchase cancelled"
-        ErrorCode.NETWORK_ERROR -> "Network connection failed. Please check your internet connection."
-        ErrorCode.SERVICE_UNAVAILABLE -> "Store service is temporarily unavailable. Please try again later."
-        ErrorCode.PRODUCT_NOT_AVAILABLE -> "This product is not available in your region."
-        ErrorCode.PRODUCT_ALREADY_OWNED -> "You already own this item."
-        ErrorCode.PURCHASE_INVALID -> "Purchase verification failed. Please contact support."
+        ErrorCode.E_NETWORK_ERROR.name -> "Network connection failed. Please check your internet connection."
+        ErrorCode.E_SERVICE_UNAVAILABLE.name -> "Store service is temporarily unavailable. Please try again later."
+        ErrorCode.E_ITEM_UNAVAILABLE.name -> "This product is not available in your region."
+        ErrorCode.E_ITEM_ALREADY_OWNED.name -> "You already own this item."
+        ErrorCode.E_PURCHASE_INVALID.name -> "Purchase verification failed. Please contact support."
         ErrorCode.BILLING_UNAVAILABLE -> "Billing service not available on this device."
         ErrorCode.DEVELOPER_ERROR -> "Configuration error. Please update the app."
         else -> "Something went wrong. Please try again."
@@ -497,13 +497,13 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
     suspend fun recoverFromError(error: PurchaseError) {
         when (error.code) {
             ErrorCode.SERVICE_DISCONNECTED,
-            ErrorCode.NETWORK_ERROR -> {
+            ErrorCode.E_NETWORK_ERROR.name -> {
                 attemptReconnection()
             }
-            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+            ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
                 refreshPurchases()
             }
-            ErrorCode.PURCHASE_INVALID -> {
+            ErrorCode.E_PURCHASE_INVALID.name -> {
                 validateAllPurchases()
             }
             else -> {
@@ -516,7 +516,7 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
         repeat(3) { attempt ->
             delay(2000L * (attempt + 1))
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
                 return
             } catch (e: PurchaseError) {
                 if (attempt == 2) throw e
@@ -525,7 +525,7 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
     }
     
     private suspend fun refreshPurchases() {
-        iapHelper.getAvailablePurchases()
+        KmpIAP.getAvailablePurchases()
     }
 }
 ```
@@ -536,7 +536,7 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
 // Debug error details in development
 if (BuildConfig.DEBUG) {
     scope.launch {
-        iapHelper.currentError.collectLatest { error ->
+        KmpIAP.currentError.collectLatest { error ->
             error?.let {
                 println("=====================================")
                 println("IAP ERROR DETAILS")
@@ -565,13 +565,13 @@ if (BuildConfig.DEBUG) {
 fun mapIOSError(code: Int): ErrorCode {
     return when (code) {
         0 -> ErrorCode.UNKNOWN_ERROR
-        1 -> ErrorCode.SERVICE_UNAVAILABLE
+        1 -> ErrorCode.E_SERVICE_UNAVAILABLE.name
         2 -> ErrorCode.USER_CANCELLED
-        3 -> ErrorCode.PURCHASE_INVALID
-        4 -> ErrorCode.PRODUCT_NOT_AVAILABLE
-        5 -> ErrorCode.NOT_INITIALIZED
-        6 -> ErrorCode.NETWORK_ERROR
-        7 -> ErrorCode.PURCHASE_DEFERRED
+        3 -> ErrorCode.E_PURCHASE_INVALID.name
+        4 -> ErrorCode.E_ITEM_UNAVAILABLE.name
+        5 -> ErrorCode.E_NOT_INITIALIZED.name
+        6 -> ErrorCode.E_NETWORK_ERROR.name
+        7 -> ErrorCode.E_DEFERRED_PAYMENT.name
         8 -> ErrorCode.FEATURE_NOT_SUPPORTED
         else -> ErrorCode.UNKNOWN_ERROR
     }
@@ -585,13 +585,13 @@ fun mapIOSError(code: Int): ErrorCode {
 fun mapAndroidError(responseCode: Int): ErrorCode {
     return when (responseCode) {
         1 -> ErrorCode.USER_CANCELLED
-        2 -> ErrorCode.SERVICE_UNAVAILABLE
+        2 -> ErrorCode.E_SERVICE_UNAVAILABLE.name
         3 -> ErrorCode.BILLING_UNAVAILABLE
-        4 -> ErrorCode.PRODUCT_NOT_AVAILABLE
+        4 -> ErrorCode.E_ITEM_UNAVAILABLE.name
         5 -> ErrorCode.DEVELOPER_ERROR
         6 -> ErrorCode.UNKNOWN_ERROR
-        7 -> ErrorCode.PRODUCT_ALREADY_OWNED
-        8 -> ErrorCode.PRODUCT_NOT_AVAILABLE
+        7 -> ErrorCode.E_ITEM_ALREADY_OWNED.name
+        8 -> ErrorCode.E_ITEM_UNAVAILABLE.name
         -1 -> ErrorCode.SERVICE_DISCONNECTED
         -2 -> ErrorCode.FEATURE_NOT_SUPPORTED
         else -> ErrorCode.UNKNOWN_ERROR
@@ -612,13 +612,13 @@ fun testErrorHandling() = runTest {
     // Simulate network error
     mockIap.emitError(
         PurchaseError(
-            code = ErrorCode.NETWORK_ERROR,
+            code = ErrorCode.E_NETWORK_ERROR.name,
             message = "Network unavailable"
         )
     )
     
     // Verify error handled
-    assertTrue(errorHandler.lastError?.code == ErrorCode.NETWORK_ERROR)
+    assertTrue(errorHandler.lastError?.code == ErrorCode.E_NETWORK_ERROR.name)
     assertTrue(errorHandler.retriedCount > 0)
 }
 ```
@@ -636,7 +636,7 @@ fun testPurchaseErrorRecovery() = runTest {
     // Verify error propagated correctly
     assertTrue(result.isFailure)
     val error = result.exceptionOrNull() as? PurchaseError
-    assertEquals(ErrorCode.NETWORK_ERROR, error?.code)
+    assertEquals(ErrorCode.E_NETWORK_ERROR.name, error?.code)
 }
 ```
 
@@ -645,7 +645,7 @@ fun testPurchaseErrorRecovery() = runTest {
 Key differences in error handling:
 
 1. **Structured Errors**: KMP uses `PurchaseError` class vs numeric codes
-2. **StateFlow**: Errors emitted via `currentError` StateFlow vs callbacks
+2. **Flow**: Errors emitted via `purchaseErrorListener` Flow vs callbacks
 3. **Coroutines**: Error handling with try-catch vs Future error callbacks
 4. **Platform Abstraction**: Unified `ErrorCode` enum vs platform-specific codes
 

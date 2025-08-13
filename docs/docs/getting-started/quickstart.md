@@ -23,8 +23,10 @@ class IAPManager {
             KmpIAP.initConnection()
             
             // Listen to purchase updates
-            KmpIAP.purchaseUpdatedFlow.collect { purchase ->
-                handlePurchaseUpdate(purchase)
+            launch {
+                KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                    handlePurchaseUpdate(purchase)
+                }
             }
         } catch (e: Exception) {
             println("Initialization failed: ${e.message}")

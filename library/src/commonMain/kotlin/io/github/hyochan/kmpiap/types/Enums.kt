@@ -1,7 +1,7 @@
 package io.github.hyochan.kmpiap.types
 
 /**
- * Store types matching Flutter/Expo IAP
+ * Store types matching documentation spec
  */
 enum class Store {
     NONE,
@@ -19,15 +19,16 @@ enum class IAPPlatform {
 }
 
 /**
- * Purchase type enum
+ * IAP Event types matching documentation spec
  */
-enum class PurchaseType {
-    INAPP,
-    SUBS
+enum class IapEvent {
+    PURCHASE_UPDATED,
+    PURCHASE_ERROR,
+    PROMOTED_PRODUCT_IOS
 }
 
 /**
- * Transaction states
+ * Transaction states (iOS)
  */
 enum class TransactionState {
     PURCHASING,
@@ -41,21 +42,42 @@ enum class TransactionState {
  * Purchase states (Android)
  */
 enum class PurchaseState {
-    PENDING,
-    PURCHASED,
-    UNSPECIFIED
+    UNSPECIFIED,  // 0 - Unspecified state
+    PURCHASED,    // 1 - Purchase completed
+    PENDING       // 2 - Purchase pending
 }
 
 /**
- * Android proration modes
+ * iOS Subscription periods matching documentation spec
  */
-enum class AndroidProrationMode(val value: Int) {
-    UNKNOWN_SUBSCRIPTION_UPGRADE_DOWNGRADE_POLICY(0),
-    IMMEDIATE_WITH_TIME_PRORATION(1),
-    IMMEDIATE_AND_CHARGE_PRORATED_PRICE(2),
-    IMMEDIATE_WITHOUT_PRORATION(3),
-    DEFERRED(4),
-    IMMEDIATE_AND_CHARGE_FULL_PRICE(5)
+enum class SubscriptionIosPeriod {
+    P1W,  // 1 week
+    P1M,  // 1 month
+    P2M,  // 2 months
+    P3M,  // 3 months
+    P6M,  // 6 months
+    P1Y   // 1 year
+}
+
+/**
+ * Android Recurrence modes
+ */
+enum class RecurrenceMode {
+    INFINITE_RECURRING,       // Charges recur forever
+    FINITE_RECURRING,         // Charges recur for a fixed number of cycles
+    NON_RECURRING            // Charges occur once
+}
+
+/**
+ * Android Replacement modes (proration modes)
+ */
+enum class ReplacementMode {
+    UNKNOWN_REPLACEMENT_MODE,
+    IMMEDIATE_WITH_TIME_PRORATION,
+    IMMEDIATE_AND_CHARGE_PRORATED_PRICE,
+    IMMEDIATE_WITHOUT_PRORATION,
+    DEFERRED,
+    IMMEDIATE_AND_CHARGE_FULL_PRICE
 }
 
 /**

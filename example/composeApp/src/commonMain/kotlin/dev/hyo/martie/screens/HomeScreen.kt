@@ -37,9 +37,7 @@ fun HomeScreen(navController: NavController) {
         if (getCurrentPlatform() == IAPPlatform.IOS) {
             try {
                 val storefront = KmpIAP.getStorefrontIOS()
-                storefront?.let {
-                    storefrontInfo = "Storefront: ${it.countryCode} (${it.identifier})"
-                }
+                storefrontInfo = "Storefront: $storefront"
             } catch (e: Exception) {
                 // Ignore
             }

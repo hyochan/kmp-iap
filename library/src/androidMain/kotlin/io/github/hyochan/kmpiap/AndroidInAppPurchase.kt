@@ -3,129 +3,125 @@ package io.github.hyochan.kmpiap
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClientStateListener
-import com.android.billingclient.api.BillingFlowParams
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.PurchasesUpdatedListener
-import com.android.billingclient.api.QueryProductDetailsParams
-import com.android.billingclient.api.QueryPurchasesParams
+import com.android.billingclient.api.*
 import io.github.hyochan.kmpiap.types.*
 import io.github.hyochan.kmpiap.utils.ErrorCode
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-
 
 internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
     private var billingClient: BillingClient? = null
     private var isConnected = false
     private var context: Context? = null
     private var currentActivity: Activity? = null
-    
+    private var productDetailsMap = mutableMapOf<String, ProductDetails>()
     
     // Activity lifecycle callbacks
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-        // Automatically capture the first activity created
         if (currentActivity == null) {
             currentActivity = activity
-            println("[KMP-IAP] Activity auto-captured on create: $activity")
+            println("[KMP-IAP] Activity captured on create: ${activity::class.simpleName}")
         }
     }
     override fun onActivityStarted(activity: Activity) {}
     override fun onActivityResumed(activity: Activity) {
         currentActivity = activity
-        println("[KMP-IAP] Activity resumed: $activity")
+        println("[KMP-IAP] Activity resumed: ${activity::class.simpleName}")
     }
-    override fun onActivityPaused(activity: Activity) {
-        // Don't clear the activity on pause, only on destroy
-        // This prevents losing the activity reference during purchase flow
-    }
+    override fun onActivityPaused(activity: Activity) {}
     override fun onActivityStopped(activity: Activity) {}
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
     override fun onActivityDestroyed(activity: Activity) {
         if (currentActivity == activity) {
             currentActivity = null
-            println("[KMP-IAP] Activity destroyed and cleared: $activity")
+            println("[KMP-IAP] Activity destroyed: ${activity::class.simpleName}")
         }
     }
     
     // Event flows
-    private val _purchaseUpdatedFlow = MutableSharedFlow<Purchase>(
+    private val _purchaseUpdatedListener = MutableSharedFlow<Purchase>(
         replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val purchaseUpdatedFlow: Flow<Purchase> = _purchaseUpdatedFlow.asSharedFlow()
+    override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedListener.asSharedFlow()
     
-    private val _purchaseErrorFlow = MutableSharedFlow<PurchaseError>(
+    private val _purchaseErrorListener = MutableSharedFlow<PurchaseError>(
         replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val purchaseErrorFlow: Flow<PurchaseError> = _purchaseErrorFlow.asSharedFlow()
+    override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorListener.asSharedFlow()
     
-    private val _connectionStateFlow = MutableSharedFlow<ConnectionResult>(
+    // Connection state for backward compatibility (not in interface)
+    private val _connectionStateListener = MutableSharedFlow<ConnectionResult>(
         replay = 1,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val connectionStateFlow: Flow<ConnectionResult> = _connectionStateFlow.asSharedFlow()
+    val connectionStateListener: Flow<ConnectionResult> = _connectionStateListener.asSharedFlow()
     
-    private val _promotedProductFlow = MutableSharedFlow<String?>(
+    private val _promotedProductListener = MutableSharedFlow<String?>(
         replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val promotedProductFlow: Flow<String?> = _promotedProductFlow.asSharedFlow()
-    
+    override val promotedProductListener: Flow<String?> = _promotedProductListener.asSharedFlow()
     
     override fun getVersion(): String {
-        return "KMP-IAP v0.0.0-alpha1 (Android)"
+        return "KMP-IAP v1.0.0-alpha02 (Android)"
     }
     
-    override suspend fun initConnection() {
+    override suspend fun initConnection(): Boolean {
         println("[KMP-IAP] initConnection called")
         
-        // Try to get context and register for activity lifecycle if not already done
+        // Try to get context if not set
         if (context == null) {
             try {
-                // Try to get application context through reflection
                 val activityThreadClass = Class.forName("android.app.ActivityThread")
                 val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
                 val getApplication = activityThreadClass.getMethod("getApplication")
-                val application = getApplication.invoke(currentActivityThread) as? Application
+                val app = getApplication.invoke(currentActivityThread) as? Application
                 
-                if (application != null) {
-                    context = application.applicationContext
-                    // Register activity lifecycle callbacks to track current activity
-                    application.registerActivityLifecycleCallbacks(this)
-                    println("[KMP-IAP] Context obtained automatically and lifecycle callbacks registered")
+                if (app != null) {
+                    context = app.applicationContext
+                    app.registerActivityLifecycleCallbacks(this)
+                    println("[KMP-IAP] Context and lifecycle callbacks registered")
                     
-                    // Try to get current activity through reflection
+                    // Try to get current activity
                     try {
                         val activitiesField = activityThreadClass.getDeclaredField("mActivities")
                         activitiesField.isAccessible = true
                         val activities = activitiesField.get(currentActivityThread) as? Map<*, *>
                         if (!activities.isNullOrEmpty()) {
-                            val activityRecord = activities.values.firstOrNull()
-                            if (activityRecord != null) {
-                                val activityField = activityRecord.javaClass.getDeclaredField("activity")
-                                activityField.isAccessible = true
-                                currentActivity = activityField.get(activityRecord) as? Activity
-                                if (currentActivity != null) {
-                                    println("[KMP-IAP] Current activity found through reflection: $currentActivity")
+                            for ((_, activityRecord) in activities) {
+                                val activityRecordClass = activityRecord?.javaClass
+                                val activityField = activityRecordClass?.getDeclaredField("activity")
+                                activityField?.isAccessible = true
+                                val activity = activityField?.get(activityRecord) as? Activity
+                                if (activity != null && !activity.isFinishing) {
+                                    currentActivity = activity
+                                    println("[KMP-IAP] Current activity found: ${activity::class.simpleName}")
+                                    break
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        println("[KMP-IAP] Could not get current activity through reflection: ${e.message}")
+                        println("[KMP-IAP] Could not get current activity: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
@@ -134,63 +130,46 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         }
         
         context ?: throw PurchaseError(
-            message = "Context not available. Please ensure your app is properly initialized.",
-            code = ErrorCode.E_NOT_INITIALIZED
+            code = ErrorCode.E_NOT_INITIALIZED.name,
+            message = "Context not available"
         )
-        
-        // Clean up any existing state from hot reload
-        cleanupState()
         
         println("[KMP-IAP] Starting BillingClient connection...")
         return suspendCancellableCoroutine { continuation ->
             val listener = object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
-                    println("[KMP-IAP] onBillingSetupFinished - responseCode: ${billingResult.responseCode}")
+                    println("[KMP-IAP] BillingClient setup finished with code: ${billingResult.responseCode}")
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         isConnected = true
                         println("[KMP-IAP] Connected to Google Play successfully")
-                        _connectionStateFlow.tryEmit(ConnectionResult(connected = true, message = "Connected to Google Play"))
+                        _connectionStateListener.tryEmit(ConnectionResult(connected = true, message = "Connected"))
                         if (continuation.isActive) {
-                            continuation.resume(Unit)
+                            continuation.resume(true)
                         }
                     } else {
                         val error = PurchaseError(
-                            message = billingResult.debugMessage ?: "Failed to connect to Google Play",
-                            responseCode = billingResult.responseCode,
-                            code = ErrorCode.E_SERVICE_ERROR
+                            code = ErrorCode.E_SERVICE_ERROR.name,
+                            message = billingResult.debugMessage ?: "Failed to connect",
+                            responseCode = billingResult.responseCode
                         )
-                        _purchaseErrorFlow.tryEmit(error)
-                        _connectionStateFlow.tryEmit(ConnectionResult(connected = false, message = error.message))
+                        _purchaseErrorListener.tryEmit(error)
                         if (continuation.isActive) {
-                            continuation.resumeWithException(error)
+                            continuation.resume(false)
                         }
                     }
                 }
                 
                 override fun onBillingServiceDisconnected() {
+                    println("[KMP-IAP] BillingClient disconnected")
                     isConnected = false
-                    _connectionStateFlow.tryEmit(ConnectionResult(connected = false, message = "Disconnected from Google Play"))
-                }
-            }
-            
-            val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-                    purchases.forEach { purchase ->
-                        _purchaseUpdatedFlow.tryEmit(purchase.toKmpPurchase())
-                    }
-                } else {
-                    _purchaseErrorFlow.tryEmit(
-                        PurchaseError(
-                            message = billingResult.debugMessage ?: "Purchase failed",
-                            responseCode = billingResult.responseCode,
-                            code = mapBillingResponseCode(billingResult.responseCode)
-                        )
-                    )
+                    _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
                 }
             }
             
             billingClient = BillingClient.newBuilder(context!!)
-                .setListener(purchasesUpdatedListener)
+                .setListener { billingResult, purchases ->
+                    handlePurchaseUpdate(billingResult, purchases)
+                }
                 .enablePendingPurchases()
                 .build()
                 
@@ -198,39 +177,34 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         }
     }
     
-    override suspend fun endConnection() {
+    override suspend fun endConnection(): Boolean {
         billingClient?.endConnection()
-        billingClient = null
         isConnected = false
+        _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
         cleanupState()
-        _connectionStateFlow.emit(ConnectionResult(connected = false, message = "Disconnected from Google Play"))
-        
-        // Unregister activity callbacks if we registered them
-        try {
-            val activityThreadClass = Class.forName("android.app.ActivityThread")
-            val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
-            val getApplication = activityThreadClass.getMethod("getApplication")
-            val application = getApplication.invoke(currentActivityThread) as? Application
-            application?.unregisterActivityLifecycleCallbacks(this)
-        } catch (e: Exception) {
-            // Ignore errors during cleanup
-        }
+        return true
     }
     
-    override suspend fun requestProducts(params: RequestProductsParams): List<BaseProduct> {
-        println("[KMP-IAP] requestProducts called - type: ${params.type}, skus: ${params.skus}")
+    override suspend fun requestProducts(params: ProductRequest): List<Product> {
         ensureConnection()
+        println("[KMP-IAP] Requesting products: ${params.skus} of type ${params.type}")
         
-        return suspendCancellableCoroutine { continuation ->
+        // Try multiple product types if not specified or if products not found
+        val productTypes = when (params.type) {
+            ProductType.INAPP -> listOf(BillingClient.ProductType.INAPP)
+            ProductType.SUBS -> listOf(BillingClient.ProductType.SUBS)
+            else -> listOf(BillingClient.ProductType.INAPP, BillingClient.ProductType.SUBS)
+        }
+        
+        val allProducts = mutableListOf<Product>()
+        
+        for (productType in productTypes) {
+            println("[KMP-IAP] Querying for product type: $productType")
+            
             val productList = params.skus.map { sku ->
                 QueryProductDetailsParams.Product.newBuilder()
                     .setProductId(sku)
-                    .setProductType(
-                        when (params.type) {
-                            PurchaseType.INAPP -> BillingClient.ProductType.INAPP
-                            PurchaseType.SUBS -> BillingClient.ProductType.SUBS
-                        }
-                    )
+                    .setProductType(productType)
                     .build()
             }
             
@@ -238,297 +212,371 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
                 .setProductList(productList)
                 .build()
                 
-            billingClient?.queryProductDetailsAsync(queryParams) { billingResult, productDetailsList ->
-                println("[KMP-IAP] queryProductDetailsAsync result: ${billingResult.responseCode}, products: ${productDetailsList.size}")
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    val products = productDetailsList.map { productDetails ->
-                        println("[KMP-IAP] Product: ${productDetails.productId}, type: ${params.type}")
-                        when (params.type) {
-                            PurchaseType.INAPP -> productDetails.toProduct()
-                            PurchaseType.SUBS -> productDetails.toSubscription()
+            val products = suspendCancellableCoroutine<List<Product>> { continuation ->
+                try {
+                    println("[KMP-IAP] Starting product query for $productType...")
+                    val client = billingClient
+                    if (client == null) {
+                        println("[KMP-IAP] BillingClient is null!")
+                        if (continuation.isActive) {
+                            continuation.resume(emptyList())
+                        }
+                        return@suspendCancellableCoroutine
+                    }
+                    
+                    // Set up a timeout for the query
+                    val timeoutJob = kotlinx.coroutines.GlobalScope.launch {
+                        kotlinx.coroutines.delay(5000) // 5 second timeout
+                        if (continuation.isActive) {
+                            println("[KMP-IAP] Product query timed out for $productType")
+                            continuation.resume(emptyList())
                         }
                     }
-                    println("[KMP-IAP] Returning ${products.size} products")
-                    if (continuation.isActive) {
-                        continuation.resume(products)
+                    
+                    client.queryProductDetailsAsync(queryParams) { billingResult, productDetailsList ->
+                        timeoutJob.cancel() // Cancel timeout if we get a response
+                        println("[KMP-IAP] Product query callback for $productType: ${billingResult.responseCode}, ${productDetailsList?.size ?: 0} products")
+                        
+                        try {
+                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList != null) {
+                                // Store product details for later use
+                                productDetailsList.forEach { productDetails ->
+                                    println("[KMP-IAP] Product found: ${productDetails.productId} - ${productDetails.title}")
+                                    productDetailsMap[productDetails.productId] = productDetails
+                                }
+                                
+                                val products = productDetailsList.map { productDetails ->
+                                    productDetails.toProduct()
+                                }
+                                if (continuation.isActive) {
+                                    continuation.resume(products)
+                                }
+                            } else {
+                                println("[KMP-IAP] Product query failed for $productType: ${billingResult.responseCode} - ${billingResult.debugMessage}")
+                                if (continuation.isActive) {
+                                    continuation.resume(emptyList())
+                                }
+                            }
+                        } catch (e: Exception) {
+                            println("[KMP-IAP] Error in product query callback: ${e.message}")
+                            e.printStackTrace()
+                            if (continuation.isActive) {
+                                continuation.resume(emptyList())
+                            }
+                        }
                     }
-                } else {
-                    println("[KMP-IAP] queryProductDetailsAsync failed - responseCode: ${billingResult.responseCode}, debugMessage: ${billingResult.debugMessage}")
-                    val error = PurchaseError(
-                        message = "Failed to fetch products: ${billingResult.debugMessage}",
-                        responseCode = billingResult.responseCode,
-                        code = ErrorCode.E_PRODUCT_LOAD_FAILED
-                    )
+                    
+                    // Add cancellation handling
+                    continuation.invokeOnCancellation {
+                        timeoutJob.cancel()
+                        println("[KMP-IAP] Product query cancelled for $productType")
+                    }
+                } catch (e: Exception) {
+                    println("[KMP-IAP] Exception in requestProducts for $productType: ${e.message}")
+                    e.printStackTrace()
                     if (continuation.isActive) {
-                        continuation.resumeWithException(error)
+                        continuation.resume(emptyList())
                     }
                 }
             }
+            
+            allProducts.addAll(products)
+            if (allProducts.isNotEmpty()) {
+                // Found products, no need to try other types
+                break
+            }
         }
+        
+        println("[KMP-IAP] Total products found: ${allProducts.size}")
+        return allProducts
     }
     
-    override suspend fun requestPurchase(request: RequestPurchase, type: PurchaseType) {
+    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase {
         ensureConnection()
         
-        println("[KMP-IAP] requestPurchase - currentActivity: $currentActivity")
-        
-        val purchaseActivity = currentActivity ?: throw PurchaseError(
-            message = "Activity not available for purchase. Make sure to call AndroidInAppPurchaseImpl.initializeAndroid() from your MainActivity",
-            code = ErrorCode.E_ACTIVITY_UNAVAILABLE
+        val sku = request.sku ?: request.skus?.firstOrNull() ?: throw PurchaseError(
+            code = ErrorCode.E_DEVELOPER_ERROR.name,
+            message = "No SKU provided"
         )
         
-        val androidRequest = when (request) {
-            is RequestPurchaseAndroid -> request
-            is RequestSubscriptionAndroid -> request
-            is RequestPurchaseIOS, is RequestSubscriptionIOS -> throw PurchaseError(
-                message = "iOS request on Android platform",
-                code = ErrorCode.E_DEVELOPER_ERROR
-            )
-            else -> throw PurchaseError(
-                message = "Invalid request type: ${request::class.simpleName}",
-                code = ErrorCode.E_DEVELOPER_ERROR
-            )
-        }
+        println("[KMP-IAP] Requesting purchase for SKU: $sku")
+        println("[KMP-IAP] Current activity: ${currentActivity?.javaClass?.simpleName}")
         
-        // First, query product details
-        val productId = when (androidRequest) {
-            is RequestPurchaseAndroid -> androidRequest.sku
-            is RequestSubscriptionAndroid -> androidRequest.sku
-            else -> throw PurchaseError(
-                message = "Unexpected request type",
-                code = ErrorCode.E_DEVELOPER_ERROR
-            )
-        }
-        
-        val productList = listOf(
-            QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(productId)
-                .setProductType(
-                    when (type) {
-                        PurchaseType.INAPP -> BillingClient.ProductType.INAPP
-                        PurchaseType.SUBS -> BillingClient.ProductType.SUBS
+        // Try to get activity if not available
+        if (currentActivity == null) {
+            // Try to get the top activity from the application
+            val app = context as? Application
+            if (app != null) {
+                try {
+                    val activityThreadClass = Class.forName("android.app.ActivityThread")
+                    val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+                    val activitiesField = activityThreadClass.getDeclaredField("mActivities")
+                    activitiesField.isAccessible = true
+                    val activities = activitiesField.get(currentActivityThread) as? Map<*, *>
+                    if (!activities.isNullOrEmpty()) {
+                        for ((_, activityRecord) in activities) {
+                            val activityRecordClass = activityRecord?.javaClass
+                            val activityField = activityRecordClass?.getDeclaredField("activity")
+                            activityField?.isAccessible = true
+                            val activity = activityField?.get(activityRecord) as? Activity
+                            if (activity != null && !activity.isFinishing) {
+                                currentActivity = activity
+                                println("[KMP-IAP] Found activity through reflection: ${activity::class.simpleName}")
+                                break
+                            }
+                        }
                     }
-                )
-                .build()
+                } catch (e: Exception) {
+                    println("[KMP-IAP] Failed to get activity through reflection: ${e.message}")
+                }
+            }
+        }
+        
+        currentActivity ?: throw PurchaseError(
+            code = ErrorCode.E_ACTIVITY_UNAVAILABLE.name,
+            message = "Activity not available for purchase. Please ensure your app has an active Activity."
         )
         
-        val queryParams = QueryProductDetailsParams.newBuilder()
-            .setProductList(productList)
+        // Get product details from cache or query
+        var productDetails = productDetailsMap[sku]
+        if (productDetails == null) {
+            println("[KMP-IAP] Product details not in cache, querying...")
+            // First try as INAPP, then as SUBS if not found
+            var products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
+            if (products.isEmpty()) {
+                println("[KMP-IAP] Not found as INAPP, trying as SUBS...")
+                products = requestProducts(ProductRequest(listOf(sku), ProductType.SUBS))
+            }
+            if (products.isEmpty()) {
+                throw PurchaseError(
+                    code = ErrorCode.E_ITEM_UNAVAILABLE.name,
+                    message = "Product not found: $sku"
+                )
+            }
+            productDetails = productDetailsMap[sku]
+        }
+        
+        productDetails ?: throw PurchaseError(
+            code = ErrorCode.E_ITEM_UNAVAILABLE.name,
+            message = "Product details not available for: $sku"
+        )
+        
+        // Build the purchase params
+        val productDetailsParamsBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
+        
+        // For subscriptions, we need to add the offer token
+        if (productDetails.subscriptionOfferDetails != null && productDetails.subscriptionOfferDetails!!.isNotEmpty()) {
+            val offer = productDetails.subscriptionOfferDetails!![0]
+            println("[KMP-IAP] Adding offer token for subscription: ${offer.offerToken}")
+            productDetailsParamsBuilder.setOfferToken(offer.offerToken)
+        }
+        
+        val productDetailsParamsList = listOf(productDetailsParamsBuilder.build())
+        
+        val billingFlowParams = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(productDetailsParamsList)
+            .build()
+        
+        // Launch the billing flow
+        println("[KMP-IAP] Launching billing flow...")
+        val billingResult = billingClient?.launchBillingFlow(currentActivity!!, billingFlowParams)
+        
+        if (billingResult?.responseCode != BillingClient.BillingResponseCode.OK) {
+            throw PurchaseError(
+                code = mapBillingResponseCode(billingResult?.responseCode ?: -1).name,
+                message = billingResult?.debugMessage ?: "Failed to launch billing flow",
+                responseCode = billingResult?.responseCode
+            )
+        }
+        
+        // Return a pending purchase - actual purchase will be handled by the listener
+        return Purchase(
+            productId = sku,
+            transactionDate = Clock.System.now().epochSeconds.toDouble(),
+            transactionReceipt = "",
+            platform = IAPPlatform.ANDROID
+        )
+    }
+    
+    override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> {
+        ensureConnection()
+        
+        val allPurchases = mutableListOf<Purchase>()
+        
+        // Query INAPP purchases
+        val inappParams = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.INAPP)
             .build()
             
-        billingClient?.queryProductDetailsAsync(queryParams) { billingResult, productDetailsList ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList.isNotEmpty()) {
-                val productDetails = productDetailsList.first()
-                
-                val productDetailsParamsList = listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(productDetails)
-                        .apply {
-                            if (type == PurchaseType.SUBS && request is RequestSubscriptionAndroid) {
-                                request.subscriptionOffers?.firstOrNull()?.let { offer ->
-                                    setOfferToken(offer.offerToken)
-                                }
-                            }
-                        }
-                        .build()
-                )
-                
-                val billingFlowParams = BillingFlowParams.newBuilder()
-                    .setProductDetailsParamsList(productDetailsParamsList)
-                    .apply {
-                        when (androidRequest) {
-                            is RequestPurchaseAndroid -> {
-                                androidRequest.obfuscatedAccountIdAndroid?.let {
-                                    setObfuscatedAccountId(it)
-                                }
-                                androidRequest.obfuscatedProfileIdAndroid?.let {
-                                    setObfuscatedProfileId(it)
-                                }
-                            }
-                            is RequestSubscriptionAndroid -> {
-                                androidRequest.obfuscatedAccountIdAndroid?.let {
-                                    setObfuscatedAccountId(it)
-                                }
-                                androidRequest.obfuscatedProfileIdAndroid?.let {
-                                    setObfuscatedProfileId(it)
-                                }
-                            }
-                            else -> {
-                                // Other request types don't have Android-specific fields
-                            }
-                        }
-                    }
-                    .build()
-                    
-                billingClient?.launchBillingFlow(purchaseActivity, billingFlowParams)
-            } else {
-                _purchaseErrorFlow.tryEmit(
-                    PurchaseError(
-                        message = "Product not found: $productId",
-                        code = ErrorCode.E_ITEM_UNAVAILABLE
-                    )
-                )
-            }
-        }
-    }
-    
-    override suspend fun getAvailablePurchases(): List<Purchase> {
-        println("[KMP-IAP] getAvailablePurchases called")
-        ensureConnection()
-        billingClient ?: throw PurchaseError(
-            message = "Billing client not initialized",
-            code = ErrorCode.E_NOT_INITIALIZED
-        )
-        
-        return suspendCancellableCoroutine { continuation ->
-            val params = QueryPurchasesParams.newBuilder()
-                .setProductType(BillingClient.ProductType.INAPP)
-                .build()
-                
-            billingClient?.queryPurchasesAsync(params) { billingResult, purchases ->
-                println("[KMP-IAP] INAPP query result: ${billingResult.responseCode}, purchases: ${purchases.size}")
+        val inappResult = suspendCancellableCoroutine<List<Purchase>> { continuation ->
+            billingClient?.queryPurchasesAsync(inappParams) { billingResult, purchasesList ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    val inappPurchases = purchases.map { it.toKmpPurchase() }
-                    
-                    // Also query subscriptions
-                    val subsParams = QueryPurchasesParams.newBuilder()
-                        .setProductType(BillingClient.ProductType.SUBS)
-                        .build()
-                        
-                    billingClient?.queryPurchasesAsync(subsParams) { subsResult, subsPurchases ->
-                        println("[KMP-IAP] SUBS query result: ${subsResult.responseCode}, purchases: ${subsPurchases.size}")
-                        if (subsResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                            val allPurchases = inappPurchases + subsPurchases.map { it.toKmpPurchase() }
-                            println("[KMP-IAP] Total available purchases: ${allPurchases.size}")
-                            if (continuation.isActive) {
-                                continuation.resume(allPurchases)
-                            }
-                        } else {
-                            if (continuation.isActive) {
-                                continuation.resume(inappPurchases)
-                            }
-                        }
+                    val purchases = purchasesList.map { purchase ->
+                        purchase.toPurchase()
                     }
+                    continuation.resume(purchases)
                 } else {
-                    val error = PurchaseError(
-                        message = "Failed to query purchases: ${billingResult.debugMessage}",
-                        responseCode = billingResult.responseCode,
-                        code = ErrorCode.E_SERVICE_ERROR
-                    )
-                    if (continuation.isActive) {
-                        continuation.resumeWithException(error)
-                    }
+                    continuation.resume(emptyList())
                 }
             }
         }
+        allPurchases.addAll(inappResult)
+        
+        // Query SUBS purchases
+        val subsParams = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+            
+        val subsResult = suspendCancellableCoroutine<List<Purchase>> { continuation ->
+            billingClient?.queryPurchasesAsync(subsParams) { billingResult, purchasesList ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val purchases = purchasesList.map { purchase ->
+                        purchase.toPurchase()
+                    }
+                    continuation.resume(purchases)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
+        allPurchases.addAll(subsResult)
+        
+        println("[KMP-IAP] Found ${allPurchases.size} available purchases (${inappResult.size} INAPP, ${subsResult.size} SUBS)")
+        return allPurchases
     }
     
-    override suspend fun getPurchaseHistories(): List<Purchase> {
-        ensureConnection()
-        // Note: Google Play Billing Library v8 doesn't support purchase history
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> {
+        // Android doesn't provide purchase history in v6+
         return emptyList()
     }
     
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean): Boolean {
-        ensureConnection()
-        val purchaseToken = purchase.purchaseToken ?: return false
-        
-        return if (isConsumable) {
-            consumePurchaseAndroid(purchaseToken)
+    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) {
+        if (isConsumable == true) {
+            purchase.purchaseTokenAndroid?.let { token ->
+                consumePurchaseAndroid(token)
+            }
         } else {
-            acknowledgePurchaseAndroid(purchaseToken)
-        }
-    }
-    
-    override suspend fun getStorefrontIOS(): AppStoreInfo? = null
-    
-    override suspend fun presentCodeRedemptionSheetIOS() {
-        // No-op on Android
-    }
-    
-    override suspend fun showManageSubscriptionsIOS() {
-        // No-op on Android
-    }
-    
-    override suspend fun deepLinkToSubscriptionsAndroid(sku: String?) {
-        val launchActivity = currentActivity ?: context ?: return
-        
-        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-            data = if (sku != null) {
-                android.net.Uri.parse("https://play.google.com/store/account/subscriptions?sku=$sku&package=${context?.packageName}")
-            } else {
-                android.net.Uri.parse("https://play.google.com/store/account/subscriptions")
+            purchase.purchaseTokenAndroid?.let { token ->
+                acknowledgePurchaseAndroid(token)
             }
-            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        
-        if (launchActivity is Activity) {
-            launchActivity.startActivity(intent)
-        } else if (launchActivity is Context) {
-            launchActivity.startActivity(intent)
         }
     }
     
-    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
+    // iOS-specific methods (no-op on Android)
+    override suspend fun getStorefrontIOS(): String = ""
+    override suspend fun presentCodeRedemptionSheetIOS() {}
+    override suspend fun finishTransactionIOS(transactionId: String) {}
+    override suspend fun clearTransactionIOS() {}
+    override suspend fun clearProductsIOS() {}
+    override suspend fun getPromotedProductIOS(): String? = null
+    override suspend fun buyPromotedProductIOS() {}
+    
+    // Android-specific methods
+    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) {
         ensureConnection()
-        billingClient ?: throw PurchaseError(
-            message = "Billing client not initialized",
-            code = ErrorCode.E_NOT_INITIALIZED
-        )
         
-        return suspendCancellableCoroutine { continuation ->
-            val params = com.android.billingclient.api.AcknowledgePurchaseParams.newBuilder()
-                .setPurchaseToken(purchaseToken)
-                .build()
-                
+        val params = AcknowledgePurchaseParams.newBuilder()
+            .setPurchaseToken(purchaseToken)
+            .build()
+            
+        suspendCancellableCoroutine<Unit> { continuation ->
             billingClient?.acknowledgePurchase(params) { billingResult ->
-                if (continuation.isActive) {
-                    continuation.resume(billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    continuation.resume(Unit)
+                } else {
+                    _purchaseErrorListener.tryEmit(
+                        PurchaseError(
+                            code = ErrorCode.E_SERVICE_ERROR.name,
+                            message = billingResult.debugMessage ?: "Failed to acknowledge",
+                            responseCode = billingResult.responseCode
+                        )
+                    )
+                    continuation.resume(Unit)
                 }
             }
         }
     }
     
-    override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
+    override suspend fun consumePurchaseAndroid(purchaseToken: String) {
         ensureConnection()
-        billingClient ?: throw PurchaseError(
-            message = "Billing client not initialized",
-            code = ErrorCode.E_NOT_INITIALIZED
-        )
         
-        return suspendCancellableCoroutine { continuation ->
-            val params = com.android.billingclient.api.ConsumeParams.newBuilder()
-                .setPurchaseToken(purchaseToken)
-                .build()
-                
+        val params = ConsumeParams.newBuilder()
+            .setPurchaseToken(purchaseToken)
+            .build()
+            
+        suspendCancellableCoroutine<Unit> { continuation ->
             billingClient?.consumeAsync(params) { billingResult, _ ->
-                if (continuation.isActive) {
-                    continuation.resume(billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    continuation.resume(Unit)
+                } else {
+                    _purchaseErrorListener.tryEmit(
+                        PurchaseError(
+                            code = ErrorCode.E_SERVICE_ERROR.name,
+                            message = billingResult.debugMessage ?: "Failed to consume",
+                            responseCode = billingResult.responseCode
+                        )
+                    )
+                    continuation.resume(Unit)
                 }
             }
         }
     }
     
-    override suspend fun validateReceiptIos(
-        receiptBody: Map<String, String>,
-        isTest: Boolean
-    ): Map<String, Any>? = null
-    
-    override suspend fun validateReceiptAndroid(
-        packageName: String,
-        productId: String,
-        productToken: String,
-        accessToken: String,
-        isSub: Boolean
-    ): Map<String, Any>? {
-        // TODO: Implement server-side validation
-        return null
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) {
+        val sku = options.skuAndroid ?: return
+        currentActivity?.let { activity ->
+            val url = "https://play.google.com/store/account/subscriptions?sku=$sku&package=${activity.packageName}"
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            activity.startActivity(intent)
+        }
     }
+    
+    // Validation methods
+    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult {
+        return ValidationResult(isValid = false, status = -1)
+    }
+    
+    override suspend fun isPurchaseValid(purchase: Purchase): Boolean {
+        return purchase.purchaseTokenAndroid?.isNotEmpty() == true
+    }
+    
     
     override fun getStore(): Store = Store.PLAY_STORE
     
-    override suspend fun canMakePayments(): Boolean {
-        return billingClient?.isReady ?: false
+    override suspend fun canMakePayments(): Boolean = true
+    
+    // Private helper methods
+    private fun cleanupState() {
+        productDetailsMap.clear()
+    }
+    
+    private fun ensureConnection() {
+        if (!isConnected) {
+            throw PurchaseError(
+                code = ErrorCode.E_NOT_INITIALIZED.name,
+                message = "Not connected to billing service"
+            )
+        }
+    }
+    
+    private fun handlePurchaseUpdate(billingResult: BillingResult, purchases: List<com.android.billingclient.api.Purchase>?) {
+        println("[KMP-IAP] Purchase update: ${billingResult.responseCode}, ${purchases?.size} purchases")
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            purchases?.forEach { purchase ->
+                println("[KMP-IAP] Purchase: ${purchase.products}, state: ${purchase.purchaseState}")
+                _purchaseUpdatedListener.tryEmit(purchase.toPurchase())
+            }
+        } else {
+            val errorCode = mapBillingResponseCode(billingResult.responseCode)
+            _purchaseErrorListener.tryEmit(
+                PurchaseError(
+                    code = errorCode.name,
+                    message = billingResult.debugMessage ?: "Purchase failed",
+                    responseCode = billingResult.responseCode
+                )
+            )
+        }
     }
     
     private fun mapBillingResponseCode(responseCode: Int): ErrorCode {
@@ -544,103 +592,74 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
             else -> ErrorCode.E_UNKNOWN
         }
     }
-    
-    // Private helper methods
-    private fun cleanupState() {
-        // Clear any pending states to avoid race conditions
-        // Android billing client handles most cleanup internally
-    }
-
-    private suspend fun ensureConnection() {
-        if (!isConnected || billingClient == null) {
-            throw PurchaseError(
-                message = "IAP connection not initialized. Call initConnection() first.",
-                code = ErrorCode.E_NOT_INITIALIZED
-            )
-        }
-    }
-    
 }
 
 // Extension functions
-private fun com.android.billingclient.api.Purchase.toKmpPurchase(): Purchase {
+private fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
     return Purchase(
         productId = products.firstOrNull() ?: "",
-        transactionId = orderId,
-        purchaseToken = purchaseToken,
-        transactionDate = kotlinx.datetime.Instant.fromEpochMilliseconds(purchaseTime),
-        platform = IAPPlatform.ANDROID,
-        isAcknowledgedAndroid = isAcknowledged,
-        purchaseStateAndroid = when (purchaseState) {
-            com.android.billingclient.api.Purchase.PurchaseState.PURCHASED -> "purchased"
-            com.android.billingclient.api.Purchase.PurchaseState.PENDING -> "pending"
-            else -> "unspecified"
-        },
-        originalJson = mapOf<String, Any>(
-            "orderId" to (orderId ?: ""),
-            "packageName" to packageName,
-            "productIds" to products,
-            "purchaseTime" to purchaseTime,
-            "purchaseState" to purchaseState,
-            "purchaseToken" to purchaseToken,
-            "isAcknowledged" to isAcknowledged,
-            "isAutoRenewing" to isAutoRenewing,
-            "originalJson" to originalJson,
-            "signature" to signature
-        )
+        transactionDate = purchaseTime.toDouble() / 1000, // Convert millis to seconds
+        transactionReceipt = originalJson,
+        purchaseTokenAndroid = purchaseToken,
+        purchaseStateAndroid = purchaseState,
+        signatureAndroid = signature,
+        acknowledgedAndroid = isAcknowledged,
+        orderIdAndroid = orderId,
+        packageNameAndroid = packageName,
+        platform = IAPPlatform.ANDROID
     )
 }
 
-private fun com.android.billingclient.api.ProductDetails.toProduct(): Product {
-    return Product(
-        productId = productId,
-        price = oneTimePurchaseOfferDetails?.formattedPrice ?: "",
-        currency = oneTimePurchaseOfferDetails?.priceCurrencyCode ?: "",
-        localizedPrice = oneTimePurchaseOfferDetails?.formattedPrice ?: "",
-        title = title,
-        description = description,
-        priceAmountMicros = oneTimePurchaseOfferDetails?.priceAmountMicros ?: 0,
-        iconUrl = null,
-        originalJson = null,
-        type = ProductType.INAPP,
-        originalPrice = null
-    )
-}
-
-private fun com.android.billingclient.api.ProductDetails.toSubscription(): Subscription {
-    val defaultOffer = subscriptionOfferDetails?.firstOrNull()
-    val pricingPhase = defaultOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()
+private fun ProductDetails.toProduct(): Product {
+    val oneTimePurchaseOfferDetails = oneTimePurchaseOfferDetails
+    val subscriptionOfferDetails = subscriptionOfferDetails
     
-    return Subscription(
-        productId = productId,
-        price = pricingPhase?.formattedPrice ?: "",
-        currency = pricingPhase?.priceCurrencyCode ?: "",
-        localizedPrice = pricingPhase?.formattedPrice ?: "",
-        title = title,
-        description = description,
-        priceAmountMicros = pricingPhase?.priceAmountMicros ?: 0,
-        iconUrl = null,
-        originalJson = null,
-        type = ProductType.SUBS,
-        originalPrice = null,
-        subscriptionOfferAndroid = subscriptionOfferDetails?.map { offer ->
-            SubscriptionOffer(
-                offerId = offer.offerId ?: "",
-                basePlanId = offer.basePlanId,
-                offerToken = offer.offerToken,
-                pricingPhases = offer.pricingPhases.pricingPhaseList.map { phase ->
-                    PricingPhase(
-                        price = phase.formattedPrice,
-                        currency = phase.priceCurrencyCode,
-                        billingPeriod = phase.billingPeriod,
-                        billingCycleCount = phase.billingCycleCount,
-                        recurrenceMode = phase.recurrenceMode,
-                        priceAmountMicros = phase.priceAmountMicros
-                    )
+    return if (oneTimePurchaseOfferDetails != null) {
+        Product(
+            id = productId,
+            title = title,
+            description = description,
+            price = oneTimePurchaseOfferDetails.formattedPrice,
+            priceAmount = oneTimePurchaseOfferDetails.priceAmountMicros.toDouble() / 1000000,
+            currency = oneTimePurchaseOfferDetails.priceCurrencyCode,
+            platform = IAPPlatform.ANDROID
+        )
+    } else {
+        val offer = subscriptionOfferDetails?.firstOrNull()
+        val phase = offer?.pricingPhases?.pricingPhaseList?.firstOrNull()
+        Product(
+            id = productId,
+            title = title,
+            description = description,
+            price = phase?.formattedPrice ?: "",
+            priceAmount = (phase?.priceAmountMicros?.toDouble() ?: 0.0) / 1000000,
+            currency = phase?.priceCurrencyCode ?: "USD",
+            subscriptionOfferDetails = subscriptionOfferDetails?.map { it.toOfferDetail() },
+            platform = IAPPlatform.ANDROID
+        )
+    }
+}
+
+private fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): OfferDetail {
+    return OfferDetail(
+        offerId = offerId ?: "",
+        basePlanId = basePlanId,
+        offerToken = offerToken,
+        pricingPhases = pricingPhases.pricingPhaseList.map { phase ->
+            PricingPhase(
+                billingPeriod = phase.billingPeriod,
+                formattedPrice = phase.formattedPrice,
+                priceAmountMicros = phase.priceAmountMicros.toString(),
+                priceCurrencyCode = phase.priceCurrencyCode,
+                billingCycleCount = phase.billingCycleCount,
+                recurrenceMode = when (phase.recurrenceMode) {
+                    1 -> RecurrenceMode.FINITE_RECURRING
+                    2 -> RecurrenceMode.INFINITE_RECURRING
+                    3 -> RecurrenceMode.NON_RECURRING
+                    else -> null
                 }
             )
-        }
+        },
+        offerTags = offerTags
     )
 }
-
-

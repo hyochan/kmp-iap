@@ -1,9 +1,7 @@
 package io.github.hyochan.kmpiap.types
 
-import kotlinx.datetime.Instant
-
 /**
- * Product type enum
+ * Product type enum matching documentation
  */
 enum class ProductType {
     INAPP,
@@ -11,103 +9,193 @@ enum class ProductType {
 }
 
 /**
- * Base product interface
+ * Base product interface following documentation spec
  */
-interface BaseProduct {
-    val productId: String
+interface ProductBase {
+    val id: String  // Changed from productId to id
+    val title: String
+    val description: String
     val price: String
-    val currency: String?
-    val localizedPrice: String?
-    val title: String?
-    val description: String?
-    val platform: IAPPlatform
+    val priceAmount: Double  // Changed from Long to Double
+    val currency: String
 }
 
 /**
- * Product class for non-subscription items
+ * iOS-specific product fields
+ */
+interface ProductIOS {
+    val displayName: String
+    val isFamilyShareable: Boolean
+    val jsonRepresentation: String?
+    val discounts: List<Discount>?
+    val subscription: SubscriptionInfo?
+    val introductoryPriceNumberOfPeriodsIOS: String?
+    val introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod?
+}
+
+/**
+ * Android-specific product fields
+ */
+interface ProductAndroid {
+    val originalPrice: String?
+    val originalPriceAmount: Double?
+    val freeTrialPeriod: String?
+    val iconUrl: String?
+    val subscriptionOfferDetails: List<OfferDetail>?
+}
+
+/**
+ * Unified Product class combining base and platform-specific fields
  */
 data class Product(
-    override val productId: String,
+    // ProductBase fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
     override val price: String,
-    override val currency: String? = null,
-    override val localizedPrice: String? = null,
-    override val title: String? = null,
-    override val description: String? = null,
-    override val platform: IAPPlatform = getCurrentPlatform(),
-    val type: ProductType = ProductType.INAPP,
-    val priceAmountMicros: Long = 0,
-    val isFamilyShareable: Boolean? = null,
-    // Android-specific fields
+    override val priceAmount: Double,
+    override val currency: String,
+    
+    // iOS-specific fields (optional)
+    val displayName: String? = null,
+    val isFamilyShareable: Boolean = false,
+    val jsonRepresentation: String? = null,
+    val discounts: List<Discount>? = null,
+    val subscription: SubscriptionInfo? = null,
+    val introductoryPriceNumberOfPeriodsIOS: String? = null,
+    val introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod? = null,
+    
+    // Android-specific fields (optional)
+    val originalPrice: String? = null,
+    val originalPriceAmount: Double? = null,
+    val freeTrialPeriod: String? = null,
     val iconUrl: String? = null,
-    val originalJson: Map<String, Any>? = null,
-    val originalPrice: String? = null,
-    val priceMicros: Long? = null,
-    val discountPrice: String? = null,
-    // iOS-specific fields
-    val discountsIOS: List<DiscountIOS>? = null
-) : BaseProduct
+    val subscriptionOfferDetails: List<OfferDetail>? = null,
+    
+    // Platform indicator
+    val platform: IAPPlatform = getCurrentPlatform()
+) : ProductBase
 
 /**
- * Subscription class
+ * Subscription-specific product extensions
  */
-data class Subscription(
-    override val productId: String,
+data class SubscriptionProduct(
+    // ProductBase fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
     override val price: String,
-    override val currency: String? = null,
-    override val localizedPrice: String? = null,
-    override val title: String? = null,
-    override val description: String? = null,
-    override val platform: IAPPlatform = getCurrentPlatform(),
-    val type: ProductType = ProductType.SUBS,
-    val priceAmountMicros: Long = 0,
-    val subscriptionOfferAndroid: List<SubscriptionOffer>? = null,
-    val subscriptionOfferDetails: List<SubscriptionOffer>? = null,
-    val subscriptionPeriodAndroid: String? = null,
-    val subscriptionPeriodUnitIOS: String? = null,
-    val subscriptionPeriodNumberIOS: Int? = null,
-    val isFamilyShareable: Boolean? = null,
-    val subscriptionGroupId: String? = null,
+    override val priceAmount: Double,
+    override val currency: String,
+    
+    // Subscription-specific fields
+    val subscriptionPeriod: String,
     val introductoryPrice: String? = null,
-    val introductoryPriceNumberOfPeriodsIOS: Int? = null,
+    val introductoryPricePaymentMode: String? = null,
+    val introductoryPriceNumberOfPeriods: Int? = null,
     val introductoryPriceSubscriptionPeriod: String? = null,
-    val originalJson: Map<String, Any>? = null,
-    val originalPrice: String? = null,
-    val iconUrl: String? = null
-) : BaseProduct
+    
+    // Platform-specific subscription fields
+    val subscriptionGroupIdentifier: String? = null,  // iOS
+    val promotionalOffers: List<PromotionalOffer>? = null,  // iOS
+    val offerDetails: List<OfferDetail>? = null,  // Android
+    val subscriptionOfferAndroid: List<SubscriptionOffer>? = null,  // Android backward compat
+    
+    val platform: IAPPlatform = getCurrentPlatform()
+) : ProductBase
 
 /**
- * iOS discount information
+ * iOS Discount information
  */
-data class DiscountIOS(
-    val identifier: String?,
-    val type: String?,
-    val numberOfPeriods: String?,
-    val price: Double?,
-    val localizedPrice: String?,
-    val paymentMode: String?,
-    val subscriptionPeriod: String?
+data class Discount(
+    val identifier: String,
+    val type: String,
+    val numberOfPeriods: Int,
+    val price: String,
+    val priceAmount: Double,
+    val paymentMode: String,
+    val subscriptionPeriod: String
 )
 
 /**
- * Subscription offer details
+ * iOS Subscription info
  */
-data class SubscriptionOffer(
-    val offerId: String?,
-    val basePlanId: String?,
-    val offerToken: String?,
-    val pricingPhases: List<PricingPhase>?
+data class SubscriptionInfo(
+    val subscriptionGroupIdentifier: String,
+    val subscriptionPeriod: SubscriptionIosPeriod,
+    val introductoryPrice: IntroductoryPrice? = null,
+    val promotionalOffers: List<PromotionalOffer>? = null
 )
 
 /**
- * Pricing phase
+ * iOS Introductory price
+ */
+data class IntroductoryPrice(
+    val price: String,
+    val priceAmount: Double,
+    val paymentMode: String,
+    val numberOfPeriods: Int,
+    val subscriptionPeriod: SubscriptionIosPeriod
+)
+
+/**
+ * iOS Promotional offer
+ */
+data class PromotionalOffer(
+    val identifier: String,
+    val price: String,
+    val priceAmount: Double,
+    val paymentMode: String,
+    val numberOfPeriods: Int,
+    val subscriptionPeriod: SubscriptionIosPeriod
+)
+
+/**
+ * iOS Payment discount for offers
+ */
+data class PaymentDiscount(
+    val identifier: String,
+    val keyIdentifier: String,
+    val nonce: String,
+    val signature: String,
+    val timestamp: Double
+)
+
+/**
+ * Android Offer detail
+ */
+data class OfferDetail(
+    val offerId: String,
+    val basePlanId: String,
+    val offerToken: String,
+    val pricingPhases: List<PricingPhase>,
+    val offerTags: List<String>? = null
+)
+
+/**
+ * Android Pricing phase
  */
 data class PricingPhase(
-    val price: String? = null,
-    val formattedPrice: String? = null,
-    val currency: String? = null,
-    val currencyCode: String? = null,
+    val billingPeriod: String,
+    val formattedPrice: String,
+    val priceAmountMicros: String,
+    val priceCurrencyCode: String,
     val billingCycleCount: Int? = null,
-    val billingPeriod: String? = null,
-    val recurrenceMode: Int? = null,
-    val priceAmountMicros: Long? = null
+    val recurrenceMode: RecurrenceMode? = null
+)
+
+/**
+ * Android Subscription offer for purchase
+ */
+data class SubscriptionOffer(
+    val sku: String,
+    val offerToken: String
+)
+
+/**
+ * Product request parameters
+ */
+data class ProductRequest(
+    val skus: List<String>,
+    val type: ProductType  // "inapp" or "subs"
 )

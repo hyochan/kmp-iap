@@ -14,6 +14,7 @@ object AppColors {
     val Surface = Color(0xFFF8F9FA)
     val OnSurface = Color(0xFF1C1B1F)
     val Error = Color(0xFFDC3545)
+    val Warning = Color(0xFFFFF3CD) // Light yellow warning background
 }
 
 private val LightColorScheme = lightColorScheme(

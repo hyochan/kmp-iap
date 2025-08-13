@@ -11,69 +11,74 @@ actual object KmpIAP : KmpInAppPurchase {
     
     override fun getVersion(): String = delegate.getVersion()
     
-    override val purchaseUpdatedFlow: Flow<Purchase> 
-        get() = delegate.purchaseUpdatedFlow
+    // Expose Flow properties from interface
+    override val purchaseUpdatedListener: Flow<Purchase>
+        get() = delegate.purchaseUpdatedListener
     
-    override val purchaseErrorFlow: Flow<PurchaseError>
-        get() = delegate.purchaseErrorFlow
+    override val purchaseErrorListener: Flow<PurchaseError>
+        get() = delegate.purchaseErrorListener
     
-    override val connectionStateFlow: Flow<ConnectionResult>
-        get() = delegate.connectionStateFlow
+    override val promotedProductListener: Flow<String?>
+        get() = delegate.promotedProductListener
     
-    override val promotedProductFlow: Flow<String?>
-        get() = delegate.promotedProductFlow
+    // Backward compatibility - not in interface
+    val connectionStateListener: Flow<ConnectionResult>
+        get() = delegate.connectionStateListener
     
-    override suspend fun initConnection() = delegate.initConnection()
+    override suspend fun initConnection(): Boolean = delegate.initConnection()
     
-    override suspend fun endConnection() = delegate.endConnection()
+    override suspend fun endConnection(): Boolean = delegate.endConnection()
     
-    override suspend fun requestProducts(params: RequestProductsParams): List<BaseProduct> = 
+    override suspend fun requestProducts(params: ProductRequest): List<Product> = 
         delegate.requestProducts(params)
     
-    override suspend fun requestPurchase(request: RequestPurchase, type: PurchaseType) = 
-        delegate.requestPurchase(request, type)
+    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase = 
+        delegate.requestPurchase(request)
     
-    override suspend fun getAvailablePurchases(): List<Purchase> = 
-        delegate.getAvailablePurchases()
+    override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
+        delegate.getAvailablePurchases(options)
     
-    override suspend fun getPurchaseHistories(): List<Purchase> = 
-        delegate.getPurchaseHistories()
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> = 
+        delegate.getPurchaseHistories(options)
     
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean): Boolean = 
+    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) = 
         delegate.finishTransaction(purchase, isConsumable)
     
-    override suspend fun getStorefrontIOS(): AppStoreInfo? = 
+    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = 
+        delegate.validateReceipt(options)
+    
+    override suspend fun isPurchaseValid(purchase: Purchase): Boolean = 
+        delegate.isPurchaseValid(purchase)
+    
+    override suspend fun finishTransactionIOS(transactionId: String) = 
+        delegate.finishTransactionIOS(transactionId)
+    
+    override suspend fun clearTransactionIOS() = 
+        delegate.clearTransactionIOS()
+    
+    override suspend fun clearProductsIOS() = 
+        delegate.clearProductsIOS()
+    
+    override suspend fun getStorefrontIOS(): String = 
         delegate.getStorefrontIOS()
     
     override suspend fun presentCodeRedemptionSheetIOS() = 
         delegate.presentCodeRedemptionSheetIOS()
     
-    override suspend fun showManageSubscriptionsIOS() = 
-        delegate.showManageSubscriptionsIOS()
+    override suspend fun getPromotedProductIOS(): String? = 
+        delegate.getPromotedProductIOS()
     
-    override suspend fun deepLinkToSubscriptionsAndroid(sku: String?) = 
-        delegate.deepLinkToSubscriptionsAndroid(sku)
+    override suspend fun buyPromotedProductIOS() = 
+        delegate.buyPromotedProductIOS()
     
-    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean = 
+    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) = 
         delegate.acknowledgePurchaseAndroid(purchaseToken)
     
-    override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean = 
+    override suspend fun consumePurchaseAndroid(purchaseToken: String) = 
         delegate.consumePurchaseAndroid(purchaseToken)
     
-    override suspend fun validateReceiptIos(
-        receiptBody: Map<String, String>,
-        isTest: Boolean
-    ): Map<String, Any>? = delegate.validateReceiptIos(receiptBody, isTest)
-    
-    override suspend fun validateReceiptAndroid(
-        packageName: String,
-        productId: String,
-        productToken: String,
-        accessToken: String,
-        isSub: Boolean
-    ): Map<String, Any>? = delegate.validateReceiptAndroid(
-        packageName, productId, productToken, accessToken, isSub
-    )
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = 
+        delegate.deepLinkToSubscriptions(options)
     
     override fun getStore(): Store = delegate.getStore()
     

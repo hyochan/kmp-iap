@@ -78,13 +78,13 @@ Products must be properly configured and approved in the respective stores.
 
 ```kotlin
 // For consumable products
-val success = iapHelper.finishTransaction(
+val success = KmpIAP.finishTransaction(
     purchase = purchase,
     isConsumable = true
 )
 
 // For non-consumable products and subscriptions
-val success = iapHelper.finishTransaction(
+val success = KmpIAP.finishTransaction(
     purchase = purchase,
     isConsumable = false
 )
@@ -104,7 +104,7 @@ The library will return trial information in the product data.
 
 ```kotlin
 scope.launch {
-    iapHelper.availablePurchases.collectLatest { purchases ->
+    val purchases = KmpIAP.getAvailablePurchases()
         val activeSubscriptions = purchases.filter { purchase ->
             subscriptionIds.contains(purchase.productId) && 
             isActive(purchase)
@@ -133,12 +133,11 @@ Implement server-side receipt validation for accurate expiration checking.
 suspend fun restorePurchases() {
     try {
         // Get available purchases
-        iapHelper.availablePurchases.collectLatest { purchases ->
-            purchases.forEach { purchase ->
-                // Re-deliver non-consumable products
-                if (isNonConsumable(purchase.productId)) {
-                    deliverProduct(purchase)
-                }
+        val purchases = KmpIAP.getAvailablePurchases()
+        purchases.forEach { purchase ->
+            // Re-deliver non-consumable products
+            if (isNonConsumable(purchase.productId)) {
+                deliverProduct(purchase)
             }
         }
     } catch (e: PurchaseError) {
@@ -237,19 +236,17 @@ val isValid = api.validateAndroidPurchase(
 
 ```kotlin
 scope.launch {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            when (it.code) {
-                ErrorCode.USER_CANCELLED -> {
-                    // User cancelled - no error message needed
-                }
-                else -> {
-                    // Show error message
-                    showErrorDialog(it.message)
-                }
+    KmpIAP.purchaseErrorListener.collect { error ->
+        when (error.code) {
+            ErrorCode.E_USER_CANCELLED.name -> {
+                // User cancelled - no error message needed
             }
-            iapHelper.clearError()
+            else -> {
+                // Show error message
+                showErrorDialog(error.message)
+            }
         }
+        // No need to clear error with new API
     }
 }
 ```
@@ -292,12 +289,16 @@ class ProductCache {
     private val cache = mutableMapOf<String, Product>()
     
     suspend fun getProduct(
-        id: String,
-        iapHelper: UseIap
+        id: String
     ): Product? {
         cache[id]?.let { return it }
         
-        val products = iapHelper.getProducts(listOf(id))
+        val products = KmpIAP.requestProducts(
+            ProductRequest(
+                skus = listOf(id),
+                type = ProductType.INAPP
+            )
+        )
         products.firstOrNull()?.let { product ->
             cache[id] = product
             return product
@@ -317,11 +318,15 @@ class ProductCache {
 
 ```kotlin
 class PurchaseViewModel : ViewModel() {
-    private val iapHelper = UseIap(viewModelScope, UseIapOptions())
+    init {
+        viewModelScope.launch {
+            KmpIAP.initConnection()
+        }
+    }
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 ```
@@ -349,11 +354,15 @@ Button("Purchase") {
 @Composable
 fun PurchaseButton(productId: String) {
     val scope = rememberCoroutineScope()
-    val iapHelper = remember { UseIap(scope, UseIapOptions()) }
     
     Button(onClick = {
         scope.launch {
-            iapHelper.requestPurchase(productId)
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = productId,
+                    quantity = 1
+                )
+            )
         }
     }) {
         Text("Purchase")
@@ -402,13 +411,9 @@ actual class IAPManager {
 
 ```kotlin
 // Add logging to your IAP operations
-val iapHelper = UseIap(scope, UseIapOptions())
-
 scope.launch {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            println("[IAP Debug] Error: ${it.code} - ${it.message}")
-        }
+    KmpIAP.purchaseErrorListener.collect { error ->
+        println("[IAP Debug] Error: ${error.code} - ${error.message}")
     }
 }
 ```

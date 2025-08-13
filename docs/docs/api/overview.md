@@ -37,10 +37,10 @@ interface InAppPurchase {
         isTest: Boolean = true
     ): Map<String, Any?>
     
-    // Event flows
-    val purchaseUpdatedFlow: SharedFlow<Purchase>
-    val purchaseErrorFlow: SharedFlow<PurchaseError>
-    val promotedProductFlow: SharedFlow<String?>
+    // Event listeners
+    val purchaseUpdatedListener: Flow<Purchase>
+    val purchaseErrorListener: Flow<PurchaseError>
+    val promotedProductListener: Flow<String?>
 }
 ```
 
@@ -170,7 +170,7 @@ data class Subscription(
 ### Purchase Updates
 
 ```kotlin
-iap.purchaseUpdatedFlow.collect { purchase ->
+iap.purchaseUpdatedListener.collect { purchase ->
     when (purchase.purchaseState) {
         PurchaseState.PURCHASED -> {
             // Handle successful purchase
@@ -188,7 +188,7 @@ iap.purchaseUpdatedFlow.collect { purchase ->
 ### Error Handling
 
 ```kotlin
-iap.purchaseErrorFlow.collect { error ->
+iap.purchaseErrorListener.collect { error ->
     when (error.code) {
         ErrorCode.E_USER_CANCELLED -> {
             // User cancelled the purchase

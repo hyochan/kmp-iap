@@ -22,23 +22,24 @@ enum class AndroidProductType {
 }
 
 /**
- * Android-specific purchase request
+ * Android-specific purchase request (deprecated)
  */
+@Deprecated("Use UnifiedPurchaseRequest instead")
 data class RequestPurchaseAndroid(
     override val sku: String,
-    override val skus: List<String>,
+    val skus: List<String>,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val isOfferPersonalized: Boolean = false,
     override val platform: IAPPlatform? = IAPPlatform.ANDROID
-) : RequestPurchase(), RequestPurchaseBase {
+) : RequestPurchase() {
     constructor(
         skus: List<String>,
         obfuscatedAccountIdAndroid: String? = null,
         obfuscatedProfileIdAndroid: String? = null,
         isOfferPersonalized: Boolean = false
     ) : this(
-        sku = skus.first(),
+        sku = skus.firstOrNull() ?: "",
         skus = skus,
         obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
         obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
@@ -47,29 +48,30 @@ data class RequestPurchaseAndroid(
 }
 
 /**
- * Android-specific subscription request
+ * Android-specific subscription request (deprecated)
  */
+@Deprecated("Use UnifiedPurchaseRequest instead")
 data class RequestSubscriptionAndroid(
     override val sku: String,
-    override val skus: List<String>,
+    val skus: List<String>,
     val subscriptionOffers: List<SubscriptionOfferAndroid>? = null,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val purchaseTokenAndroid: String? = null,
-    val replacementMode: AndroidProrationMode? = null,
+    val replacementMode: ReplacementMode? = null,
     val isOfferPersonalized: Boolean = false,
     override val platform: IAPPlatform? = IAPPlatform.ANDROID
-) : RequestPurchase(), RequestPurchaseBase {
+) : RequestPurchase() {
     constructor(
         skus: List<String>,
         subscriptionOffers: List<SubscriptionOfferAndroid>? = null,
         obfuscatedAccountIdAndroid: String? = null,
         obfuscatedProfileIdAndroid: String? = null,
         purchaseTokenAndroid: String? = null,
-        replacementMode: AndroidProrationMode? = null,
+        replacementMode: ReplacementMode? = null,
         isOfferPersonalized: Boolean = false
     ) : this(
-        sku = skus.first(),
+        sku = skus.firstOrNull() ?: "",
         skus = skus,
         subscriptionOffers = subscriptionOffers,
         obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,

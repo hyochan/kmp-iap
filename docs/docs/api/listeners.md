@@ -9,13 +9,13 @@ Event listeners and flow collectors for monitoring purchase updates, errors, and
 
 ## Purchase Update Listener
 
-### purchaseUpdatedFlow
+### purchaseUpdatedListener
 
 ```kotlin
-val purchaseUpdatedFlow: SharedFlow<Purchase>
+val purchaseUpdatedListener: Flow<Purchase>
 ```
 
-**Type**: `SharedFlow<Purchase>`  
+**Type**: `Flow<Purchase>`  
 **Description**: Emits purchase updates when transactions occur  
 **Emission**: Triggered on successful purchase completion
 
@@ -27,7 +27,7 @@ class PurchaseManager(private val iap: InAppPurchase) {
     
     init {
         scope.launch {
-            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+            iap.purchaseUpdatedListener.collectLatest { purchase ->
                 println("Purchase updated: ${purchase.productId}")
                 println("Transaction ID: ${purchase.transactionId}")
                 println("State: ${purchase.purchaseState}")
@@ -65,20 +65,20 @@ class PurchaseManager(private val iap: InAppPurchase) {
 
 ## Error Listener
 
-### purchaseErrorFlow
+### purchaseErrorListener
 
 ```kotlin
-val purchaseErrorFlow: SharedFlow<PurchaseError>
+val purchaseErrorListener: Flow<PurchaseError>
 ```
 
-**Type**: `SharedFlow<PurchaseError>`  
+**Type**: `Flow<PurchaseError>`  
 **Description**: Emits errors that occur during purchase operations  
 **Emission**: Triggered on any purchase-related error
 
 **Example**:
 ```kotlin
 scope.launch {
-    iap.purchaseErrorFlow.collectLatest { error ->
+    iap.purchaseErrorListener.collectLatest { error ->
         println("Purchase error: ${error.message}")
         println("Error code: ${error.code}")
         
@@ -109,28 +109,27 @@ scope.launch {
 
 ## Connection State Listener
 
-### Connection Flow (via UseIap)
+### Connection State
 
 ```kotlin
-val isConnected: StateFlow<Boolean>
+suspend fun isConnected(): Boolean
 ```
 
-**Type**: `StateFlow<Boolean>`  
-**Description**: Connection state to the store service  
-**Initial Value**: `false`
+**Type**: `suspend fun`  
+**Description**: Check connection state to the store service  
+**Returns**: `Boolean` - true if connected
 
 **Example**:
 ```kotlin
-// Direct connection monitoring
+// Check connection state
 scope.launch {
-    iapHelper.isConnected.collectLatest { connected ->
-        if (connected) {
-            enablePurchaseButtons()
-            loadProducts()
-        } else {
-            disablePurchaseButtons()
-            showConnectionError()
-        }
+    val connected = KmpIAP.isConnected()
+    if (connected) {
+        enablePurchaseButtons()
+        loadProducts()
+    } else {
+        disablePurchaseButtons()
+        showConnectionError()
     }
 }
 
@@ -181,14 +180,14 @@ val promotedProductIOS: StateFlow<Product?>
 ```kotlin
 if (getCurrentPlatform() == IAPPlatform.IOS) {
     scope.launch {
-        iapHelper.promotedProductIOS.collectLatest { product ->
+        KmpIAP.promotedProductListener.collect { product ->
             product?.let {
                 // Show promoted product immediately
                 showProductDetail(it)
                 
                 // Optionally auto-purchase
                 if (userSettings.autoPromotedPurchase) {
-                    iapHelper.buyPromotedProductIOS()
+                    KmpIAP.buyPromotedProductIOS()
                 }
             }
         }
@@ -230,8 +229,8 @@ class PurchaseFlowManager(private val iap: InAppPurchase) {
         // Combine purchase and error flows
         scope.launch {
             merge(
-                iap.purchaseUpdatedFlow.map { PurchaseEvent.Success(it) },
-                iap.purchaseErrorFlow.map { PurchaseEvent.Error(it) }
+                iap.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
+                iap.purchaseErrorListener.map { PurchaseEvent.Error(it) }
             ).collectLatest { event ->
                 when (event) {
                     is PurchaseEvent.Success -> handleSuccess(event.purchase)
@@ -254,7 +253,7 @@ Listen for specific events:
 
 ```kotlin
 // Only listen for subscription purchases
-iap.purchaseUpdatedFlow
+iap.purchaseUpdatedListener
     .filter { purchase ->
         purchase.products.any { it.type == PurchaseType.SUBS }
     }
@@ -263,7 +262,7 @@ iap.purchaseUpdatedFlow
     }
 
 // Only listen for specific error types
-iap.purchaseErrorFlow
+iap.purchaseErrorListener
     .filter { error ->
         error.code in listOf(
             ErrorCode.NETWORK_ERROR,
@@ -281,14 +280,14 @@ Prevent rapid successive events:
 
 ```kotlin
 // Debounce purchase updates
-iap.purchaseUpdatedFlow
+iap.purchaseUpdatedListener
     .debounce(500) // Wait 500ms for stable state
     .collectLatest { purchase ->
         updatePurchaseUI(purchase)
     }
 
 // Throttle error messages
-iap.purchaseErrorFlow
+iap.purchaseErrorListener
     .throttleLatest(2000) // Max one error dialog per 2 seconds
     .collectLatest { error ->
         showErrorDialog(error)
@@ -309,7 +308,7 @@ fun PurchaseScreen(iap: InAppPurchase) {
     // Purchase updates
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+            iap.purchaseUpdatedListener.collectLatest { purchase ->
                 // Only collect when screen is visible
                 showPurchaseSuccess(purchase)
             }
@@ -319,7 +318,7 @@ fun PurchaseScreen(iap: InAppPurchase) {
     // Error handling
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            iap.purchaseErrorFlow.collectLatest { error ->
+            iap.purchaseErrorListener.collectLatest { error ->
                 showErrorSnackbar(error.message)
             }
         }
@@ -345,7 +344,7 @@ class PurchaseActivity : AppCompatActivity() {
         // Lifecycle-aware collection
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                iap.purchaseUpdatedFlow.collectLatest { purchase ->
+                iap.purchaseUpdatedListener.collectLatest { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
@@ -353,7 +352,7 @@ class PurchaseActivity : AppCompatActivity() {
         
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                iap.purchaseErrorFlow.collectLatest { error ->
+                iap.purchaseErrorListener.collectLatest { error ->
                     handlePurchaseError(error)
                 }
             }
@@ -382,7 +381,7 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
     
     init {
         scope.launch {
-            iap.purchaseErrorFlow.collectLatest { error ->
+            iap.purchaseErrorListener.collectLatest { error ->
                 when (error.code) {
                     ErrorCode.NETWORK_ERROR,
                     ErrorCode.SERVICE_UNAVAILABLE -> {
@@ -397,7 +396,7 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
         }
         
         scope.launch {
-            iap.purchaseUpdatedFlow.collectLatest { purchase ->
+            iap.purchaseUpdatedListener.collectLatest { purchase ->
                 // Success - reset retry count
                 resetRetryCount(purchase.productId)
             }
@@ -428,11 +427,11 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
 
 ```kotlin
 class MockInAppPurchase : InAppPurchase {
-    private val _purchaseUpdated = MutableSharedFlow<Purchase>()
-    override val purchaseUpdatedFlow: SharedFlow<Purchase> = _purchaseUpdated
+    private val _purchaseUpdated = MutableFlow<Purchase>()
+    override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdated
     
-    private val _purchaseError = MutableSharedFlow<PurchaseError>()
-    override val purchaseErrorFlow: SharedFlow<PurchaseError> = _purchaseError
+    private val _purchaseError = MutableFlow<PurchaseError>()
+    override val purchaseErrorListener: Flow<PurchaseError> = _purchaseError
     
     // Test helpers
     suspend fun emitPurchase(purchase: Purchase) {
@@ -451,7 +450,7 @@ fun testPurchaseListener() = runTest {
     var receivedPurchase: Purchase? = null
     
     val job = launch {
-        mockIap.purchaseUpdatedFlow.collect { purchase ->
+        mockIap.purchaseUpdatedListener.collect { purchase ->
             receivedPurchase = purchase
         }
     }

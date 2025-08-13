@@ -2,46 +2,105 @@ package io.github.hyochan.kmpiap.types
 
 import io.github.hyochan.kmpiap.utils.ErrorCode
 import io.github.hyochan.kmpiap.utils.ErrorCodeUtils
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 /**
- * Purchase class
+ * Base purchase interface following documentation spec
+ */
+interface PurchaseBase {
+    val productId: String
+    val transactionDate: Double
+    val transactionReceipt: String
+}
+
+/**
+ * iOS-specific purchase fields
+ */
+interface PurchaseIOS {
+    val transactionId: String?
+    val originalTransactionDateIOS: Double?
+    val originalTransactionIdIOS: String?
+    val transactionState: TransactionState?
+    val verificationResult: VerificationResult?
+}
+
+/**
+ * Android-specific purchase fields
+ */
+interface PurchaseAndroid {
+    val purchaseTokenAndroid: String?
+    val purchaseStateAndroid: Int?
+    val signatureAndroid: String?
+    val autoRenewingAndroid: Boolean?
+    val orderIdAndroid: String?
+    val packageNameAndroid: String?
+    val developerPayloadAndroid: String?
+    val acknowledgedAndroid: Boolean?
+}
+
+/**
+ * Unified Purchase class following documentation spec
  */
 @Serializable
 data class Purchase(
-    val productId: String,
-    val transactionId: String? = null,
-    val transactionReceipt: String? = null,
-    val purchaseToken: String? = null,
-    val transactionDate: Instant? = null,
-    val platform: IAPPlatform,
+    // PurchaseBase fields
+    override val productId: String,
+    override val transactionDate: Double,
+    override val transactionReceipt: String,
+    
+    // iOS-specific fields (optional)
+    override val transactionId: String? = null,
+    override val originalTransactionDateIOS: Double? = null,
+    override val originalTransactionIdIOS: String? = null,
+    override val transactionState: TransactionState? = null,
+    @Transient override val verificationResult: VerificationResult? = null,
+    
+    // Android-specific fields (optional)
+    override val purchaseTokenAndroid: String? = null,
+    override val purchaseStateAndroid: Int? = null,
+    override val signatureAndroid: String? = null,
+    override val autoRenewingAndroid: Boolean? = null,
+    override val orderIdAndroid: String? = null,
+    override val packageNameAndroid: String? = null,
+    override val developerPayloadAndroid: String? = null,
+    override val acknowledgedAndroid: Boolean? = null,
+    
+    // Platform indicator
+    @Transient val platform: IAPPlatform = getCurrentPlatform(),
+    @Transient val originalJson: Map<String, Any>? = null
+) : PurchaseBase, PurchaseIOS, PurchaseAndroid {
+    // Backward compatibility properties
+    @Deprecated("Use 'purchaseTokenAndroid' instead", ReplaceWith("purchaseTokenAndroid"))
+    val purchaseToken: String? get() = purchaseTokenAndroid
+    
+    @Deprecated("Use 'acknowledgedAndroid' instead", ReplaceWith("acknowledgedAndroid"))
+    val isAcknowledgedAndroid: Boolean get() = acknowledgedAndroid ?: false
+}
+
+/**
+ * Product purchase with additional details
+ */
+data class ProductPurchase(
+    val purchase: Purchase,
+    val isConsumedAndroid: Boolean? = null,
     val isAcknowledgedAndroid: Boolean? = null,
-    val purchaseStateAndroid: String? = null,
-    val originalTransactionIdentifierIOS: String? = null,
-    @Transient val originalJson: Map<String, Any>? = null,
-    // StoreKit 2 specific fields
-    val transactionState: String? = null,
-    val isUpgraded: Boolean? = null,
-    val expirationDate: Instant? = null,
-    val revocationDate: Instant? = null,
-    val revocationReason: Int? = null
+    val isFinishedIOS: Boolean? = null,
+    val purchaseState: PurchaseState? = null
 )
 
 /**
- * Purchase error class
+ * Purchase error class following documentation spec
  */
 class PurchaseError(
-    message: String,
+    val code: String,
+    override val message: String,
+    val productId: String? = null,
     val responseCode: Int? = null,
     val debugMessage: String? = null,
-    val code: ErrorCode? = null,
-    val productId: String? = null,
     val platform: IAPPlatform? = null
 ) : Exception(message) {
-    val name: String = "[kmp-iap]: PurchaseError"
-
+    
     companion object {
         fun fromPlatformError(
             errorData: Map<String, Any?>,
@@ -50,79 +109,158 @@ class PurchaseError(
             val errorCode = errorData["code"]?.let { code ->
                 ErrorCodeUtils.fromPlatformCode(code, platform)
             } ?: ErrorCode.E_UNKNOWN
-
+            
             return PurchaseError(
+                code = errorCode.name,
                 message = errorData["message"]?.toString() ?: "Unknown error occurred",
+                productId = errorData["productId"]?.toString(),
                 responseCode = errorData["responseCode"] as? Int,
                 debugMessage = errorData["debugMessage"]?.toString(),
-                code = errorCode,
-                productId = errorData["productId"]?.toString(),
                 platform = platform
             )
         }
     }
-
-    fun getPlatformCode(): Any? {
-        return code?.let { platform?.let { p -> ErrorCodeUtils.toPlatformCode(it, p) } }
-    }
 }
 
 /**
- * Purchase result (legacy)
+ * Unified purchase request following documentation spec
  */
-data class PurchaseResult(
-    val responseCode: Int? = null,
-    val debugMessage: String? = null,
-    val code: String? = null,
-    val message: String? = null,
-    val purchaseTokenAndroid: String? = null
+data class UnifiedPurchaseRequest(
+    // Single SKU (convenience)
+    val sku: String? = null,
+    
+    // Multiple SKUs
+    val skus: List<String>? = null,
+    
+    // iOS options
+    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean? = null,
+    val appAccountToken: String? = null,
+    val quantity: Int? = null,
+    val withOffer: PaymentDiscount? = null,
+    
+    // Android options
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null,
+    val subscriptionOffers: List<SubscriptionOffer>? = null,
+    val purchaseTokenAndroid: String? = null,
+    val replacementModeAndroid: Int? = null
 )
 
 /**
- * Connection result
+ * Platform-specific purchase request
  */
-data class ConnectionResult(
-    val connected: Boolean,
-    val message: String? = null
+data class PlatformPurchaseRequest(
+    val ios: IOSPurchaseOptions? = null,
+    val android: AndroidPurchaseOptions? = null
 )
 
 /**
- * Request parameters for fetching products
+ * iOS purchase options
  */
-data class RequestProductsParams(
+data class IOSPurchaseOptions(
+    val sku: String,
+    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean? = null,
+    val appAccountToken: String? = null,
+    val quantity: Int? = null,
+    val withOffer: PaymentDiscount? = null
+)
+
+/**
+ * Android purchase options
+ */
+data class AndroidPurchaseOptions(
     val skus: List<String>,
-    val type: PurchaseType = PurchaseType.INAPP
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null,
+    val subscriptionOffers: List<SubscriptionOffer>? = null,
+    val purchaseTokenAndroid: String? = null,
+    val replacementModeAndroid: Int? = null
 )
 
 /**
- * Base class for purchase requests
+ * Purchase options for getAvailablePurchases and getPurchaseHistories
  */
-sealed class RequestPurchase {
-    abstract val sku: String
-    abstract val platform: IAPPlatform?
+data class PurchaseOptions(
+    val alsoPublishToEventListener: Boolean? = null,
+    val onlyIncludeActiveItems: Boolean? = null
+)
+
+/**
+ * Validation options following documentation spec
+ */
+sealed class ValidationOptions {
+    data class IOSValidation(
+        val receiptBody: IOSReceiptBody
+    ) : ValidationOptions()
+    
+    data class AndroidValidation(
+        val packageName: String,
+        val productToken: String,
+        val accessToken: String,
+        val isSub: Boolean
+    ) : ValidationOptions()
 }
 
 /**
- * Cross-platform purchase request
+ * iOS receipt body for validation
  */
-data class RequestPurchaseGeneric(
-    override val sku: String,
-    override val platform: IAPPlatform? = null
-) : RequestPurchase()
-
-/**
- * App Store information (iOS only)
- */
-data class AppStoreInfo(
-    val countryCode: String? = null,
-    val storefront: String? = null,
-    val identifier: String? = null
+data class IOSReceiptBody(
+    val receiptData: String,
+    val password: String? = null
 )
 
 /**
- * Base interface for purchase request parameters
+ * Validation result following documentation spec
  */
-interface RequestPurchaseBase {
-    val sku: String
-    val skus: List<String>
+data class ValidationResult(
+    val isValid: Boolean,
+    val status: Int,
+    
+    // iOS response fields
+    val receipt: Map<String, Any>? = null,
+    val latestReceipt: String? = null,
+    val latestReceiptInfo: List<Map<String, Any>>? = null,
+    val pendingRenewalInfo: List<Map<String, Any>>? = null,
+    
+    // Android response fields
+    val purchaseState: Int? = null,
+    val consumptionState: Int? = null,
+    val acknowledgementState: Int? = null
+)
+
+/**
+ * Verification result for iOS StoreKit 2
+ */
+data class VerificationResult(
+    val isValid: Boolean,
+    val environment: String? = null,
+    val verificationError: String? = null
+)
+
+/**
+ * Deep link options for subscription management
+ */
+data class DeepLinkOptions(
+    val skuAndroid: String? = null,
+    val packageNameAndroid: String? = null
+)
+
+/**
+ * Event subscription for cleanup
+ */
+interface Subscription {
+    fun remove()
+}
+
+/**
+ * Implementation of event subscription
+ */
+class EventSubscription(
+    private val onRemove: () -> Unit
+) : Subscription {
+    override fun remove() {
+        onRemove()
+    }
 }

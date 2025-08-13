@@ -100,15 +100,15 @@ object IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            KmpIAP.currentPurchase.collect { purchase ->
-                purchase?.let { handlePurchaseUpdate(it) }
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                handlePurchaseUpdate(purchase)
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            KmpIAP.currentError.collect { error ->
-                error?.let { handlePurchaseError(it) }
+            KmpIAP.purchaseErrorListener.collect { error ->
+                handlePurchaseError(error)
             }
         }
     }
@@ -144,7 +144,7 @@ object IAPManager {
     }
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-        // Purchase is valid if returned from currentPurchase flow
+        // Purchase is valid if returned from purchaseUpdatedListener flow
         // Process the purchase
         // Verify purchase with your backend
         val isValid = verifyPurchaseWithBackend(purchase)

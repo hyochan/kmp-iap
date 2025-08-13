@@ -116,7 +116,7 @@ class ProductsViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
     
     // Purchase observer setup...
@@ -279,7 +279,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
 ### Retrieving Product Prices
 
 ```kotlin
-class ProductInfo(private val iapHelper: UseIap) {
+class ProductInfo {
     suspend fun loadProductInformation(productIds: List<String>): List<Product> {
         return try {
             // Request products from store
@@ -308,7 +308,7 @@ class ProductInfo(private val iapHelper: UseIap) {
 ```kotlin
 import io.github.hyochan.kmpiap.IAPPlatform
 
-class PlatformSupport(private val iapHelper: UseIap) {
+class PlatformSupport {
     suspend fun checkPurchaseSupport(): Boolean {
         return try {
             when (KmpIAP.getCurrentPlatform()) {
@@ -603,9 +603,10 @@ import io.github.hyochan.kmpiap.useIap.*
 import io.github.hyochan.kmpiap.data.*
 
 class PurchaseService : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
+    init {
+        // Initialize IAP connection
+        viewModelScope.launch {
+            KmpIAP.initConnection()
             autoFinishTransactions = false
         )
     )
@@ -672,7 +673,7 @@ class PurchaseService : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
     
     private fun deliverProduct(productId: String) {

@@ -41,25 +41,7 @@ data class RequestSubscriptionIOS(
     override val platform: IAPPlatform? = IAPPlatform.IOS
 ) : RequestPurchase()
 
-/**
- * iOS payment discount
- */
-data class PaymentDiscount(
-    val identifier: String,
-    val keyIdentifier: String,
-    val nonce: String,
-    val signature: String,
-    val timestamp: Long
-)
-
-/**
- * iOS promotional offer
- */
-data class PromotionalOffer(
-    val productId: String,
-    val username: String,
-    val offerIdentifier: String? = null
-)
+// PaymentDiscount and PromotionalOffer are now defined in Products.kt
 
 /**
  * StoreKit 2 specific types

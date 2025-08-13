@@ -22,7 +22,6 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
-import io.github.hyochan.kmpiap.RequestSubscriptionIOS
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -43,34 +42,26 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var initError by remember { mutableStateOf<String?>(null) }
     
     var connected by remember { mutableStateOf(false) }
-    var subscriptions by remember { mutableStateOf<List<Subscription>>(emptyList()) }
+    var subscriptions by remember { mutableStateOf<List<SubscriptionProduct>>(emptyList()) }
+    var activeSubscriptions by remember { mutableStateOf<List<Purchase>>(emptyList()) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
     var currentPurchase by remember { mutableStateOf<Purchase?>(null) }
     
-    // Collect purchase events
+    // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
-            KmpIAP.purchaseUpdatedFlow.collect { purchase ->
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
                 purchaseResult = "✅ Subscription successful!\n\n${json.encodeToString(purchase)}"
             }
         }
         
         launch {
-            KmpIAP.purchaseErrorFlow.collect { error ->
+            KmpIAP.purchaseErrorListener.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
-                    ErrorCode.E_USER_CANCELLED -> "Subscription cancelled"
-                    else -> "❌ Subscription error: ${error.message}\nCode: ${error.code}"
-                }
-            }
-        }
-        
-        launch {
-            KmpIAP.connectionStateFlow.collect { connectionResult ->
-                connected = connectionResult.connected
-                if (!connectionResult.connected) {
-                    initError = connectionResult.message
+                    ErrorCode.E_USER_CANCELLED.name -> "⚠️ Subscription cancelled by user"
+                    else -> "❌ Error: ${error.message}\nCode: ${error.code}"
                 }
             }
         }
@@ -80,27 +71,57 @@ fun SubscriptionFlowScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         isConnecting = true
         try {
-            KmpIAP.initConnection()
+            val result = KmpIAP.initConnection()
+            connected = result
+            if (!result) {
+                initError = "Failed to connect to store"
+            }
         } catch (e: Exception) {
             purchaseResult = "Initialization error: ${e.message}"
+            connected = false
         } finally {
             isConnecting = false
         }
     }
     
-    // Load subscriptions when connected
+    // Load subscriptions and check active purchases when connected
     LaunchedEffect(connected) {
         if (connected) {
             kotlinx.coroutines.delay(500)
             isLoadingProducts = true
             try {
+                // First, check for active subscriptions
+                val activePurchases = KmpIAP.getAvailablePurchases()
+                activeSubscriptions = activePurchases.filter { purchase ->
+                    SUBSCRIPTION_IDS.contains(purchase.productId)
+                }
+                
+                // Then load subscription products
                 val result = KmpIAP.requestProducts(
-                    RequestProductsParams(
-                        type = PurchaseType.SUBS,
-                        skus = SUBSCRIPTION_IDS
+                    ProductRequest(
+                        skus = SUBSCRIPTION_IDS,
+                        type = ProductType.SUBS
                     )
                 )
-                subscriptions = result.filterIsInstance<Subscription>()
+                subscriptions = result.filterIsInstance<SubscriptionProduct>()
+                if (subscriptions.isEmpty() && result.isNotEmpty()) {
+                    // If we got products but they're not SubscriptionProduct type,
+                    // convert them to subscription format
+                    subscriptions = result.map { product ->
+                        SubscriptionProduct(
+                            id = product.id,
+                            title = product.title,
+                            description = product.description,
+                            price = product.price,
+                            priceAmount = product.priceAmount,
+                            currency = product.currency,
+                            subscriptionPeriod = product.subscription?.subscriptionPeriod?.toReadableString() ?: "",
+                            introductoryPrice = product.subscription?.introductoryPrice?.price,
+                            subscriptionGroupIdentifier = product.subscription?.subscriptionGroupIdentifier,
+                            platform = product.platform
+                        )
+                    }
+                }
                 if (subscriptions.isEmpty()) {
                     purchaseResult = "No subscriptions found for IDs: ${SUBSCRIPTION_IDS.joinToString()}"
                 }
@@ -141,299 +162,291 @@ fun SubscriptionFlowScreen(navController: NavController) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (connected) AppColors.Primary else AppColors.Secondary
+                    containerColor = if (connected) AppColors.Success else AppColors.Surface
                 ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isConnecting) {
-                        CircularProgressIndicator(color = Color.White)
-                    } else {
-                        Text(
-                            text = if (connected) "✓ Connected to ${KmpIAP.getStore()}" else "⚠ Not connected",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = if (connected) Color.White else AppColors.Primary
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
-                }
-            }
-            
-            if (initError != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
                     Text(
-                        text = "Error: $initError",
-                        modifier = Modifier.padding(16.dp),
-                        color = Color(0xFFC62828)
+                        text = when {
+                            isConnecting -> "Connecting..."
+                            connected -> "✓ Connected to Store"
+                            else -> "Not connected"
+                        },
+                        fontWeight = FontWeight.Medium,
+                        color = if (connected) Color.White else AppColors.OnSurface
                     )
                 }
             }
             
             Spacer(modifier = Modifier.height(20.dp))
             
-            // Available subscriptions
-            if (connected && !isLoadingProducts) {
-                Text(
-                    "Available Subscriptions",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = AppColors.OnSurface,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                
-                if (subscriptions.isEmpty()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Subscriptions Section
+            Text(
+                text = "Available Subscriptions",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppColors.OnSurface
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            if (isLoadingProducts) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "No subscriptions available",
-                            color = Color.Gray,
-                            modifier = Modifier.padding(20.dp),
-                            fontSize = 16.sp
-                        )
-                    }
-                } else {
-                    subscriptions.forEach { subscription ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                Text(
-                                    subscription.title ?: subscription.productId,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = AppColors.OnSurface
-                                )
-                                
-                                Spacer(modifier = Modifier.height(4.dp))
-                                
-                                Text(
-                                    subscription.description ?: "",
-                                    fontSize = 14.sp,
-                                    color = Color.Gray,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                                
-                                // Show subscription offers for Android
-                                subscription.subscriptionOfferAndroid?.forEach { offer ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = Color(0xFFF5F5F5)
-                                        ),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(12.dp)
-                                        ) {
-                                            Text(
-                                                "Plan: ${offer.basePlanId}",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = AppColors.OnSurface
-                                            )
-                                            offer.pricingPhases?.forEach { phase ->
-                                                Text(
-                                                    "${phase.price} / ${phase.billingPeriod}",
-                                                    fontSize = 12.sp,
-                                                    color = Color.Gray,
-                                                    modifier = Modifier.padding(top = 4.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                Text(
-                                    "Price: ${subscription.localizedPrice}",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = AppColors.Primary,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                                
-                                Button(
-                                    onClick = {
-                                        if (!isProcessing) {
-                                            scope.launch {
-                                                isProcessing = true
-                                                purchaseResult = "Processing subscription..."
-                                                try {
-                                                    val platform = getCurrentPlatform()
-                                                    val request = when (platform) {
-                                                        IAPPlatform.ANDROID -> {
-                                                            val offers = subscription.subscriptionOfferAndroid?.mapNotNull { offer ->
-                                                                offer.offerToken?.let { token ->
-                                                                    SubscriptionOfferAndroid(
-                                                                        sku = subscription.productId,
-                                                                        offerToken = token
-                                                                    )
-                                                                }
-                                                            }
-                                                            RequestSubscriptionAndroid(
-                                                                sku = subscription.productId,
-                                                                skus = listOf(subscription.productId),
-                                                                subscriptionOffers = offers,
-                                                                obfuscatedAccountIdAndroid = null,
-                                                                obfuscatedProfileIdAndroid = null
-                                                            )
-                                                        }
-                                                        IAPPlatform.IOS -> {
-                                                            RequestSubscriptionIOS(
-                                                                sku = subscription.productId,
-                                                                quantity = 1
-                                                            )
-                                                        }
-                                                        else -> throw IllegalStateException("Unsupported platform")
-                                                    }
-                                                    
-                                                    KmpIAP.requestPurchase(request, PurchaseType.SUBS)
-                                                } catch (e: Exception) {
-                                                    purchaseResult = "Subscription failed: ${e.message}"
-                                                } finally {
-                                                    isProcessing = false
-                                                }
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !isProcessing,
-                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
-                                ) {
-                                    if (isProcessing) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            color = Color.White,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Text("Subscribe for ${subscription.localizedPrice}", color = Color.White)
-                                    }
-                                }
-                            }
-                        }
+                        CircularProgressIndicator()
                     }
                 }
-                
-                // Manage subscriptions button
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                Button(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                KmpIAP.deepLinkToSubscriptionsAndroid(null)
-                            } catch (e: Exception) {
-                                transactionResult = "Error opening subscriptions: ${e.message}"
-                            }
-                        }
-                    },
+            } else if (subscriptions.isEmpty()) {
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Secondary)
+                    colors = CardDefaults.cardColors(containerColor = AppColors.Surface),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Manage Subscriptions", color = Color.White)
+                    Text(
+                        text = if (connected) "No subscriptions available" else "Connect to load subscriptions",
+                        modifier = Modifier.padding(16.dp),
+                        color = AppColors.Secondary
+                    )
+                }
+            } else {
+                subscriptions.forEach { subscription ->
+                    val isSubscribed = activeSubscriptions.any { it.productId == subscription.id }
+                    
+                    SubscriptionCard(
+                        subscription = subscription,
+                        isSubscribed = isSubscribed,
+                        onSubscribe = {
+                            if (!isSubscribed) {
+                                scope.launch {
+                                    isProcessing = true
+                                    purchaseResult = null
+                                    try {
+                                        val platform = getCurrentPlatform()
+                                        val purchase = KmpIAP.requestPurchase(
+                                            UnifiedPurchaseRequest(
+                                                sku = subscription.id,
+                                                quantity = 1
+                                            )
+                                        )
+                                        // Purchase updates will be received through the Flow
+                                        // Refresh active subscriptions after purchase
+                                        val updatedPurchases = KmpIAP.getAvailablePurchases()
+                                        activeSubscriptions = updatedPurchases.filter { p ->
+                                            SUBSCRIPTION_IDS.contains(p.productId)
+                                        }
+                                    } catch (e: Exception) {
+                                        purchaseResult = "Subscription failed: ${e.message}"
+                                    } finally {
+                                        isProcessing = false
+                                    }
+                                }
+                            }
+                        },
+                        isProcessing = isProcessing
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
             
-            // Results display
-            if (purchaseResult != null) {
+            // Purchase Result
+            purchaseResult?.let { result ->
                 Spacer(modifier = Modifier.height(20.dp))
                 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = when {
-                            purchaseResult?.contains("✅") == true -> Color(0xFFE8F5E9)
-                            purchaseResult?.contains("❌") == true -> Color(0xFFFFEBEE)
-                            else -> Color(0xFFF5F5F5)
+                            result.contains("✅") -> AppColors.Success.copy(alpha = 0.1f)
+                            result.contains("❌") || result.contains("Error", ignoreCase = true) -> AppColors.Error.copy(alpha = 0.1f)
+                            result.contains("⚠️") || result.contains("cancelled", ignoreCase = true) -> AppColors.Warning
+                            else -> Color.White
                         }
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            "Subscription Result",
+                            text = "Subscription Result",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = AppColors.OnSurface
                         )
+                        
                         Spacer(modifier = Modifier.height(8.dp))
+                        
                         Text(
-                            purchaseResult ?: "",
+                            text = result,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Color.White,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(8.dp)
-                        )
-                    }
-                }
-            }
-            
-            if (transactionResult != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Transaction Result",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
                             color = AppColors.OnSurface
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            transactionResult ?: "",
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Color.White,
-                                    RoundedCornerShape(4.dp)
-                                )
-                                .padding(8.dp)
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SubscriptionCard(
+    subscription: SubscriptionProduct,
+    isSubscribed: Boolean,
+    onSubscribe: () -> Unit,
+    isProcessing: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = subscription.title,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        color = AppColors.OnSurface
+                    )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(
+                        text = subscription.description,
+                        fontSize = 14.sp,
+                        color = AppColors.Secondary
+                    )
+                    
+                    if (subscription.subscriptionPeriod.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Period: ${subscription.subscriptionPeriod}",
+                            fontSize = 12.sp,
+                            color = AppColors.Secondary
+                        )
+                    }
+                    
+                    subscription.introductoryPrice?.let { introPrice ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Introductory price: $introPrice",
+                            fontSize = 12.sp,
+                            color = AppColors.Primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(
+                        text = "ID: ${subscription.id}",
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = AppColors.Secondary
+                    )
+                }
+                
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = subscription.price,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = AppColors.Primary
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Show subscribed status badge if active
+            if (isSubscribed) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppColors.Success.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "✓ Subscribed",
+                            color = AppColors.Success,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onSubscribe,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.Primary
+                    )
+                ) {
+                    if (isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text("Subscribe")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Extension function for iOS subscription period
+private fun SubscriptionIosPeriod.toReadableString(): String {
+    return when (this) {
+        SubscriptionIosPeriod.P1W -> "1 week"
+        SubscriptionIosPeriod.P1M -> "1 month"
+        SubscriptionIosPeriod.P2M -> "2 months"
+        SubscriptionIosPeriod.P3M -> "3 months"
+        SubscriptionIosPeriod.P6M -> "6 months"
+        SubscriptionIosPeriod.P1Y -> "1 year"
     }
 }

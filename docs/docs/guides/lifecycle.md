@@ -27,27 +27,21 @@ The in-app purchase lifecycle consists of several key phases:
 
 Each phase has its own requirements and potential failure modes that need proper handling.
 
-## Connection Management with UseIap
+## Connection Management with KmpIAP
 
 ### Automatic Connection
 
-The kmp-iap library manages connections through the `UseIap` class:
+The kmp-iap library manages connections through the `KmpIAP` singleton:
 
 ```kotlin
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.types.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
 class IAPViewModel : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
-            autoFinishTransactions = true,
-            enablePendingPurchases = true
-        )
-    )
     
     data class ConnectionState(
         val isConnected: Boolean = false,
@@ -61,7 +55,7 @@ class IAPViewModel : ViewModel() {
     init {
         // Automatically initialize connection when ViewModel is created
         initConnection()
-        observeConnectionState()
+        observePurchaseEvents()
     }
     
     private fun initConnection() {
@@ -69,8 +63,13 @@ class IAPViewModel : ViewModel() {
             _connectionState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                iapHelper.initConnection()
-                // Connection state will be updated via StateFlow
+                val connected = KmpIAP.initConnection()
+                _connectionState.update { 
+                    it.copy(
+                        isConnected = connected,
+                        isLoading = false
+                    )
+                }
             } catch (e: PurchaseError) {
                 _connectionState.update { 
                     it.copy(
@@ -83,14 +82,11 @@ class IAPViewModel : ViewModel() {
         }
     }
     
-    private fun observeConnectionState() {
+    private fun observePurchaseEvents() {
         viewModelScope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
+            KmpIAP.purchaseErrorListener.collect { error ->
                 _connectionState.update { 
-                    it.copy(
-                        isConnected = connected,
-                        isLoading = false
-                    )
+                    it.copy(error = error.message)
                 }
             }
         }
@@ -98,9 +94,8 @@ class IAPViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
-}
 ```
 
 ### Connection States
@@ -118,7 +113,7 @@ enum class IAPConnectionState {
 class ConnectionManager(
     private val scope: CoroutineScope
 ) {
-    private val iapHelper = UseIap(scope, UseIapOptions())
+    // Initialize KmpIAP in init block
     
     private val _state = MutableStateFlow(IAPConnectionState.DISCONNECTED)
     val state: StateFlow<IAPConnectionState> = _state.asStateFlow()
@@ -130,10 +125,10 @@ class ConnectionManager(
         _state.value = IAPConnectionState.CONNECTING
         
         try {
-            iapHelper.initConnection()
+            KmpIAP.initConnection()
             // Observe connection state
             scope.launch {
-                iapHelper.isConnected.collectLatest { connected ->
+                val connected = KmpIAP.isConnected()
                     _state.value = if (connected) {
                         IAPConnectionState.CONNECTED
                     } else {
@@ -160,10 +155,7 @@ import androidx.lifecycle.*
 import kotlinx.coroutines.flow.*
 
 class PurchaseViewModel : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions()
-    )
+    // KmpIAP is a singleton, no need to create instance
     
     data class PurchaseUiState(
         val isProcessing: Boolean = false,
@@ -186,7 +178,7 @@ class PurchaseViewModel : ViewModel() {
     private fun setupPurchaseObservers() {
         // Observe purchase success
         viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
                 purchase?.let {
                     _uiState.update { state ->
                         state.copy(
@@ -201,7 +193,7 @@ class PurchaseViewModel : ViewModel() {
         
         // Observe errors
         viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
+            KmpIAP.purchaseErrorListener.collect { error ->
                 error?.let {
                     _uiState.update { state ->
                         state.copy(
@@ -217,7 +209,7 @@ class PurchaseViewModel : ViewModel() {
     
     private suspend fun checkPendingPurchases() {
         // Check for pending transactions on app resume
-        iapHelper.availablePurchases.collectLatest { purchases ->
+        val purchases = KmpIAP.getAvailablePurchases()
             purchases.forEach { purchase ->
                 if (!isTransactionFinished(purchase)) {
                     finishPendingTransaction(purchase)
@@ -228,7 +220,7 @@ class PurchaseViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 ```
@@ -281,7 +273,7 @@ fun PurchaseScreen(viewModel: PurchaseViewModel = viewModel()) {
 
 ## Best Practices
 
-### ✅ Do:
+### ✅ Do
 
 - **Initialize connections early** in your app lifecycle
 - **Set up state observers** before making any purchase requests
@@ -297,7 +289,7 @@ fun PurchaseScreen(viewModel: PurchaseViewModel = viewModel()) {
 ```kotlin
 // Good: Comprehensive lifecycle management
 class GoodPurchaseManager : ViewModel() {
-    private val iapHelper = UseIap(viewModelScope, UseIapOptions())
+    // KmpIAP is a singleton
     
     init {
         setupObservers()
@@ -316,7 +308,7 @@ class GoodPurchaseManager : ViewModel() {
     
     fun checkPendingTransactions() {
         viewModelScope.launch {
-            iapHelper.availablePurchases.collectLatest { purchases ->
+            val purchases = KmpIAP.getAvailablePurchases()
                 purchases.forEach { finishIfNeeded(it) }
             }
         }
@@ -324,12 +316,12 @@ class GoodPurchaseManager : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        iapHelper.dispose()
+        KmpIAP.dispose()
     }
 }
 ```
 
-### ❌ Don't:
+### ❌ Don't
 
 - **Make purchases without observers** set up first
 - **Ignore connection state** when making requests
@@ -350,7 +342,12 @@ class BadPurchaseManager {
         // Bad: No observers set up
         // Bad: No error handling
         GlobalScope.launch {
-            UseIap(this, UseIapOptions()).requestPurchase(productId)
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = productId,
+                    quantity = 1
+                )
+            )
         }
     }
 }
@@ -424,12 +421,12 @@ class PurchaseStateManager(
     val currentProductId: String? get() = _currentProductId
     val errorMessage: String? get() = _errorMessage
     
-    suspend fun initiatePurchase(productId: String, iapHelper: UseIap) {
+    suspend fun initiatePurchase(productId: String) {
         updateState(PurchaseFlowState.LOADING, productId)
         
         try {
             // Check connection
-            if (!iapHelper.isConnected.value) {
+            if (!KmpIAP.isConnected()) {
                 throw PurchaseError(
                     code = ErrorCode.SERVICE_DISCONNECTED,
                     message = "Store connection lost"
@@ -438,9 +435,12 @@ class PurchaseStateManager(
             
             updateState(PurchaseFlowState.PROCESSING, productId)
             
-            iapHelper.requestPurchase(
-                sku = productId,
-                obfuscatedAccountIdAndroid = getUserId()
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = productId,
+                    quantity = 1,
+                    obfuscatedAccountIdAndroid = getUserId()
+                )
             )
             
         } catch (e: PurchaseError) {
@@ -538,7 +538,7 @@ class PurchaseErrorHandler {
 object DevelopmentHelpers {
     val isDebugMode = BuildConfig.DEBUG
     
-    suspend fun setupTestEnvironment(iapHelper: UseIap) {
+    suspend fun setupTestEnvironment() {
         if (!isDebugMode) return
         
         // Clear any existing transactions in debug mode
@@ -569,13 +569,12 @@ object DevelopmentHelpers {
 ```kotlin
 // Solution: Implement proper transaction cleanup
 class TransactionCleanup(
-    private val iapHelper: UseIap,
     private val scope: CoroutineScope
 ) {
     suspend fun cleanupPendingTransactions() {
         try {
             // Get all available purchases
-            iapHelper.availablePurchases.value.forEach { purchase ->
+            KmpIAP.getAvailablePurchases().forEach { purchase ->
                 finalizePurchase(purchase)
             }
         } catch (e: Exception) {
@@ -591,7 +590,7 @@ class TransactionCleanup(
         deliverContent(purchase)
         
         // Then finalize the transaction
-        val success = iapHelper.finishTransaction(
+        val success = KmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = isConsumable(purchase.productId)
         )
@@ -665,7 +664,7 @@ class LifecycleAwarePurchaseManager(
     private val scope: CoroutineScope
 ) {
     private val pendingPurchases = mutableMapOf<String, PurchaseFlowState>()
-    private val iapHelper = UseIap(scope, UseIapOptions())
+    // Initialize KmpIAP in init block
     
     fun onAppResumed() {
         resumePendingPurchases()
@@ -678,7 +677,7 @@ class LifecycleAwarePurchaseManager(
     private fun resumePendingPurchases() {
         // Check for any purchases that completed while app was backgrounded
         scope.launch {
-            iapHelper.availablePurchases.collectLatest { purchases ->
+            val purchases = KmpIAP.getAvailablePurchases()
                 purchases.forEach { purchase ->
                     if (pendingPurchases.containsKey(purchase.productId)) {
                         finalizePurchase(purchase)
@@ -707,7 +706,7 @@ class ResilientConnectionManager(
     suspend fun ensureConnectionWithRetry(): Boolean {
         repeat(3) { attempt ->
             try {
-                iapHelper.initConnection()
+                KmpIAP.initConnection()
                 return true
             } catch (e: PurchaseError) {
                 println("Connection attempt ${attempt + 1} failed: $e")

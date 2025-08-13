@@ -26,7 +26,7 @@ Before installing kmp-iap, ensure you have:
 
 Add kmp-iap to your project's dependencies:
 
-### In your shared module's `build.gradle.kts`:
+### In your shared module's `build.gradle.kts`
 
 ```kotlin
 val commonMain by getting {
@@ -229,24 +229,24 @@ Now that you have kmp-iap installed and configured:
 
 ### iOS Common Issues
 
-**Permission Denied**
+#### Permission Denied
 - Ensure In-App Purchase capability is enabled
 - Verify your Apple Developer account has active agreements
 - Check that products are configured in App Store Connect
 
-**Products Not Loading**
+#### Products Not Loading
 - Products must be submitted for review (at least once)
 - Wait 24 hours after creating products
 - Verify product IDs match exactly
 
 ### Android Common Issues
 
-**Billing Unavailable**
+#### Billing Unavailable
 - Test on a real device (not emulator)
 - Ensure Google Play is installed and up-to-date
 - Verify app is signed with the same key as uploaded to Play Console
 
-**Products Not Found**
+#### Products Not Found
 - Products must be active in Play Console
 - App must be published (at least to internal testing)
 - Wait 2-3 hours after creating products

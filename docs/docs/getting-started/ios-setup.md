@@ -90,7 +90,7 @@ For local testing with StoreKit Configuration File:
 
 Fill in the required fields for each product:
 
-```
+```text
 Reference Name: Premium Upgrade (internal use)
 Product ID: com.yourapp.premium_upgrade
 Price: Choose from price tiers

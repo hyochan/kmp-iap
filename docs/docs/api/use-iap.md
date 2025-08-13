@@ -1,689 +1,439 @@
 ---
-title: UseIap Class
+title: KmpIAP Usage Guide
 sidebar_position: 5
 ---
 
-# UseIap Class
+# KmpIAP Usage Guide
 
-The main class for managing in-app purchases in kmp-iap. Provides a comprehensive API with StateFlow-based state management for Kotlin Multiplatform projects.
+Complete guide for using KmpIAP with proper state management and error handling using Flow-based APIs.
 
-## Class Overview
-
-```kotlin
-class UseIap(
-    private val scope: CoroutineScope,
-    private val options: UseIapOptions = UseIapOptions()
-)
-```
-
-**Parameters**:
-- `scope` - CoroutineScope for managing coroutines lifecycle
-- `options` - Configuration options for the IAP helper
-
-## Basic Usage
+## Basic Setup
 
 ### Initialization
 
 ```kotlin
-import io.github.hyochan.kmpiap.useIap.*
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
-class PurchaseManager {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private lateinit var iapHelper: UseIap
-    
+class PurchaseManager(
+    private val scope: CoroutineScope
+) {
     fun initialize() {
-        iapHelper = UseIap(
-            scope = scope,
-            options = UseIapOptions(
-                autoFinishTransactions = true,
-                enablePendingPurchases = true
-            )
-        )
-        
-        // Initialize connection
         scope.launch {
             try {
-                iapHelper.initConnection()
-                println("IAP initialized successfully")
-            } catch (e: PurchaseError) {
-                println("Failed to initialize: ${e.message}")
-            }
-        }
-    }
-}
-```
-
-### State Observation
-
-```kotlin
-class PurchaseViewModel(
-    private val iapHelper: UseIap
-) : ViewModel() {
-    
-    init {
-        // Observe connection state
-        viewModelScope.launch {
-            iapHelper.isConnected.collectLatest { connected ->
-                updateConnectionUI(connected)
-            }
-        }
-        
-        // Observe products
-        viewModelScope.launch {
-            iapHelper.products.collectLatest { products ->
-                updateProductList(products)
-            }
-        }
-        
-        // Observe purchase events
-        viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
-                purchase?.let {
-                    handlePurchaseSuccess(it)
-                    iapHelper.clearPurchase()
+                val connected = KmpIAP.initConnection()
+                if (connected) {
+                    println("Successfully connected to store")
+                    setupEventListeners()
+                } else {
+                    println("Failed to connect to store")
                 }
-            }
-        }
-        
-        // Observe errors
-        viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
-                error?.let {
-                    showError(it)
-                    iapHelper.clearError()
-                }
-            }
-        }
-    }
-}
-```
-
-## Constructor Options
-
-### UseIapOptions
-
-```kotlin
-data class UseIapOptions(
-    val autoFinishTransactions: Boolean = true,
-    val enablePendingPurchases: Boolean = true,
-    val connectionTimeout: Duration = 30.seconds
-)
-```
-
-**Properties**:
-- `autoFinishTransactions` - Automatically finish transactions after purchase
-- `enablePendingPurchases` - Enable pending purchases on Android
-- `connectionTimeout` - Timeout for connection establishment
-
-## State Properties
-
-### Connection State
-
-```kotlin
-val isConnected: StateFlow<Boolean>
-```
-
-Indicates whether the IAP service is connected and ready.
-
-```kotlin
-// Observe connection state
-scope.launch {
-    iapHelper.isConnected.collectLatest { connected ->
-        if (connected) {
-            loadProducts()
-        } else {
-            disablePurchaseButtons()
-        }
-    }
-}
-```
-
-### Product Lists
-
-```kotlin
-val products: StateFlow<List<Product>>
-val subscriptions: StateFlow<List<Product>>
-```
-
-Lists of available products and subscriptions.
-
-```kotlin
-// Display products
-@Composable
-fun ProductList(iapHelper: UseIap) {
-    val products by iapHelper.products.collectAsState()
-    
-    LazyColumn {
-        items(products) { product ->
-            ProductCard(
-                product = product,
-                onPurchase = { 
-                    scope.launch {
-                        iapHelper.requestPurchase(product.productId)
-                    }
-                }
-            )
-        }
-    }
-}
-```
-
-### Purchase States
-
-```kotlin
-val availablePurchases: StateFlow<List<Purchase>>
-val purchaseHistories: StateFlow<List<Purchase>>
-val currentPurchase: StateFlow<Purchase?>
-```
-
-Purchase-related state flows.
-
-```kotlin
-// Check if user owns a product
-fun isProductOwned(productId: String): Boolean {
-    return iapHelper.availablePurchases.value.any { 
-        it.productId == productId 
-    }
-}
-```
-
-### Error State
-
-```kotlin
-val currentError: StateFlow<PurchaseError?>
-```
-
-Current error state, if any.
-
-```kotlin
-// Error handling
-LaunchedEffect(Unit) {
-    iapHelper.currentError.collectLatest { error ->
-        error?.let {
-            when (it.code) {
-                ErrorCode.USER_CANCELLED -> {
-                    // User cancelled, no action needed
-                }
-                ErrorCode.NETWORK_ERROR -> {
-                    showRetryDialog("Network error. Please try again.")
-                }
-                else -> {
-                    showErrorDialog(it.message)
-                }
-            }
-            iapHelper.clearError()
-        }
-    }
-}
-```
-
-### Platform-Specific States
-
-```kotlin
-val promotedProductsIOS: StateFlow<List<Product>?>
-```
-
-iOS-specific promoted products from App Store.
-
-## Core Methods
-
-### Connection Management
-
-```kotlin
-suspend fun initConnection()
-fun dispose()
-```
-
-**Example**:
-```kotlin
-class IAPService {
-    private val iapHelper = UseIap(scope, options)
-    
-    suspend fun connect() {
-        try {
-            iapHelper.initConnection()
-        } catch (e: PurchaseError) {
-            handleError(e)
-        }
-    }
-    
-    fun cleanup() {
-        iapHelper.dispose()
-    }
-}
-```
-
-### Product Management
-
-```kotlin
-suspend fun getProducts(skus: List<String>): List<Product>
-suspend fun getSubscriptions(skus: List<String>): List<Product>
-```
-
-**Example**:
-```kotlin
-suspend fun loadStore() {
-    try {
-        // Load products
-        val productSkus = listOf("coins_100", "coins_500", "remove_ads")
-        iapHelper.getProducts(productSkus)
-        
-        // Load subscriptions
-        val subscriptionSkus = listOf("premium_monthly", "premium_yearly")
-        iapHelper.getSubscriptions(subscriptionSkus)
-        
-        // Products will be available via StateFlow
-    } catch (e: PurchaseError) {
-        println("Failed to load products: ${e.message}")
-    }
-}
-```
-
-### Purchase Processing
-
-```kotlin
-suspend fun requestPurchase(
-    sku: String,
-    andDangerouslyFinishTransactionAutomaticallyIOS: Boolean? = null,
-    appAccountTokenIOS: String? = null,
-    quantityIOS: Int? = null,
-    obfuscatedAccountIdAndroid: String? = null,
-    obfuscatedProfileIdAndroid: String? = null,
-    isOfferPersonalizedAndroid: Boolean? = null
-)
-
-suspend fun requestSubscription(
-    sku: String,
-    subscriptionOffers: List<SubscriptionOfferAndroid>? = null,
-    // ... same parameters as requestPurchase
-)
-```
-
-**Example**:
-```kotlin
-// Simple purchase
-suspend fun purchaseItem(productId: String) {
-    try {
-        iapHelper.requestPurchase(
-            sku = productId,
-            obfuscatedAccountIdAndroid = getUserId()
-        )
-        // Result will be emitted via currentPurchase StateFlow
-    } catch (e: PurchaseError) {
-        // Error will be emitted via currentError StateFlow
-    }
-}
-
-// Subscription with offer
-suspend fun subscribeWithOffer(sku: String, offerToken: String) {
-    iapHelper.requestSubscription(
-        sku = sku,
-        subscriptionOffers = listOf(
-            SubscriptionOfferAndroid(
-                sku = sku,
-                offerToken = offerToken
-            )
-        )
-    )
-}
-```
-
-### Transaction Management
-
-```kotlin
-suspend fun finishTransaction(
-    purchase: Purchase,
-    isConsumable: Boolean = false
-): Boolean
-
-suspend fun consumePurchase(purchaseToken: String): Boolean
-```
-
-**Example**:
-```kotlin
-// Handle successful purchase
-scope.launch {
-    iapHelper.currentPurchase.collectLatest { purchase ->
-        purchase?.let {
-            // Deliver content
-            deliverPurchasedContent(it.productId)
-            
-            // Finish transaction
-            val success = iapHelper.finishTransaction(
-                purchase = it,
-                isConsumable = true
-            )
-            
-            if (success) {
-                println("Transaction completed")
-            }
-        }
-    }
-}
-```
-
-### State Management
-
-```kotlin
-fun clearPurchase()
-fun clearError()
-```
-
-**Example**:
-```kotlin
-// Clear states after handling
-fun handlePurchaseComplete(purchase: Purchase) {
-    // Process purchase
-    processPurchase(purchase)
-    
-    // Clear the current purchase state
-    iapHelper.clearPurchase()
-}
-
-fun handleError(error: PurchaseError) {
-    // Show error to user
-    showErrorDialog(error.message)
-    
-    // Clear error state
-    iapHelper.clearError()
-}
-```
-
-### Platform-Specific Methods
-
-```kotlin
-// iOS Methods
-suspend fun presentCodeRedemptionSheetIOS()
-suspend fun showManageSubscriptionsIOS()
-suspend fun getStorefrontIOS(): Map<String, Any?>?
-fun getStore(): Store
-
-// Android Methods
-suspend fun deepLinkToSubscriptionsAndroid(sku: String)
-suspend fun requestPurchaseHistoryAndroid()
-```
-
-**Example**:
-```kotlin
-// Platform-specific features
-when (getCurrentPlatform()) {
-    IAPPlatform.IOS -> {
-        // iOS specific
-        Button(onClick = {
-            scope.launch {
-                iapHelper.presentCodeRedemptionSheetIOS()
-            }
-        }) {
-            Text("Redeem Code")
-        }
-    }
-    IAPPlatform.ANDROID -> {
-        // Android specific
-        Button(onClick = {
-            scope.launch {
-                iapHelper.deepLinkToSubscriptionsAndroid("premium_monthly")
-            }
-        }) {
-            Text("Manage Subscription")
-        }
-    }
-}
-```
-
-## Complete Implementation Example
-
-### View Model
-
-```kotlin
-class StoreViewModel : ViewModel() {
-    private val iapHelper = UseIap(
-        scope = viewModelScope,
-        options = UseIapOptions(
-            autoFinishTransactions = false // Manual control
-        )
-    )
-    
-    data class StoreState(
-        val isConnected: Boolean = false,
-        val products: List<Product> = emptyList(),
-        val subscriptions: List<Product> = emptyList(),
-        val ownedProducts: Set<String> = emptySet(),
-        val isLoading: Boolean = false,
-        val error: String? = null
-    )
-    
-    private val _state = MutableStateFlow(StoreState())
-    val state: StateFlow<StoreState> = _state.asStateFlow()
-    
-    init {
-        observeIAPStates()
-        initializeStore()
-    }
-    
-    private fun observeIAPStates() {
-        // Combine all states
-        combine(
-            iapHelper.isConnected,
-            iapHelper.products,
-            iapHelper.subscriptions,
-            iapHelper.availablePurchases
-        ) { connected, products, subs, purchases ->
-            StoreState(
-                isConnected = connected,
-                products = products,
-                subscriptions = subs,
-                ownedProducts = purchases.map { it.productId }.toSet()
-            )
-        }.onEach { newState ->
-            _state.update { current ->
-                current.copy(
-                    isConnected = newState.isConnected,
-                    products = newState.products,
-                    subscriptions = newState.subscriptions,
-                    ownedProducts = newState.ownedProducts
-                )
-            }
-        }.launchIn(viewModelScope)
-        
-        // Observe purchase success
-        viewModelScope.launch {
-            iapHelper.currentPurchase.collectLatest { purchase ->
-                purchase?.let {
-                    handlePurchaseSuccess(it)
-                }
-            }
-        }
-        
-        // Observe errors
-        viewModelScope.launch {
-            iapHelper.currentError.collectLatest { error ->
-                error?.let {
-                    _state.update { current ->
-                        current.copy(error = it.message)
-                    }
-                    iapHelper.clearError()
-                }
-            }
-        }
-    }
-    
-    private fun initializeStore() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            
-            try {
-                // Initialize connection
-                iapHelper.initConnection()
-                
-                // Load products
-                iapHelper.getProducts(PRODUCT_SKUS)
-                iapHelper.getSubscriptions(SUBSCRIPTION_SKUS)
-                
             } catch (e: Exception) {
-                _state.update { 
-                    it.copy(error = "Failed to initialize: ${e.message}")
-                }
-            } finally {
-                _state.update { it.copy(isLoading = false) }
+                println("Connection error: ${e.message}")
             }
         }
     }
     
-    fun purchaseProduct(productId: String) {
+    private fun setupEventListeners() {
+        // Listen for purchase updates
+        scope.launch {
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                handlePurchaseSuccess(purchase)
+            }
+        }
+        
+        // Listen for purchase errors
+        scope.launch {
+            KmpIAP.purchaseErrorListener.collect { error ->
+                handlePurchaseError(error)
+            }
+        }
+    }
+}
+```
+
+## Error Handling
+
+### Comprehensive Error Handling
+
+```kotlin
+import io.github.hyochan.kmpiap.ErrorCode
+
+class PurchaseViewModel : ViewModel() {
+    
+    init {
+        // Setup error listener with proper handling
         viewModelScope.launch {
-            try {
-                iapHelper.requestPurchase(
+            KmpIAP.purchaseErrorListener.collect { error ->
+                when (error.code) {
+                    ErrorCode.E_USER_CANCELLED.name -> {
+                        // User cancelled - no error message needed
+                        println("User cancelled the purchase")
+                    }
+                    ErrorCode.E_NETWORK_ERROR.name -> {
+                        showErrorDialog("Network error. Please check your connection.")
+                    }
+                    ErrorCode.E_ITEM_UNAVAILABLE.name -> {
+                        showErrorDialog("This item is not available.")
+                    }
+                    ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+                        showInfoDialog("You already own this item.")
+                        refreshPurchases()
+                    }
+                    ErrorCode.E_SERVICE_DISCONNECTED.name -> {
+                        // Try to reconnect
+                        reconnectToStore()
+                    }
+                    ErrorCode.E_BILLING_UNAVAILABLE.name -> {
+                        showErrorDialog("Billing is not available on this device.")
+                    }
+                    else -> {
+                        // Generic error handling
+                        showErrorDialog("Purchase failed: ${error.message}")
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun showErrorDialog(message: String) {
+        // Show error to user
+        _errorMessage.value = message
+    }
+    
+    private fun showInfoDialog(message: String) {
+        // Show info to user
+        _infoMessage.value = message
+    }
+}
+```
+
+## Purchase Flow Management
+
+### Complete Purchase Flow with Error Handling
+
+```kotlin
+class PurchaseFlowManager(
+    private val scope: CoroutineScope
+) {
+    private val _purchaseState = MutableStateFlow<PurchaseState>(PurchaseState.Idle)
+    val purchaseState: StateFlow<PurchaseState> = _purchaseState.asStateFlow()
+    
+    sealed class PurchaseState {
+        object Idle : PurchaseState()
+        object Loading : PurchaseState()
+        data class Success(val purchase: Purchase) : PurchaseState()
+        data class Error(val error: PurchaseError) : PurchaseState()
+    }
+    
+    init {
+        // Setup purchase listeners
+        scope.launch {
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                _purchaseState.value = PurchaseState.Success(purchase)
+                processPurchase(purchase)
+            }
+        }
+        
+        scope.launch {
+            KmpIAP.purchaseErrorListener.collect { error ->
+                _purchaseState.value = PurchaseState.Error(error)
+            }
+        }
+    }
+    
+    suspend fun purchaseProduct(productId: String) {
+        _purchaseState.value = PurchaseState.Loading
+        
+        try {
+            KmpIAP.requestPurchase(
+                UnifiedPurchaseRequest(
                     sku = productId,
-                    obfuscatedAccountIdAndroid = getUserId()
+                    quantity = 1
                 )
-            } catch (e: Exception) {
-                // Handled by error flow
-            }
+            )
+        } catch (e: PurchaseError) {
+            _purchaseState.value = PurchaseState.Error(e)
         }
     }
     
-    private suspend fun handlePurchaseSuccess(purchase: Purchase) {
+    private suspend fun processPurchase(purchase: Purchase) {
         try {
-            // Verify purchase on server
-            val isValid = verifyPurchaseOnServer(purchase)
+            // Verify purchase with your backend
+            val isValid = verifyPurchase(purchase)
             
             if (isValid) {
                 // Deliver content
                 deliverContent(purchase.productId)
                 
                 // Finish transaction
-                iapHelper.finishTransaction(
+                KmpIAP.finishTransaction(
                     purchase = purchase,
-                    isConsumable = isConsumableProduct(purchase.productId)
+                    isConsumable = true
                 )
-                
-                // Clear purchase state
-                iapHelper.clearPurchase()
-                
-                // Show success
-                _state.update { 
-                    it.copy(error = null)
-                }
-            } else {
-                _state.update { 
-                    it.copy(error = "Purchase verification failed")
-                }
             }
         } catch (e: Exception) {
-            _state.update { 
-                it.copy(error = "Failed to process purchase: ${e.message}")
-            }
+            println("Failed to process purchase: ${e.message}")
         }
-    }
-    
-    fun clearError() {
-        _state.update { it.copy(error = null) }
-    }
-    
-    override fun onCleared() {
-        super.onCleared()
-        iapHelper.dispose()
-    }
-    
-    companion object {
-        private val PRODUCT_SKUS = listOf(
-            "coins_100",
-            "coins_500",
-            "remove_ads"
-        )
-        
-        private val SUBSCRIPTION_SKUS = listOf(
-            "premium_monthly",
-            "premium_yearly"
-        )
     }
 }
 ```
 
-### Compose UI
+## Subscription Management
+
+### Subscription Flow with Proper Error Handling
 
 ```kotlin
-@Composable
-fun StoreScreen(viewModel: StoreViewModel = viewModel()) {
-    val state by viewModel.state.collectAsState()
+class SubscriptionManager(
+    private val scope: CoroutineScope
+) {
+    private val _subscriptionState = MutableStateFlow<SubscriptionState>(SubscriptionState.NotSubscribed)
+    val subscriptionState: StateFlow<SubscriptionState> = _subscriptionState.asStateFlow()
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Store") },
-                actions = {
-                    // Connection indicator
-                    Icon(
-                        imageVector = if (state.isConnected) 
-                            Icons.Default.CloudDone else Icons.Default.CloudOff,
-                        contentDescription = "Connection status",
-                        tint = if (state.isConnected) Color.Green else Color.Red
-                    )
+    sealed class SubscriptionState {
+        object NotSubscribed : SubscriptionState()
+        object Loading : SubscriptionState()
+        data class Active(val purchase: Purchase) : SubscriptionState()
+        data class Error(val message: String) : SubscriptionState()
+    }
+    
+    init {
+        setupListeners()
+        checkActiveSubscriptions()
+    }
+    
+    private fun setupListeners() {
+        // Listen for successful subscription purchases
+        scope.launch {
+            KmpIAP.purchaseUpdatedListener
+                .filter { purchase ->
+                    // Filter for subscription purchases
+                    purchase.productId.startsWith("subscription_")
                 }
-            )
+                .collect { purchase ->
+                    handleSubscriptionPurchase(purchase)
+                }
         }
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                
-                state.error != null -> {
-                    ErrorView(
-                        error = state.error,
-                        onDismiss = viewModel::clearError,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                
-                else -> {
-                    LazyColumn {
-                        // Products section
-                        item {
-                            Text(
-                                "Products",
-                                style = MaterialTheme.typography.h6,
-                                modifier = Modifier.padding(16.dp)
-                            )
-                        }
-                        
-                        items(state.products) { product ->
-                            ProductItem(
-                                product = product,
-                                isOwned = product.productId in state.ownedProducts,
-                                onPurchase = {
-                                    viewModel.purchaseProduct(product.productId)
-                                }
-                            )
-                        }
-                        
-                        // Subscriptions section
-                        if (state.subscriptions.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "Subscriptions",
-                                    style = MaterialTheme.typography.h6,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
-                            
-                            items(state.subscriptions) { subscription ->
-                                SubscriptionItem(
-                                    subscription = subscription,
-                                    isActive = subscription.productId in state.ownedProducts,
-                                    onSubscribe = {
-                                        viewModel.purchaseProduct(subscription.productId)
-                                    }
-                                )
-                            }
-                        }
+        
+        // Listen for subscription errors
+        scope.launch {
+            KmpIAP.purchaseErrorListener.collect { error ->
+                when (error.code) {
+                    ErrorCode.E_USER_CANCELLED.name -> {
+                        _subscriptionState.value = SubscriptionState.NotSubscribed
+                    }
+                    ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+                        // User already has an active subscription
+                        checkActiveSubscriptions()
+                    }
+                    else -> {
+                        _subscriptionState.value = SubscriptionState.Error(
+                            error.message ?: "Subscription failed"
+                        )
                     }
                 }
             }
+        }
+    }
+    
+    private suspend fun handleSubscriptionPurchase(purchase: Purchase) {
+        // For subscriptions, only acknowledge (don't consume)
+        KmpIAP.finishTransaction(
+            purchase = purchase,
+            isConsumable = false // Important: subscriptions are not consumable
+        )
+        
+        _subscriptionState.value = SubscriptionState.Active(purchase)
+    }
+    
+    private fun checkActiveSubscriptions() {
+        scope.launch {
+            try {
+                val purchases = KmpIAP.getAvailablePurchases()
+                val activeSubscription = purchases.firstOrNull { purchase ->
+                    purchase.productId.startsWith("subscription_")
+                }
+                
+                if (activeSubscription != null) {
+                    _subscriptionState.value = SubscriptionState.Active(activeSubscription)
+                } else {
+                    _subscriptionState.value = SubscriptionState.NotSubscribed
+                }
+            } catch (e: Exception) {
+                _subscriptionState.value = SubscriptionState.Error(e.message ?: "Failed to check subscriptions")
+            }
+        }
+    }
+}
+```
+
+## Compose Integration
+
+### Using KmpIAP in Compose UI
+
+```kotlin
+@Composable
+fun PurchaseScreen() {
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var purchaseResult by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Setup listeners
+    LaunchedEffect(Unit) {
+        // Load products
+        launch {
+            try {
+                products = KmpIAP.requestProducts(
+                    ProductRequest(
+                        skus = listOf("product_1", "product_2"),
+                        type = ProductType.INAPP
+                    )
+                )
+            } catch (e: Exception) {
+                errorMessage = "Failed to load products: ${e.message}"
+            }
+        }
+        
+        // Listen for purchase updates
+        launch {
+            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                purchaseResult = "Purchase successful: ${purchase.productId}"
+                
+                // Finish the transaction
+                KmpIAP.finishTransaction(purchase, isConsumable = true)
+            }
+        }
+        
+        // Listen for errors
+        launch {
+            KmpIAP.purchaseErrorListener.collect { error ->
+                errorMessage = when (error.code) {
+                    ErrorCode.E_USER_CANCELLED.name -> null // Don't show error for cancellation
+                    ErrorCode.E_NETWORK_ERROR.name -> "Network error. Please try again."
+                    ErrorCode.E_ITEM_ALREADY_OWNED.name -> "You already own this item."
+                    else -> error.message
+                }
+            }
+        }
+    }
+    
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp)
+    ) {
+        // Show products
+        products.forEach { product ->
+            ProductCard(
+                product = product,
+                onPurchase = {
+                    purchaseProduct(product.id)
+                }
+            )
+        }
+        
+        // Show purchase result
+        purchaseResult?.let {
+            SuccessMessage(message = it)
+        }
+        
+        // Show error message
+        errorMessage?.let {
+            ErrorMessage(message = it)
+        }
+    }
+}
+
+private suspend fun purchaseProduct(productId: String) {
+    try {
+        KmpIAP.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
+        )
+    } catch (e: Exception) {
+        // Error will be handled by purchaseErrorListener
+    }
+}
+```
+
+## Advanced Patterns
+
+### Retry Logic with Exponential Backoff
+
+```kotlin
+class ResilientPurchaseManager(
+    private val scope: CoroutineScope
+) {
+    private var retryCount = 0
+    private val maxRetries = 3
+    
+    init {
+        scope.launch {
+            KmpIAP.purchaseErrorListener.collect { error ->
+                when (error.code) {
+                    ErrorCode.E_NETWORK_ERROR.name,
+                    ErrorCode.E_SERVICE_DISCONNECTED.name -> {
+                        retryWithBackoff()
+                    }
+                    else -> {
+                        // Reset retry count for other errors
+                        retryCount = 0
+                    }
+                }
+            }
+        }
+    }
+    
+    private suspend fun retryWithBackoff() {
+        if (retryCount < maxRetries) {
+            val delayMillis = (1000 * Math.pow(2.0, retryCount.toDouble())).toLong()
+            delay(delayMillis)
+            retryCount++
+            
+            try {
+                KmpIAP.initConnection()
+                retryCount = 0 // Reset on success
+            } catch (e: Exception) {
+                // Will trigger error listener again
+            }
+        }
+    }
+}
+```
+
+### Combined State Management
+
+```kotlin
+class PurchaseStateManager(
+    private val scope: CoroutineScope
+) {
+    private val _state = MutableStateFlow(PurchaseUiState())
+    val state: StateFlow<PurchaseUiState> = _state.asStateFlow()
+    
+    data class PurchaseUiState(
+        val isLoading: Boolean = false,
+        val products: List<Product> = emptyList(),
+        val lastPurchase: Purchase? = null,
+        val error: String? = null
+    )
+    
+    init {
+        // Combine multiple flows into single state
+        scope.launch {
+            combine(
+                KmpIAP.purchaseUpdatedListener,
+                KmpIAP.purchaseErrorListener
+            ) { purchase, error ->
+                _state.update { currentState ->
+                    currentState.copy(
+                        isLoading = false,
+                        lastPurchase = purchase,
+                        error = error?.message
+                    )
+                }
+            }.collect()
         }
     }
 }
@@ -691,67 +441,47 @@ fun StoreScreen(viewModel: StoreViewModel = viewModel()) {
 
 ## Best Practices
 
-1. **Scope Management**: Use appropriate CoroutineScope (viewModelScope, lifecycleScope)
-2. **Error Handling**: Always handle PurchaseError exceptions
-3. **State Collection**: Use `collectLatest` to cancel previous collections
-4. **Clear States**: Clear purchase and error states after handling
-5. **Platform Checks**: Check platform before using platform-specific methods
-6. **Transaction Verification**: Always verify purchases on your server
+1. **Always handle all error codes** - Provide appropriate user feedback for each error type
+2. **Use structured concurrency** - Launch collectors in appropriate scopes
+3. **Don't show error for user cancellation** - This is expected behavior
+4. **Verify purchases server-side** - Always validate purchases with your backend
+5. **Handle reconnection** - Implement retry logic for network errors
+6. **Clean up resources** - Cancel collection jobs when no longer needed
+7. **Test error scenarios** - Use test cards/accounts to verify error handling
 
-## Testing
+## Migration from UseIap
 
-### Mock Implementation
+If you were using the old UseIap pattern, here's how to migrate:
 
+### Old Pattern
 ```kotlin
-class MockUseIap : UseIap {
-    private val _products = MutableStateFlow<List<Product>>(emptyList())
-    override val products: StateFlow<List<Product>> = _products
-    
-    private val _currentPurchase = MutableStateFlow<Purchase?>(null)
-    override val currentPurchase: StateFlow<Purchase?> = _currentPurchase
-    
-    // Test helpers
-    fun emitProducts(products: List<Product>) {
-        _products.value = products
+// Old UseIap pattern
+iapHelper.currentError.collectLatest { error ->
+    error?.let {
+        showError(it)
+        iapHelper.clearError()
     }
-    
-    fun emitPurchase(purchase: Purchase) {
-        _currentPurchase.value = purchase
-    }
-}
-
-// In tests
-@Test
-fun testPurchaseFlow() = runTest {
-    val mockIap = MockUseIap()
-    val viewModel = StoreViewModel(mockIap)
-    
-    // Emit test products
-    mockIap.emitProducts(
-        listOf(
-            Product(productId = "test_product", price = "$0.99")
-        )
-    )
-    
-    // Verify state update
-    assertEquals(1, viewModel.state.value.products.size)
 }
 ```
 
-## Migration from Flutter
+### New Pattern
+```kotlin
+// New KmpIAP pattern
+KmpIAP.purchaseErrorListener.collect { error ->
+    // No need to check for null or clear
+    showError(error)
+}
+```
 
-Key differences when migrating from flutter_inapp_purchase:
-
-1. **StateFlow vs Streams**: Use Kotlin StateFlow instead of Dart Streams
-2. **Coroutines vs Futures**: Use suspend functions with coroutines
-3. **Data Classes**: Kotlin data classes instead of Dart classes
-4. **Null Safety**: Built-in Kotlin null safety
-5. **Platform Detection**: Use `getCurrentPlatform()` instead of `Platform.isIOS`
+The new API is simpler:
+- No need to clear errors manually
+- No nullable types in flows
+- Direct access via KmpIAP singleton
+- Cleaner event-driven architecture
 
 ## See Also
 
-- [Core Methods](./core-methods.md) - Detailed method documentation
-- [State Management](./listeners.md) - StateFlow usage patterns
-- [Types](./types.md) - Data class definitions
-- [Error Codes](./error-codes.md) - Error handling guide
-- [Examples](../examples/basic-store.md) - Complete implementation examples
+- [Core Methods](./core-methods.md) - Complete API reference
+- [Error Codes](./error-codes.md) - All error codes explained
+- [Listeners](./listeners.md) - Event listener documentation
+- [Examples](../examples/complete-implementation.md) - Full implementation examples

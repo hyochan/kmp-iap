@@ -94,7 +94,7 @@ The library automatically adds the required billing permission to your `AndroidM
 2. Click **Create product** to add new products
 3. Configure your product details:
 
-```
+```text
 Product ID: premium_upgrade
 Name: Premium Upgrade
 Description: Unlock all premium features
