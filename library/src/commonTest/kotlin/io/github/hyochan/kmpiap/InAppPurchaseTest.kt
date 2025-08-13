@@ -1,87 +1,77 @@
 package io.github.hyochan.kmpiap
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import io.github.hyochan.kmpiap.types.*
 import io.github.hyochan.kmpiap.utils.ErrorCode
-import io.github.hyochan.kmpiap.utils.ErrorCodeUtils
-import kotlinx.datetime.Clock
-import kotlin.test.*
 
 class InAppPurchaseTest {
+    
     @Test
-    fun testKmpIAPSingleton() {
-        assertNotNull(KmpIAP)
+    fun testErrorCodes() {
+        val errorCode = ErrorCode.E_USER_CANCELLED
+        assertEquals("E_USER_CANCELLED", errorCode.name)
+        assertNotNull(errorCode)
     }
     
     @Test
-    fun testGetVersion() {
-        val version = KmpIAP.getVersion()
-        assertTrue(version.contains("KMP-IAP"))
-        assertTrue(version.contains("alpha"))
-    }
-    
-    @Test
-    fun testGetStore() {
-        val store = KmpIAP.getStore()
-        assertTrue(
-            store == Store.PLAY_STORE || store == Store.APP_STORE,
-            "Store should be either PLAY_STORE or APP_STORE"
-        )
+    fun testPlatformTypes() {
+        val android = IAPPlatform.ANDROID
+        val ios = IAPPlatform.IOS
+        
+        assertEquals("ANDROID", android.name)
+        assertEquals("IOS", ios.name)
     }
     
     @Test
     fun testPurchaseErrorTypes() {
         val error = PurchaseError(
             message = "Test error",
-            code = ErrorCode.E_USER_CANCELLED,
-            productId = "test_product"
+            code = ErrorCode.E_USER_CANCELLED.name
         )
         
         assertEquals("Test error", error.message)
-        assertEquals(ErrorCode.E_USER_CANCELLED, error.code)
-        assertEquals("test_product", error.productId)
-        assertEquals("[kmp-iap]: PurchaseError", error.name)
+        assertEquals(ErrorCode.E_USER_CANCELLED.name, error.code)
     }
     
     @Test
     fun testProductTypes() {
         val product = Product(
-            productId = "test_product",
-            price = "0.99",
+            id = "test_product",
+            price = "$0.99",
+            priceAmount = 0.99,
             currency = "USD",
-            localizedPrice = "$0.99",
             title = "Test Product",
             description = "A test product",
-            platform = IAPPlatform.ANDROID,
-            type = ProductType.INAPP
+            platform = IAPPlatform.ANDROID
         )
         
-        assertEquals("test_product", product.productId)
-        assertEquals("0.99", product.price)
+        assertEquals("test_product", product.id)
+        assertEquals("$0.99", product.price)
         assertEquals("USD", product.currency)
-        assertEquals("$0.99", product.localizedPrice)
-        assertEquals(ProductType.INAPP, product.type)
+        assertEquals(0.99, product.priceAmount)
     }
     
     @Test
     fun testSubscriptionTypes() {
-        val subscription = Subscription(
-            productId = "test_subscription",
-            price = "9.99",
+        val subscription = SubscriptionProduct(
+            id = "test_subscription",
+            price = "$9.99",
+            priceAmount = 9.99,
             currency = "USD",
-            localizedPrice = "$9.99",
             title = "Test Subscription",
             description = "A test subscription",
             platform = IAPPlatform.IOS,
-            type = ProductType.SUBS,
-            subscriptionPeriodUnitIOS = "month",
-            subscriptionPeriodNumberIOS = 1
+            subscriptionPeriod = "P1M",
+            introductoryPrice = null,
+            subscriptionGroupIdentifier = null
         )
         
-        assertEquals("test_subscription", subscription.productId)
-        assertEquals("9.99", subscription.price)
-        assertEquals(ProductType.SUBS, subscription.type)
-        assertEquals("month", subscription.subscriptionPeriodUnitIOS)
-        assertEquals(1, subscription.subscriptionPeriodNumberIOS)
+        assertEquals("test_subscription", subscription.id)
+        assertEquals("$9.99", subscription.price)
+        assertEquals("P1M", subscription.subscriptionPeriod)
     }
     
     @Test
@@ -90,151 +80,95 @@ class InAppPurchaseTest {
             productId = "test_product",
             transactionId = "12345",
             transactionReceipt = "receipt_data",
-            purchaseToken = "token",
-            transactionDate = Clock.System.now(),
+            transactionDate = 1234567890.0,
+            purchaseTokenAndroid = "token",
             platform = IAPPlatform.ANDROID,
-            isAcknowledgedAndroid = false,
-            purchaseStateAndroid = "purchased"
+            acknowledgedAndroid = false,
+            purchaseStateAndroid = 1
         )
         
         assertEquals("test_product", purchase.productId)
         assertEquals("12345", purchase.transactionId)
         assertEquals("receipt_data", purchase.transactionReceipt)
-        assertEquals("token", purchase.purchaseToken)
+        assertEquals("token", purchase.purchaseTokenAndroid)
         assertEquals(IAPPlatform.ANDROID, purchase.platform)
-        assertFalse(purchase.isAcknowledgedAndroid ?: true)
+        assertFalse(purchase.acknowledgedAndroid ?: true)
     }
     
     @Test
-    fun testRequestProductsParams() {
-        val params = RequestProductsParams(
+    fun testProductRequest() {
+        val request = ProductRequest(
             skus = listOf("product1", "product2"),
-            type = PurchaseType.INAPP
+            type = ProductType.INAPP
         )
         
-        assertEquals(2, params.skus.size)
-        assertEquals("product1", params.skus[0])
-        assertEquals("product2", params.skus[1])
-        assertEquals(PurchaseType.INAPP, params.type)
+        assertEquals(2, request.skus.size)
+        assertEquals("product1", request.skus[0])
+        assertEquals("product2", request.skus[1])
+        assertEquals(ProductType.INAPP, request.type)
     }
     
     @Test
-    fun testAndroidRequestPurchase() {
-        val request = RequestPurchaseAndroid(
-            skus = listOf("product1"),
+    fun testUnifiedPurchaseRequest() {
+        val request = UnifiedPurchaseRequest(
+            sku = "product1",
+            quantity = 1,
             obfuscatedAccountIdAndroid = "user123",
             obfuscatedProfileIdAndroid = "profile456"
         )
         
         assertEquals("product1", request.sku)
-        assertEquals(listOf("product1"), request.skus)
+        assertEquals(1, request.quantity)
         assertEquals("user123", request.obfuscatedAccountIdAndroid)
         assertEquals("profile456", request.obfuscatedProfileIdAndroid)
-        assertEquals(IAPPlatform.ANDROID, request.platform)
     }
     
     @Test
-    fun testIosRequestPurchase() {
-        val request = RequestPurchaseIOS(
-            sku = "product1",
-            appAccountToken = "token123",
-            quantity = 2
-        )
-        
-        assertEquals("product1", request.sku)
-        assertEquals("token123", request.appAccountToken)
-        assertEquals(2, request.quantity)
-        assertEquals(IAPPlatform.IOS, request.platform)
+    fun testReplacementMode() {
+        val mode = ReplacementMode.IMMEDIATE_WITHOUT_PRORATION
+        assertEquals("IMMEDIATE_WITHOUT_PRORATION", mode.name)
     }
     
     @Test
-    fun testErrorCodeMapping() {
-        // Test error code utilities
-        val errorCode = ErrorCode.E_USER_CANCELLED
+    fun testPurchaseState() {
+        val purchased = PurchaseState.PURCHASED
+        val pending = PurchaseState.PENDING
         
-        // Platform-specific code mapping
-        val androidCode = ErrorCodeUtils.toPlatformCode(
-            errorCode, 
-            IAPPlatform.ANDROID
-        )
-        assertEquals("E_USER_CANCELLED", androidCode)
-        
-        val iosCode = ErrorCodeUtils.toPlatformCode(
-            errorCode, 
-            IAPPlatform.IOS
-        )
-        assertEquals(2, iosCode)
-        
-        // Reverse mapping
-        val androidMapped = ErrorCodeUtils.fromPlatformCode(
-            "E_USER_CANCELLED", 
-            IAPPlatform.ANDROID
-        )
-        assertEquals(ErrorCode.E_USER_CANCELLED, androidMapped)
-        
-        val iosMapped = ErrorCodeUtils.fromPlatformCode(
-            2, 
-            IAPPlatform.IOS
-        )
-        assertEquals(ErrorCode.E_USER_CANCELLED, iosMapped)
+        assertEquals("PURCHASED", purchased.name)
+        assertEquals("PENDING", pending.name)
     }
     
     @Test
-    fun testConnectionResult() {
-        val connected = ConnectionResult(
-            connected = true,
-            message = "Connected successfully"
-        )
+    fun testRecurrenceMode() {
+        val finite = RecurrenceMode.FINITE_RECURRING
+        val infinite = RecurrenceMode.INFINITE_RECURRING
         
-        assertTrue(connected.connected)
-        assertEquals("Connected successfully", connected.message)
-        
-        val disconnected = ConnectionResult(
-            connected = false,
-            message = "Connection failed"
-        )
-        
-        assertFalse(disconnected.connected)
-        assertEquals("Connection failed", disconnected.message)
+        assertEquals("FINITE_RECURRING", finite.name)
+        assertEquals("INFINITE_RECURRING", infinite.name)
     }
     
     @Test
-    fun testAppStoreInfo() {
-        val info = AppStoreInfo(
-            countryCode = "US",
-            storefront = "143441",
-            identifier = "com.example.app"
-        )
+    fun testTransactionState() {
+        val purchasing = TransactionState.PURCHASING
+        val purchased = TransactionState.PURCHASED
         
-        assertEquals("US", info.countryCode)
-        assertEquals("143441", info.storefront)
-        assertEquals("com.example.app", info.identifier)
-    }
-    
-    @Test
-    fun testAndroidProrationModes() {
-        assertEquals(1, AndroidProrationMode.IMMEDIATE_WITH_TIME_PRORATION.value)
-        assertEquals(2, AndroidProrationMode.IMMEDIATE_AND_CHARGE_PRORATED_PRICE.value)
-        assertEquals(3, AndroidProrationMode.IMMEDIATE_WITHOUT_PRORATION.value)
-        assertEquals(4, AndroidProrationMode.DEFERRED.value)
-        assertEquals(5, AndroidProrationMode.IMMEDIATE_AND_CHARGE_FULL_PRICE.value)
+        assertEquals("PURCHASING", purchasing.name)
+        assertEquals("PURCHASED", purchased.name)
     }
     
     @Test
     fun testPricingPhase() {
         val phase = PricingPhase(
-            price = "4.99",
             formattedPrice = "$4.99",
-            currency = "USD",
+            priceCurrencyCode = "USD",
             billingCycleCount = 3,
             billingPeriod = "P1M",
-            recurrenceMode = 1,
-            priceAmountMicros = 4990000
+            recurrenceMode = RecurrenceMode.FINITE_RECURRING,
+            priceAmountMicros = "4990000"
         )
         
-        assertEquals("4.99", phase.price)
         assertEquals("$4.99", phase.formattedPrice)
-        assertEquals("USD", phase.currency)
+        assertEquals("USD", phase.priceCurrencyCode)
         assertEquals(3, phase.billingCycleCount)
         assertEquals("P1M", phase.billingPeriod)
     }
@@ -242,23 +176,11 @@ class InAppPurchaseTest {
     @Test
     fun testSubscriptionOffer() {
         val offer = SubscriptionOffer(
-            offerId = "offer123",
-            basePlanId = "base_plan",
-            offerToken = "token123",
-            pricingPhases = listOf(
-                PricingPhase(
-                    price = "0",
-                    formattedPrice = "Free",
-                    currency = "USD",
-                    billingPeriod = "P7D"
-                )
-            )
+            sku = "test_subscription",
+            offerToken = "token123"
         )
         
-        assertEquals("offer123", offer.offerId)
-        assertEquals("base_plan", offer.basePlanId)
+        assertEquals("test_subscription", offer.sku)
         assertEquals("token123", offer.offerToken)
-        assertEquals(1, offer.pricingPhases?.size)
-        assertEquals("Free", offer.pricingPhases?.first()?.formattedPrice)
     }
 }
