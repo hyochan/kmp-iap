@@ -80,6 +80,10 @@
   color: var(--ifm-color-primary-darkest);
 }
 
+[data-theme='dark'] .hero__title {
+  color: var(--ifm-color-primary-light);
+}
+
 .hero__subtitle {
   font-size: 1.4rem;
   margin-bottom: 2rem;
@@ -88,6 +92,10 @@
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+}
+
+[data-theme='dark'] .hero__subtitle {
+  color: var(--ifm-color-primary-lighter);
 }
 
 /* Feature cards */
@@ -358,6 +366,19 @@ main > * {
 /* Remove default margins from sections */
 section {
   margin: 0;
+}
+
+/* Dark mode button fixes for better visibility */
+[data-theme='dark'] .button--secondary {
+  color: var(--ifm-color-primary-light);
+  border-color: var(--ifm-color-primary-light);
+  background-color: rgba(212, 184, 150, 0.1);
+}
+
+[data-theme='dark'] .button--secondary:hover {
+  background-color: var(--ifm-color-primary-light);
+  color: var(--ifm-background-color);
+  border-color: var(--ifm-color-primary-light);
 }
 
 /* Dark mode text color fixes for documentation pages */
