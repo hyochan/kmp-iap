@@ -13,6 +13,9 @@ on:
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
 
+permissions:
+  contents: write
+  
 jobs:
   publish:
     runs-on: macos-latest
@@ -67,11 +70,9 @@ jobs:
 
     - name: Upload release artifacts
       if: github.event_name == 'release'
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./release-artifacts.zip
+        name: kmp-iap-${{ env.VERSION }}-artifacts.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./release-artifacts.zip
-        asset_name: kmp-iap-${{ env.VERSION }}-artifacts.zip
-        asset_content_type: application/zip
