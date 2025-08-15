@@ -34,6 +34,9 @@ fun SubscriptionFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
+    // Create IAP instance
+    val kmpIAP = remember { KmpIAP() }
+    
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -50,14 +53,54 @@ fun SubscriptionFlowScreen(navController: NavController) {
     // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                purchaseResult = "✅ Subscription successful!\n\n${json.encodeToString(purchase)}"
+                
+                // Handle successful purchase
+                purchaseResult = """
+                    ✅ Subscription successful (${purchase.platform})
+                    Product: ${purchase.productId}
+                    Transaction ID: ${purchase.transactionId ?: "N/A"}
+                    Date: ${purchase.transactionDate?.let { kotlinx.datetime.Instant.fromEpochSeconds(it.toLong()) } ?: "N/A"}
+                    Receipt: ${purchase.transactionReceipt?.take(50)}...
+                """.trimIndent()
+                
+                // IMPORTANT: Server-side receipt validation should be performed here
+                // Send the receipt to your backend server for validation
+                // Example:
+                // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
+                // if (!isValid) {
+                //     purchaseResult = "❌ Receipt validation failed"
+                //     return@collect
+                // }
+                
+                // After successful server validation, finish the transaction
+                // For subscriptions, set isConsumable to false
+                scope.launch {
+                    try {
+                        kmpIAP.finishTransaction(
+                            purchase = purchase,
+                            isConsumable = false // Set to false for subscription products
+                        )
+                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+                        
+                        // Update active subscriptions list to show "Subscribed" state
+                        if (SUBSCRIPTION_IDS.contains(purchase.productId)) {
+                            val updatedList = activeSubscriptions.toMutableList()
+                            if (!updatedList.any { it.productId == purchase.productId }) {
+                                updatedList.add(purchase)
+                                activeSubscriptions = updatedList
+                            }
+                        }
+                    } catch (e: Exception) {
+                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                    }
+                }
             }
         }
         
         launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.E_USER_CANCELLED.name -> "⚠️ Subscription cancelled by user"
@@ -73,7 +116,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = KmpIAP.initConnection()
+                val connectionResult = kmpIAP.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -88,7 +131,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 // Load active purchases and subscription products in parallel
                 val activePurchasesDeferred = async {
                     try {
-                        KmpIAP.getAvailablePurchases()
+                        kmpIAP.getAvailablePurchases()
                     } catch (e: Exception) {
                         println("Failed to get active purchases: ${e.message}")
                         emptyList()
@@ -97,7 +140,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        KmpIAP.requestProducts(
+                        kmpIAP.requestProducts(
                             ProductRequest(
                                 skus = SUBSCRIPTION_IDS,
                                 type = ProductType.SUBS
@@ -266,19 +309,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     isProcessing = true
                                     purchaseResult = null
                                     try {
-                                        val platform = getCurrentPlatform()
-                                        val purchase = KmpIAP.requestPurchase(
+                                        kmpIAP.requestPurchase(
                                             UnifiedPurchaseRequest(
                                                 sku = subscription.id,
                                                 quantity = 1
                                             )
                                         )
-                                        // Purchase updates will be received through the Flow
-                                        // Refresh active subscriptions after purchase
-                                        val updatedPurchases = KmpIAP.getAvailablePurchases()
-                                        activeSubscriptions = updatedPurchases.filter { p ->
-                                            SUBSCRIPTION_IDS.contains(p.productId)
-                                        }
+                                        // Purchase updates will be received through the purchaseUpdatedListener
+                                        // The UI will be updated automatically when the listener triggers
                                     } catch (e: Exception) {
                                         purchaseResult = "Subscription failed: ${e.message}"
                                     } finally {

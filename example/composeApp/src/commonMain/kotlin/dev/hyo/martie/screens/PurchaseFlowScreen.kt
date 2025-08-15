@@ -34,13 +34,15 @@ fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
+    // Create IAP instance
+    val kmpIAP = remember { KmpIAP() }
+    
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var purchaseResult by remember { mutableStateOf<String?>(null) }
     var transactionResult by remember { mutableStateOf<String?>(null) }
     var initError by remember { mutableStateOf<String?>(null) }
-    var purchaseToConsume by remember { mutableStateOf<Purchase?>(null) }
     
     var connected by remember { mutableStateOf(false) }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
@@ -50,17 +52,45 @@ fun PurchaseFlowScreen(navController: NavController) {
     // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                purchaseResult = "✅ Purchase successful!\n\n${json.encodeToString(purchase)}"
                 
-                // TEST ONLY: Auto-consume for testing
-                purchaseToConsume = purchase
+                // Handle successful purchase
+                purchaseResult = """
+                    ✅ Purchase successful (${purchase.platform})
+                    Product: ${purchase.productId}
+                    Transaction ID: ${purchase.transactionId ?: "N/A"}
+                    Date: ${purchase.transactionDate?.let { kotlinx.datetime.Instant.fromEpochSeconds(it.toLong()) } ?: "N/A"}
+                    Receipt: ${purchase.transactionReceipt?.take(50)}...
+                """.trimIndent()
+                
+                // IMPORTANT: Server-side receipt validation should be performed here
+                // Send the receipt to your backend server for validation
+                // Example:
+                // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
+                // if (!isValid) {
+                //     purchaseResult = "❌ Receipt validation failed"
+                //     return@collect
+                // }
+                
+                // After successful server validation, finish the transaction
+                // For consumable products (like bulb packs), set isConsumable to true
+                scope.launch {
+                    try {
+                        kmpIAP.finishTransaction(
+                            purchase = purchase,
+                            isConsumable = true // Set to true for consumable products
+                        )
+                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+                    } catch (e: Exception) {
+                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                    }
+                }
             }
         }
         
         launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.E_USER_CANCELLED.name -> "⚠️ Purchase cancelled by user"
@@ -69,30 +99,13 @@ fun PurchaseFlowScreen(navController: NavController) {
             }
         }
     }
-    
-    // TEST ONLY: Auto-consume purchases for testing
-    LaunchedEffect(purchaseToConsume) {
-        purchaseToConsume?.let { purchase ->
-            try {
-                KmpIAP.finishTransaction(
-                    purchase = purchase,
-                    isConsumable = true
-                )
-                purchaseResult = "${purchaseResult}\n\n✅ Purchase consumed for testing"
-            } catch (e: Exception) {
-                purchaseResult = "${purchaseResult}\n\n❌ Error consuming: ${e.message}"
-            }
-            purchaseToConsume = null
-        }
-    }
-    
     // Initialize connection and load products
     LaunchedEffect(Unit) {
         scope.launch {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = KmpIAP.initConnection()
+                val connectionResult = kmpIAP.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -109,7 +122,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 val loadJob = async {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                        val result = KmpIAP.requestProducts(
+                        val result = kmpIAP.requestProducts(
                             ProductRequest(
                                 skus = PRODUCT_IDS,
                                 type = ProductType.INAPP
@@ -292,7 +305,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 isProcessing = true
                                 purchaseResult = null
                                 try {
-                                    val purchase = KmpIAP.requestPurchase(
+                                    val purchase = kmpIAP.requestPurchase(
                                         UnifiedPurchaseRequest(
                                             sku = product.id,
                                             quantity = 1

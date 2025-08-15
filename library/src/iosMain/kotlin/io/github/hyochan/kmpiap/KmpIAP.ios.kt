@@ -4,14 +4,18 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.flow.Flow
 
 /**
- * iOS-specific implementation of KmpIAP singleton
+ * iOS-specific implementation of KmpIAP class
  */
-actual object KmpIAP : KmpInAppPurchase {
+actual class KmpIAP actual constructor() : KmpInAppPurchase {
     private val delegate = IosInAppPurchase()
+    
+    actual companion object {
+        actual val instance: KmpIAP by lazy { KmpIAP() }
+    }
     
     override fun getVersion(): String = delegate.getVersion()
     
-    // Expose Flow properties from interface
+    // Event Listeners
     override val purchaseUpdatedListener: Flow<Purchase>
         get() = delegate.purchaseUpdatedListener
     
@@ -21,17 +25,16 @@ actual object KmpIAP : KmpInAppPurchase {
     override val promotedProductListener: Flow<String?>
         get() = delegate.promotedProductListener
     
-    // Backward compatibility - not in interface
-    val connectionStateListener: Flow<ConnectionResult>
-        get() = delegate.connectionStateListener
-    
+    // Connection Management
     override suspend fun initConnection(): Boolean = delegate.initConnection()
     
     override suspend fun endConnection(): Boolean = delegate.endConnection()
     
+    // Product Management
     override suspend fun requestProducts(params: ProductRequest): List<Product> = 
         delegate.requestProducts(params)
     
+    // Purchase Operations
     override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase = 
         delegate.requestPurchase(request)
     
@@ -44,12 +47,14 @@ actual object KmpIAP : KmpInAppPurchase {
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) = 
         delegate.finishTransaction(purchase, isConsumable)
     
+    // Validation
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = 
         delegate.validateReceipt(options)
     
     override suspend fun isPurchaseValid(purchase: Purchase): Boolean = 
         delegate.isPurchaseValid(purchase)
     
+    // iOS-specific APIs
     override suspend fun finishTransactionIOS(transactionId: String) = 
         delegate.finishTransactionIOS(transactionId)
     
@@ -71,16 +76,20 @@ actual object KmpIAP : KmpInAppPurchase {
     override suspend fun buyPromotedProductIOS() = 
         delegate.buyPromotedProductIOS()
     
+    // Android-specific APIs
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) = 
         delegate.acknowledgePurchaseAndroid(purchaseToken)
     
     override suspend fun consumePurchaseAndroid(purchaseToken: String) = 
         delegate.consumePurchaseAndroid(purchaseToken)
     
+    // Subscription Management
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = 
         delegate.deepLinkToSubscriptions(options)
     
+    // Utility
     override fun getStore(): Store = delegate.getStore()
     
     override suspend fun canMakePayments(): Boolean = delegate.canMakePayments()
 }
+

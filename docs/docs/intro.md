@@ -55,7 +55,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-beta.2
+- **Current Version**: 1.0.0-beta.8
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 11.0+
 - **Android Requirements**: API level 24+
@@ -67,19 +67,21 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.8")
 }
 ```
 
+### Using Singleton Pattern (Recommended)
+
 ```kotlin
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Initialize connection
-KmpIAP.initConnection()
+// Use the singleton instance throughout your app
+KmpIAP.instance.initConnection()
 
 // Get products
-val products = KmpIAP.requestProducts(
+val products = KmpIAP.instance.requestProducts(
     ProductRequest(
         skus = listOf("product_id"),
         type = ProductType.INAPP
@@ -87,13 +89,47 @@ val products = KmpIAP.requestProducts(
 )
 
 // Request purchase
-KmpIAP.requestPurchase(
+val purchase = KmpIAP.instance.requestPurchase(
     UnifiedPurchaseRequest(
         sku = "product_id",
-        quantity = 1,
-        obfuscatedAccountIdAndroid = "user_id" // Optional
+        quantity = 1
     )
 )
+
+// Finish transaction after validation
+KmpIAP.instance.finishTransaction(purchase, isConsumable = true)
+```
+
+### Creating Your Own Instance
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
+
+// Create your own instance (useful for testing or DI)
+val kmpIAP = KmpIAP()
+
+// Initialize connection
+kmpIAP.initConnection()
+
+// Get products
+val products = kmpIAP.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
+
+// Request purchase
+val purchase = kmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
+
+// Finish transaction after validation
+kmpIAP.finishTransaction(purchase, isConsumable = true)
 ```
 
 ## 🚀 Start Building Today

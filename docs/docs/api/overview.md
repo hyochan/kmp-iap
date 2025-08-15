@@ -8,34 +8,71 @@ KMP IAP provides a comprehensive API for handling in-app purchases across platfo
 
 ## Core Components
 
-### InAppPurchase Interface
+### KmpIAP Class
 
-The main interface for all IAP operations:
+The main class for all IAP operations. You can use it in two ways:
+
+#### 1. Singleton Pattern (Recommended)
 
 ```kotlin
-interface InAppPurchase {
+import io.github.hyochan.kmpiap.KmpIAP
+
+// Use the global singleton instance
+KmpIAP.instance.initConnection()
+KmpIAP.instance.requestProducts(...)
+```
+
+#### 2. Instance Creation
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+
+// Create your own instance
+val kmpIAP = KmpIAP()
+kmpIAP.initConnection()
+kmpIAP.requestProducts(...)
+```
+
+### KmpInAppPurchase Interface
+
+The main interface implemented by KmpIAP:
+
+```kotlin
+interface KmpInAppPurchase {
     // Connection management
-    suspend fun initConnection()
-    fun endConnection()
-    fun getStore(): Store?
+    suspend fun initConnection(): Boolean
+    suspend fun endConnection(): Boolean
+    fun getStore(): Store
+    suspend fun canMakePayments(): Boolean
     
     // Product management
-    suspend fun requestProducts(params: RequestProductsParams): List<BaseProduct>
-    suspend fun getAvailablePurchases(): List<Purchase>
-    suspend fun getPurchaseHistories(type: PurchaseType? = null): List<Purchase>
+    suspend fun requestProducts(params: ProductRequest): List<Product>
+    suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
     
     // Purchase operations
-    suspend fun requestPurchase(request: RequestPurchase, type: PurchaseType)
-    suspend fun requestSubscription(request: RequestPurchase, type: PurchaseType)
-    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean = true): FinishTransactionResult
+    suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
+    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null)
     
-    // Platform-specific
-    suspend fun flushFailedPurchasesCachedAsPendingAndroid(): Boolean
-    suspend fun buyPromotedProductIOS(): Boolean
-    suspend fun validateReceiptIos(
-        receiptBody: Map<String, Any>,
-        isTest: Boolean = true
-    ): Map<String, Any?>
+    // Validation
+    suspend fun validateReceipt(options: ValidationOptions): ValidationResult
+    suspend fun isPurchaseValid(purchase: Purchase): Boolean
+    
+    // Platform-specific (iOS)
+    suspend fun finishTransactionIOS(transactionId: String)
+    suspend fun clearTransactionIOS()
+    suspend fun clearProductsIOS()
+    suspend fun getStorefrontIOS(): String
+    suspend fun presentCodeRedemptionSheetIOS()
+    suspend fun getPromotedProductIOS(): String?
+    suspend fun buyPromotedProductIOS()
+    
+    // Platform-specific (Android)
+    suspend fun acknowledgePurchaseAndroid(purchaseToken: String)
+    suspend fun consumePurchaseAndroid(purchaseToken: String)
+    
+    // Subscription management
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
     
     // Event listeners
     val purchaseUpdatedListener: Flow<Purchase>
@@ -44,20 +81,12 @@ interface InAppPurchase {
 }
 ```
 
-### Factory Function
-
-Create an instance of InAppPurchase:
-
-```kotlin
-fun createInAppPurchase(): InAppPurchase
-```
-
 ## Data Types
 
-### Purchase Types
+### Product Types
 
 ```kotlin
-enum class PurchaseType {
+enum class ProductType {
     INAPP,  // One-time purchases
     SUBS    // Subscriptions
 }
@@ -96,36 +125,32 @@ enum class ErrorCode {
 
 ## Request/Response Models
 
-### RequestProductsParams
+### ProductRequest
 
 ```kotlin
-data class RequestProductsParams(
+data class ProductRequest(
     val skus: List<String>,
-    val type: PurchaseType
+    val type: ProductType
 )
 ```
 
-### RequestPurchase
+### UnifiedPurchaseRequest
 
-Platform-specific purchase requests:
+Unified purchase request for all platforms:
 
 ```kotlin
-// Android
-data class RequestPurchaseAndroid(
-    val skus: List<String>,
+data class UnifiedPurchaseRequest(
+    val sku: String,
+    val quantity: Int = 1,
+    // Android-specific
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
-    val replacementMode: ReplacementMode? = null
-) : RequestPurchase
-
-// iOS
-data class RequestPurchaseIOS(
-    val sku: String,
+    val replacementMode: AndroidProrationMode? = null,
+    // iOS-specific
     val appAccountToken: String? = null,
-    val quantity: Int? = null,
     val discount: RequestedDiscount? = null,
     val requestId: String? = null
-) : RequestPurchase
+)
 ```
 
 ### Product Models

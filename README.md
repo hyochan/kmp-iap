@@ -25,31 +25,76 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.7")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.8")
 }
 ```
 
 ## 🚀 Quick Start
 
+### Option 1: Singleton Pattern (Recommended)
+
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Initialize connection
-KmpIAP.initConnection()
+// Use the singleton instance
+KmpIAP.instance.initConnection()
 
 // Get products
-val products = KmpIAP.requestProducts(
-    RequestProductsParams(
+val products = KmpIAP.instance.requestProducts(
+    ProductRequest(
         skus = listOf("product_id"),
-        type = PurchaseType.INAPP
+        type = ProductType.INAPP
     )
 )
 
 // Request purchase
-KmpIAP.requestPurchase(
-    request = RequestPurchaseAndroid(sku = "product_id"),
-    type = PurchaseType.INAPP
+val purchase = KmpIAP.instance.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
+
+// Finish transaction (after server-side validation)
+KmpIAP.instance.finishTransaction(
+    purchase = purchase,
+    isConsumable = true // true for consumables, false for subscriptions
+)
+```
+
+### Option 2: Create Your Own Instance
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
+
+// Create your own instance
+val kmpIAP = KmpIAP()
+
+// Initialize connection
+kmpIAP.initConnection()
+
+// Get products
+val products = kmpIAP.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
+
+// Request purchase
+val purchase = kmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
+
+// Finish transaction (after server-side validation)
+kmpIAP.finishTransaction(
+    purchase = purchase,
+    isConsumable = true // true for consumables, false for subscriptions
 )
 ```
 

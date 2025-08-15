@@ -17,7 +17,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
+                implementation("io.github.hyochan:kmp-iap:1.0.0-beta.8")
             }
         }
     }
@@ -58,12 +58,12 @@ Add to your `AndroidManifest.xml`:
 
 ### 1. Create IAP Manager
 
-Create a singleton manager to handle all IAP operations:
+#### Option A: Using Singleton Pattern (Recommended)
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.data.*
-import kotlinxcoroutines.*
+import io.github.hyochan.kmpiap.types.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 object IAPManager {
@@ -82,7 +82,8 @@ object IAPManager {
     fun initialize() {
         scope.launch {
             try {
-                KmpIAP.initConnection()
+                // Use singleton instance
+                KmpIAP.instance.initConnection()
                 _isConnected.value = true
                 
                 // Set up purchase listeners
@@ -100,14 +101,14 @@ object IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            KmpIAP.instance.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseUpdate(purchase)
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            KmpIAP.purchaseErrorListener.collect { error ->
+            KmpIAP.instance.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
@@ -116,14 +117,20 @@ object IAPManager {
     private suspend fun loadProducts() {
         try {
             // Load in-app products
-            val productList = KmpIAP.getProducts(
-                listOf("remove_ads", "premium_features")
+            val productList = KmpIAP.instance.requestProducts(
+                ProductRequest(
+                    skus = listOf("remove_ads", "premium_features"),
+                    type = ProductType.INAPP
+                )
             )
             _products.value = productList
             
-            // Load subscriptions (subscriptions are also products in KMP-IAP)
-            val subsList = KmpIAP.getProducts(
-                listOf("monthly_sub", "yearly_sub")
+            // Load subscriptions
+            val subsList = KmpIAP.instance.requestProducts(
+                ProductRequest(
+                    skus = listOf("monthly_sub", "yearly_sub"),
+                    type = ProductType.SUBS
+                )
             )
             _subscriptions.value = subsList
         } catch (e: Exception) {
@@ -132,16 +139,66 @@ object IAPManager {
     }
     
     suspend fun purchaseProduct(productId: String) {
-        KmpIAP.requestPurchase(
-            sku = productId
+        KmpIAP.instance.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
         )
     }
     
     suspend fun purchaseSubscription(productId: String) {
-        KmpIAP.requestPurchase(
-            sku = productId
+        KmpIAP.instance.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
         )
     }
+    
+    private suspend fun handlePurchaseUpdate(purchase: Purchase) {
+        // IMPORTANT: Verify purchase with your backend
+        // val isValid = verifyPurchaseWithBackend(purchase.transactionReceipt)
+        
+        // Finish the transaction
+        KmpIAP.instance.finishTransaction(
+            purchase = purchase,
+            isConsumable = !isSubscription(purchase.productId)
+        )
+    }
+}
+```
+
+#### Option B: Using Instance Creation
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
+
+class IAPService {
+    private val kmpIAP = KmpIAP()  // Create your own instance
+    
+    suspend fun initialize() {
+        kmpIAP.initConnection()
+        
+        // Set up listeners
+        launch {
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                // Handle purchase
+                kmpIAP.finishTransaction(purchase, isConsumable = true)
+            }
+        }
+    }
+    
+    suspend fun purchaseItem(productId: String) {
+        val purchase = kmpIAP.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
+        )
+    }
+}
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
         // Purchase is valid if returned from purchaseUpdatedListener flow

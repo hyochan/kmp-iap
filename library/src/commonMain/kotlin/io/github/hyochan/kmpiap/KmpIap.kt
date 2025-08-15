@@ -12,12 +12,10 @@ import kotlinx.coroutines.flow.Flow
  */
 
 // Re-export all types
-typealias BaseProduct = io.github.hyochan.kmpiap.types.Product
 typealias Product = io.github.hyochan.kmpiap.types.Product
 typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProduct
 typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
 typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
-typealias PurchaseResult = io.github.hyochan.kmpiap.types.PurchaseResult
 typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
 typealias Discount = io.github.hyochan.kmpiap.types.Discount
 typealias SubscriptionOffer = io.github.hyochan.kmpiap.types.SubscriptionOffer
@@ -29,7 +27,6 @@ typealias IAPPlatform = io.github.hyochan.kmpiap.types.IAPPlatform
 typealias PurchaseType = io.github.hyochan.kmpiap.types.PurchaseType
 typealias TransactionState = io.github.hyochan.kmpiap.types.TransactionState
 typealias PurchaseState = io.github.hyochan.kmpiap.types.PurchaseState
-typealias AndroidProrationMode = io.github.hyochan.kmpiap.types.AndroidProrationMode
 
 // Re-export error codes
 typealias ErrorCode = io.github.hyochan.kmpiap.utils.ErrorCode
@@ -38,15 +35,11 @@ typealias ErrorCodeUtils = io.github.hyochan.kmpiap.utils.ErrorCodeUtils
 // Re-export Android types
 typealias AndroidPurchaseState = io.github.hyochan.kmpiap.types.AndroidPurchaseState
 typealias AndroidProductType = io.github.hyochan.kmpiap.types.AndroidProductType
-typealias RequestPurchaseAndroid = io.github.hyochan.kmpiap.types.RequestPurchaseAndroid
-typealias RequestSubscriptionAndroid = io.github.hyochan.kmpiap.types.RequestSubscriptionAndroid
 typealias SubscriptionOfferAndroid = io.github.hyochan.kmpiap.types.SubscriptionOfferAndroid
 typealias AndroidBillingResponseCode = io.github.hyochan.kmpiap.types.AndroidBillingResponseCode
 
 // Re-export iOS types
 typealias IosTransactionState = io.github.hyochan.kmpiap.types.IosTransactionState
-typealias RequestPurchaseIOS = io.github.hyochan.kmpiap.types.RequestPurchaseIOS
-typealias RequestSubscriptionIOS = io.github.hyochan.kmpiap.types.RequestSubscriptionIOS
 typealias PaymentDiscount = io.github.hyochan.kmpiap.types.PaymentDiscount
 typealias PromotionalOffer = io.github.hyochan.kmpiap.types.PromotionalOffer
 typealias AppTransaction = io.github.hyochan.kmpiap.types.AppTransaction
@@ -60,8 +53,6 @@ typealias IosDiscountType = io.github.hyochan.kmpiap.types.IosDiscountType
 typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 
 // Re-export request types
-typealias RequestProductsParams = io.github.hyochan.kmpiap.types.RequestProductsParams
-typealias RequestPurchase = io.github.hyochan.kmpiap.types.RequestPurchase
 typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
 typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
 
@@ -243,27 +234,35 @@ interface KmpInAppPurchase {
 }
 
 /**
- * Global singleton instance for In-App Purchase operations.
+ * KMP In-App Purchase class for creating instances.
  * 
- * Usage:
+ * You can use KmpIAP in two ways:
+ * 
+ * 1. Singleton pattern (recommended for most apps):
  * ```kotlin
  * import io.github.hyochan.kmpiap.KmpIAP
  * 
- * // Initialize connection
- * KmpIAP.initConnection()
+ * // Use singleton instance
+ * KmpIAP.instance.initConnection()
+ * KmpIAP.instance.requestProducts(...)
+ * ```
  * 
- * // Request products
- * val products = KmpIAP.requestProducts(
- *     ProductRequest(
- *         skus = listOf("product1", "product2"),
- *         type = ProductType.SUBS
- *     )
- * )
+ * 2. Create your own instance:
+ * ```kotlin
+ * import io.github.hyochan.kmpiap.KmpIAP
  * 
- * // Listen to purchase updates
- * KmpIAP.purchaseUpdatedListener.collect { purchase ->
- *     // Handle purchase
- * }
+ * // Create instance
+ * val kmpIAP = KmpIAP()
+ * kmpIAP.initConnection()
+ * kmpIAP.requestProducts(...)
  * ```
  */
-expect object KmpIAP
+expect class KmpIAP() : KmpInAppPurchase {
+    companion object {
+        /**
+         * Singleton instance of KmpIAP for convenient access throughout the app.
+         * Use this when you want a single shared instance.
+         */
+        val instance: KmpIAP
+    }
+}

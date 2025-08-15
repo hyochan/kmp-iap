@@ -6,9 +6,19 @@ sidebar_position: 2
 
 Get up and running with KMP IAP in just a few minutes!
 
-## Basic Implementation
+## Choose Your Approach
 
-Here's a complete example to get you started with in-app purchases:
+KMP IAP supports two usage patterns:
+
+### Option 1: Singleton Pattern (Recommended)
+Use `KmpIAP.instance` for a global singleton instance that's shared across your app.
+
+### Option 2: Instance Creation
+Create your own `KmpIAP()` instances for more control, testing, or dependency injection.
+
+## Basic Implementation with Singleton
+
+Here's a complete example using the singleton pattern:
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
@@ -19,13 +29,20 @@ class IAPManager {
     
     suspend fun initialize() {
         try {
-            // Initialize connection
-            KmpIAP.initConnection()
+            // Initialize connection using singleton
+            KmpIAP.instance.initConnection()
             
             // Listen to purchase updates
             launch {
-                KmpIAP.purchaseUpdatedListener.collect { purchase ->
+                KmpIAP.instance.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
+                }
+            }
+            
+            // Listen to errors
+            launch {
+                KmpIAP.instance.purchaseErrorListener.collect { error ->
+                    handlePurchaseError(error)
                 }
             }
         } catch (e: Exception) {
@@ -36,15 +53,15 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // Load in-app products
-            val products = KmpIAP.requestProducts(
-                RequestProductsParams(
+            val products = KmpIAP.instance.requestProducts(
+                ProductRequest(
                     skus = listOf("remove_ads", "premium_upgrade"),
-                    type = PurchaseType.INAPP
+                    type = ProductType.INAPP
                 )
             )
             
             products.forEach { product ->
-                println("Product: ${product.productId} - ${product.localizedPrice}")
+                println("Product: ${product.id} - ${product.price}")
             }
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
@@ -53,53 +70,50 @@ class IAPManager {
     
     suspend fun purchaseProduct(productId: String) {
         try {
-            // Request purchase based on platform
-            val request = when (KmpIAP.getStore()) {
-                Store.PLAY_STORE -> RequestPurchaseAndroid(
-                    skus = listOf(productId)
+            // Request purchase with unified API
+            val purchase = KmpIAP.instance.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = productId,
+                    quantity = 1
                 )
-                Store.APP_STORE -> RequestPurchaseIOS(
-                    sku = productId
-                )
-                else -> RequestPurchaseGeneric(sku = productId)
-            }
-            
-            KmpIAP.requestPurchase(
-                request = request,
-                type = PurchaseType.INAPP
             )
-        } catch (e: PurchaseError) {
-            when (e.code) {
-                ErrorCode.E_USER_CANCELLED -> {
-                    println("User cancelled the purchase")
-                }
-                ErrorCode.E_ITEM_UNAVAILABLE -> {
-                    println("Item is not available")
-                }
-                else -> {
-                    println("Purchase failed: ${e.message}")
-                }
-            }
+            // Purchase will be handled in purchaseUpdatedListener
+        } catch (e: Exception) {
+            println("Purchase request failed: ${e.message}")
         }
     }
     
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-        // Verify the purchase (implement your own verification)
-        val isValid = verifyPurchase(purchase)
+        // IMPORTANT: Server-side receipt validation should be performed here
+        // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
+        
+        // For this example, we'll assume validation passed
+        val isValid = true
         
         if (isValid) {
             // Deliver the product
             deliverProduct(purchase.productId)
             
             // Finish the transaction
-            KmpIAP.finishTransaction(purchase, isConsumable = true)
+            KmpIAP.instance.finishTransaction(
+                purchase = purchase,
+                isConsumable = true // true for consumables, false for subscriptions
+            )
         }
     }
     
-    private fun verifyPurchase(purchase: Purchase): Boolean {
-        // Implement your purchase verification logic
-        // This could involve server-side validation
-        return true
+    private fun handlePurchaseError(error: PurchaseError) {
+        when (error.code) {
+            ErrorCode.E_USER_CANCELLED.name -> {
+                println("User cancelled the purchase")
+            }
+            ErrorCode.E_ITEM_UNAVAILABLE.name -> {
+                println("Item is not available")
+            }
+            else -> {
+                println("Purchase failed: ${error.message}")
+            }
+        }
     }
     
     private fun deliverProduct(productId: String) {
@@ -107,57 +121,111 @@ class IAPManager {
         println("Product delivered: $productId")
     }
     
-    fun disconnect() {
-        KmpIAP.endConnection()
+    suspend fun disconnect() {
+        KmpIAP.instance.endConnection()
     }
 }
 ```
 
-## Using with ViewModels
+## Using with Instance Creation
 
-Here's how to integrate KMP IAP with your ViewModels:
+For cases where you need more control (like testing or dependency injection):
 
 ```kotlin
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
 
-class StoreViewModel : ViewModel() {
-    private val iapManager = IAPManager()
+class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
     
-    private val _products = MutableStateFlow<List<Product>>(emptyList())
-    val products: StateFlow<List<Product>> = _products.asStateFlow()
-    
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-    
-    init {
-        viewModelScope.launch {
-            iapManager.initialize()
-            loadProducts()
+    suspend fun initialize() {
+        // Initialize with your own instance
+        kmpIAP.initConnection()
+        
+        // Set up listeners
+        launch {
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                // Handle purchase
+            }
         }
     }
     
-    private suspend fun loadProducts() {
-        _isLoading.value = true
+    suspend fun purchaseItem(productId: String) {
+        val purchase = kmpIAP.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
+        )
+        
+        // Validate and finish transaction
+        kmpIAP.finishTransaction(purchase, isConsumable = true)
+    }
+}
+```
+
+## Using with Compose Multiplatform
+
+Here's how to use KMP IAP in a Compose Multiplatform app:
+
+```kotlin
+import androidx.compose.runtime.*
+import androidx.compose.material3.*
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.types.*
+
+@Composable
+fun StoreScreen() {
+    // Create instance for this screen (or use singleton)
+    val kmpIAP = remember { KmpIAP() }
+    // Or use singleton: val kmpIAP = KmpIAP.instance
+    
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        // Initialize connection
+        kmpIAP.initConnection()
+        
+        // Load products
+        isLoading = true
         try {
-            val loadedProducts = iapManager.loadProducts()
-            _products.value = loadedProducts
+            products = kmpIAP.requestProducts(
+                ProductRequest(
+                    skus = listOf("product_1", "product_2"),
+                    type = ProductType.INAPP
+                )
+            )
         } finally {
-            _isLoading.value = false
+            isLoading = false
+        }
+        
+        // Listen for purchases
+        launch {
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                // Handle successful purchase
+                kmpIAP.finishTransaction(purchase, isConsumable = true)
+            }
         }
     }
     
-    fun purchaseProduct(productId: String) {
-        viewModelScope.launch {
-            iapManager.purchaseProduct(productId)
+    Column {
+        products.forEach { product ->
+            Card(
+                onClick = {
+                    // Purchase product
+                    scope.launch {
+                        kmpIAP.requestPurchase(
+                            UnifiedPurchaseRequest(
+                                sku = product.id,
+                                quantity = 1
+                            )
+                        )
+                    }
+                }
+            ) {
+                Text("${product.title} - ${product.price}")
+            }
         }
-    }
-    
-    override fun onCleared() {
-        iapManager.disconnect()
-        super.onCleared()
     }
 }
 ```

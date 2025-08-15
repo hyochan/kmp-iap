@@ -33,10 +33,13 @@ fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     var storefrontInfo by remember { mutableStateOf<String?>(null) }
     
+    // Create IAP instance using constructor
+    val kmpIAP = remember { KmpIAP() }
+    
     LaunchedEffect(Unit) {
         if (getCurrentPlatform() == IAPPlatform.IOS) {
             try {
-                val storefront = KmpIAP.getStorefrontIOS()
+                val storefront = kmpIAP.getStorefrontIOS()
                 storefrontInfo = "Storefront: $storefront"
             } catch (e: Exception) {
                 // Ignore

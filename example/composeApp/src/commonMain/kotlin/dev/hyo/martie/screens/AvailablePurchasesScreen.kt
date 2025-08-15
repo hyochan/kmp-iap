@@ -33,6 +33,9 @@ fun AvailablePurchasesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
+    // Create IAP instance
+    val kmpIAP = remember { KmpIAP() }
+    
     var isConnecting by remember { mutableStateOf(true) }
     var connected by remember { mutableStateOf(false) }
     var availablePurchases by remember { mutableStateOf<List<Purchase>>(emptyList()) }
@@ -48,7 +51,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
             isConnecting = true
             isLoading = true
             try {
-                val connectionResult = KmpIAP.initConnection()
+                val connectionResult = kmpIAP.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -61,7 +64,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 
                 // Load purchases with timeout
                 val purchasesResult = withTimeoutOrNull(10000) {
-                    KmpIAP.getAvailablePurchases()
+                    kmpIAP.getAvailablePurchases()
                 }
                 
                 if (purchasesResult != null) {
@@ -168,7 +171,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             scope.launch {
                                 isRefreshing = true
                                 try {
-                                    val purchases = KmpIAP.getAvailablePurchases()
+                                    val purchases = kmpIAP.getAvailablePurchases()
                                     availablePurchases = purchases
                                     if (purchases.isEmpty()) {
                                         errorMessage = "No active purchases found"
@@ -272,7 +275,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                     try {
                                         // For subscriptions, acknowledge only (don't consume)
                                         // For consumables, consume them
-                                        KmpIAP.finishTransaction(purchase, isConsumable = !isSubscription)
+                                        kmpIAP.finishTransaction(purchase, isConsumable = !isSubscription)
                                         
                                         val action = if (isSubscription) "acknowledged" else "consumed"
                                         consumeResult = "✅ Purchase $action: ${purchase.productId}"

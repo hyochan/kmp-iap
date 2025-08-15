@@ -29,13 +29,16 @@ fun OfferCodeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val platform = getCurrentPlatform()
     
+    // Create IAP instance
+    val kmpIAP = remember { KmpIAP() }
+    
     var isConnected by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
-            KmpIAP.initConnection()
+            kmpIAP.initConnection()
             isConnected = true
         } catch (e: Exception) {
             result = "Connection failed: ${e.message}"
@@ -126,7 +129,7 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    KmpIAP.presentCodeRedemptionSheetIOS()
+                                    kmpIAP.presentCodeRedemptionSheetIOS()
                                     result = "Redemption sheet presented"
                                 } catch (e: Exception) {
                                     result = "Failed to present sheet: ${e.message}"
