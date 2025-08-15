@@ -73,6 +73,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: ./release-artifacts.zip
-        name: kmp-iap-${{ env.VERSION }}-artifacts.zip
+        name: kmp-iap-${{ env.VERSION }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
