@@ -202,7 +202,7 @@ when (error.code) {
         showInfo("You already own this product.")
         // Refresh purchase state
         scope.launch {
-            KmpIAP.getAvailablePurchases()
+            kmpIAP.getAvailablePurchases()
         }
     }
 }
@@ -466,7 +466,7 @@ class IAPErrorHandler(
         }
         
         // Clear error
-        KmpIAP.clearError()
+        kmpIAP.clearError()
     }
 }
 ```

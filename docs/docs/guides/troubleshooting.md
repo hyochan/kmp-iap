@@ -129,8 +129,9 @@ dependencies {
    ```kotlin
    // Enable debug logging
    // Check exact product ID matching
+   val kmpIAP = KmpIAP()
    try {
-       val products = KmpIAP.requestProducts(
+       val products = kmpIAP.requestProducts(
            ProductRequest(
                skus = listOf("exact.product.id.from.store"),
                type = ProductType.INAPP
@@ -195,7 +196,8 @@ dependencies {
 1. **Check initialization:**
    ```kotlin
    // Ensure IAP is initialized before purchase
-   val isConnected = KmpIAP.isConnected()
+   val kmpIAP = KmpIAP()
+   val isConnected = kmpIAP.isConnected()
    if (!isConnected) {
        println("IAP not initialized")
        return
@@ -215,8 +217,9 @@ dependencies {
 3. **Check state observers:**
    ```kotlin
    // Ensure observers are set up before purchase
+   val kmpIAP = KmpIAP()
    scope.launch {
-       KmpIAP.purchaseUpdatedListener.collect { purchase ->
+       kmpIAP.purchaseUpdatedListener.collect { purchase ->
            purchase?.let {
                println("Purchase updated: ${it.productId}")
            }
@@ -224,7 +227,7 @@ dependencies {
    }
    
    scope.launch {
-       KmpIAP.purchaseErrorListener.collect { error ->
+       kmpIAP.purchaseErrorListener.collect { error ->
            error?.let {
                println("Purchase error: ${it.message}")
            }
@@ -239,9 +242,10 @@ dependencies {
 **Solution:**
 ```kotlin
 private suspend fun handlePurchaseUpdate(purchase: Purchase) {
+    val kmpIAP = KmpIAP()
     try {
         // IMPORTANT: Always complete transactions
-        val success = KmpIAP.finishTransaction(
+        val success = kmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = isConsumable(purchase.productId)
         )
@@ -269,12 +273,13 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
 1. **Check for existing purchases:**
    ```kotlin
    // For consumable products
+   val kmpIAP = KmpIAP()
    scope.launch {
-       val purchases = KmpIAP.getAvailablePurchases()
+       val purchases = kmpIAP.getAvailablePurchases()
        purchases.filter { isConsumable(it.productId) }
            .forEach { purchase ->
                // Consume the purchase
-               KmpIAP.finishTransaction(
+               kmpIAP.finishTransaction(
                    purchase = purchase,
                    isConsumable = true
                )
@@ -345,20 +350,22 @@ class PurchaseManager : ViewModel() {
     
     private fun initializeIAP() {
         viewModelScope.launch {
-            KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            kmpIAP.initConnection()
         }
     }
     
     private fun setupObservers() {
         // Use viewModelScope for automatic cancellation
+        val kmpIAP = KmpIAP()
         viewModelScope.launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 handlePurchase(purchase)
             }
         }
         
         viewModelScope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 handleError(error)
             }
         }
@@ -367,7 +374,8 @@ class PurchaseManager : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         // Dispose KmpIAP resources
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -382,14 +390,16 @@ class IAPService : ViewModel() {
     
     init {
         viewModelScope.launch {
-            KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            kmpIAP.initConnection()
         }
     }
     
     override fun onCleared() {
         super.onCleared()
         // Dispose IAP resources
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -470,7 +480,8 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
                return cachedProducts!!
            }
            
-           cachedProducts = KmpIAP.requestProducts(
+           val kmpIAP = KmpIAP()
+           cachedProducts = kmpIAP.requestProducts(
                ProductRequest(
                    skus = skus,
                    type = type
@@ -485,7 +496,8 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
 2. **Batch requests:**
    ```kotlin
    // Load all products at once instead of individual requests
-   val allProducts = KmpIAP.requestProducts(
+   val kmpIAP = KmpIAP()
+   val allProducts = kmpIAP.requestProducts(
        ProductRequest(
            skus = allProductIds,
            type = ProductType.INAPP
@@ -502,13 +514,14 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
 class DebugIAPHelper(scope: CoroutineScope) {
     
     init {
+        val kmpIAP = KmpIAP()
         scope.launch {
-            val connected = KmpIAP.initConnection()
+            val connected = kmpIAP.initConnection()
             println("[IAP] Connection state: $connected")
         }
         
         scope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 println("[IAP] Error: ${error.code} - ${error.message}")
             }
         }
@@ -520,8 +533,9 @@ class DebugIAPHelper(scope: CoroutineScope) {
 
 ```kotlin
 suspend fun debugConnection() {
+    val kmpIAP = KmpIAP()
     try {
-        val connected = KmpIAP.initConnection()
+        val connected = kmpIAP.initConnection()
         println("Connection initialized: $connected")
         
         // Test with known product
@@ -530,7 +544,7 @@ suspend fun debugConnection() {
             IapPlatform.IOS -> "your.test.product"
         }
         
-        val products = KmpIAP.requestProducts(
+        val products = kmpIAP.requestProducts(
             ProductRequest(
                 skus = listOf(testProductId),
                 type = ProductType.INAPP
@@ -558,14 +572,16 @@ fun handleError(error: PurchaseError) {
         }
         ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
             // Refresh purchases
+            val kmpIAP = KmpIAP()
             scope.launch {
-                KmpIAP.getAvailablePurchases()
+                kmpIAP.getAvailablePurchases()
             }
         }
         ErrorCode.E_SERVICE_DISCONNECTED.name -> {
             // Reconnect
+            val kmpIAP = KmpIAP()
             scope.launch {
-                KmpIAP.initConnection()
+                kmpIAP.initConnection()
             }
         }
         else -> {

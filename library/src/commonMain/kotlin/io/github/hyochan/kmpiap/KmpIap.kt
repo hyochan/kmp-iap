@@ -240,7 +240,11 @@ interface KmpInAppPurchase {
  * ```kotlin
  * import io.github.hyochan.kmpiap.KmpIAP
  * 
- * // Create instance
+ * // Option 1: Use global instance
+ * KmpIAP.instance.initConnection()
+ * KmpIAP.instance.requestProducts(...)
+ * 
+ * // Option 2: Create your own instance
  * val kmpIAP = KmpIAP()
  * kmpIAP.initConnection()
  * kmpIAP.requestProducts(...)
@@ -273,3 +277,22 @@ expect class KmpIAP() {
     fun getStore(): Store
     suspend fun canMakePayments(): Boolean
 }
+
+/**
+ * Global singleton instance of KmpIAP for convenience.
+ * 
+ * This provides a pre-created instance for developers who prefer using a singleton pattern.
+ * 
+ * Usage:
+ * ```kotlin
+ * import io.github.hyochan.kmpiap.kmpIapInstance
+ * 
+ * // Use the global instance
+ * kmpIapInstance.initConnection()
+ * kmpIapInstance.requestProducts(...)
+ * ```
+ * 
+ * Note: For better testability and dependency injection,
+ * consider creating your own instance with `KmpIAP()`.
+ */
+val kmpIapInstance: KmpIAP by lazy { KmpIAP() }

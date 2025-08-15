@@ -39,7 +39,8 @@ class OfferCodeHandler(
         
         try {
             // Present the system offer code redemption sheet
-            KmpIAP.presentCodeRedemptionSheet()
+            val kmpIAP = KmpIAP()
+            kmpIAP.presentCodeRedemptionSheet()
             println("Offer code redemption sheet presented")
             
             // Results will come through purchaseUpdatedListener
@@ -51,8 +52,9 @@ class OfferCodeHandler(
     }
     
     private fun listenForRedemptionResults() {
+        val kmpIAP = KmpIAP()
         scope.launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 println("Offer code redeemed: ${purchase.productId}")
                 // Handle successful redemption
                 handleRedeemedPurchase(purchase)
@@ -63,7 +65,8 @@ class OfferCodeHandler(
     private suspend fun handleRedeemedPurchase(purchase: Purchase) {
         // Process the redeemed purchase
         // Verify receipt, deliver content, etc.
-        val success = KmpIAP.finishTransaction(
+        val kmpIAP = KmpIAP()
+        val success = kmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
@@ -86,7 +89,8 @@ class StorefrontHandler() {
         if (getCurrentPlatform() != IapPlatform.IOS) return null
         
         return try {
-            val storefront = KmpIAP.getStorefront()
+            val kmpIAP = KmpIAP()
+            val storefront = kmpIAP.getStorefront()
             println("Storefront info: $storefront")
             storefront
         } catch (e: PurchaseError) {
@@ -99,7 +103,8 @@ class StorefrontHandler() {
      * Get the current store type
      */
     fun getCurrentStore(): Store {
-        return KmpIAP.getStore()
+        val kmpIAP = KmpIAP()
+        return kmpIAP.getStore()
     }
 }
 ```
@@ -123,7 +128,8 @@ class SubscriptionManager(
         }
         
         try {
-            KmpIAP.showManageSubscriptions()
+            val kmpIAP = KmpIAP()
+            kmpIAP.showManageSubscriptions()
             println("Subscription management screen presented")
         } catch (e: PurchaseError) {
             println("Failed to show subscription management: $e")
@@ -134,7 +140,8 @@ class SubscriptionManager(
      * Monitor subscription state changes
      */
     suspend fun observeSubscriptions() {
-        val subscriptions = KmpIAP.requestSubscriptions(
+        val kmpIAP = KmpIAP()
+        val subscriptions = kmpIAP.requestSubscriptions(
             ProductRequest(
                 skus = listOf("monthly_sub", "yearly_sub"),
                 type = ProductType.SUBS
@@ -169,11 +176,12 @@ class AndroidSubscriptionManager() {
         
         try {
             // Deep link to subscription management in Play Store
+            val kmpIAP = KmpIAP()
             productId?.let {
-                KmpIAP.deepLinkToSubscriptions(it)
+                kmpIAP.deepLinkToSubscriptions(it)
             } ?: run {
                 // Open general subscription management
-                KmpIAP.deepLinkToSubscriptions("")
+                kmpIAP.deepLinkToSubscriptions("")
             }
             
             println("Opened Android subscription management")
@@ -189,7 +197,8 @@ class AndroidSubscriptionManager() {
         if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
-            val history = KmpIAP.getAvailablePurchases()
+            val kmpIAP = KmpIAP()
+            val history = kmpIAP.getAvailablePurchases()
             
             val subscriptions = history.filter { 
                 it.productId.contains("subscription") || 
@@ -234,7 +243,8 @@ class CrossPlatformOfferViewModel : ViewModel() {
     
     private fun initializeIAP() {
         viewModelScope.launch {
-            KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            kmpIAP.initConnection()
         }
     }
     
@@ -242,7 +252,8 @@ class CrossPlatformOfferViewModel : ViewModel() {
         // Load subscriptions
         viewModelScope.launch {
             try {
-                val subs = KmpIAP.requestSubscriptions(
+                val kmpIAP = KmpIAP()
+                val subs = kmpIAP.requestSubscriptions(
                     ProductRequest(
                         skus = listOf("monthly_sub", "yearly_sub"),
                         type = ProductType.SUBS
@@ -267,16 +278,17 @@ class CrossPlatformOfferViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, error = null) }
         
         try {
+            val kmpIAP = KmpIAP()
             when (getCurrentPlatform()) {
                 IapPlatform.IOS -> {
                     // iOS: Present code redemption sheet
-                    KmpIAP.presentCodeRedemptionSheet()
+                    kmpIAP.presentCodeRedemptionSheet()
                     println("iOS offer code redemption sheet presented")
                     listenForPurchases()
                 }
                 IapPlatform.ANDROID -> {
                     // Android: Open subscription management
-                    KmpIAP.deepLinkToSubscriptions("")
+                    kmpIAP.deepLinkToSubscriptions("")
                     println("Android subscription management opened")
                 }
             }
@@ -295,15 +307,16 @@ class CrossPlatformOfferViewModel : ViewModel() {
      */
     suspend fun showSubscriptionManagement() {
         try {
+            val kmpIAP = KmpIAP()
             when (getCurrentPlatform()) {
                 IapPlatform.IOS -> {
-                    KmpIAP.showManageSubscriptions()
+                    kmpIAP.showManageSubscriptions()
                 }
                 IapPlatform.ANDROID -> {
                     // For Android, deep link to the first active subscription
                     val firstSub = _state.value.activeSubscriptions.firstOrNull()
                     firstSub?.let {
-                        KmpIAP.deepLinkToSubscriptions(it.id)
+                        kmpIAP.deepLinkToSubscriptions(it.id)
                     }
                 }
             }
@@ -315,8 +328,9 @@ class CrossPlatformOfferViewModel : ViewModel() {
     }
     
     private fun listenForPurchases() {
+        val kmpIAP = KmpIAP()
         viewModelScope.launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 println("Purchase received: ${purchase.productId}")
                 handlePurchaseSuccess(purchase)
             }
@@ -328,7 +342,8 @@ class CrossPlatformOfferViewModel : ViewModel() {
         deliverContent(purchase.productId)
         
         // Finish transaction
-        KmpIAP.finishTransaction(
+        val kmpIAP = KmpIAP()
+        kmpIAP.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
@@ -338,7 +353,8 @@ class CrossPlatformOfferViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -359,7 +375,8 @@ class PlatformSpecificFeatures(
         
         return try {
             // Load promoted products
-            val products = KmpIAP.requestProducts(
+            val kmpIAP = KmpIAP()
+            val products = kmpIAP.requestProducts(
                 ProductRequest(
                     skus = listOf("promoted_product_1", "promoted_product_2"),
                     type = ProductType.INAPP
@@ -386,7 +403,8 @@ class PlatformSpecificFeatures(
         if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
-            KmpIAP.requestSubscription(
+            val kmpIAP = KmpIAP()
+            kmpIAP.requestSubscription(
                 SubscriptionRequest(
                     sku = productId,
                     offerToken = offerToken

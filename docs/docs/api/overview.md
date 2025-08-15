@@ -12,17 +12,7 @@ KMP IAP provides a comprehensive API for handling in-app purchases across platfo
 
 The main class for all IAP operations. You can use it in two ways:
 
-#### 1. Singleton Pattern (Recommended)
-
-```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
-
-// Use the global singleton instance
-KmpIAP.instance.initConnection()
-KmpIAP.instance.requestProducts(...)
-```
-
-#### 2. Instance Creation
+#### 1. Instance Creation (Recommended)
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
@@ -31,6 +21,16 @@ import io.github.hyochan.kmpiap.KmpIAP
 val kmpIAP = KmpIAP()
 kmpIAP.initConnection()
 kmpIAP.requestProducts(...)
+```
+
+#### 2. Singleton Pattern (Deprecated)
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+
+// Use the global singleton instance (deprecated)
+KmpIAP.instance.initConnection()
+KmpIAP.instance.requestProducts(...)
 ```
 
 ### KmpInAppPurchase Interface
@@ -195,7 +195,8 @@ data class Subscription(
 ### Purchase Updates
 
 ```kotlin
-iap.purchaseUpdatedListener.collect { purchase ->
+val kmpIAP = KmpIAP()
+kmpIAP.purchaseUpdatedListener.collect { purchase ->
     when (purchase.purchaseState) {
         PurchaseState.PURCHASED -> {
             // Handle successful purchase
@@ -213,7 +214,8 @@ iap.purchaseUpdatedListener.collect { purchase ->
 ### Error Handling
 
 ```kotlin
-iap.purchaseErrorListener.collect { error ->
+val kmpIAP = KmpIAP()
+kmpIAP.purchaseErrorListener.collect { error ->
     when (error.code) {
         ErrorCode.E_USER_CANCELLED -> {
             // User cancelled the purchase

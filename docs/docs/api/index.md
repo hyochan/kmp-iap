@@ -16,10 +16,10 @@ Complete reference for kmp-iap v1.0.0-beta.2 - A unified Kotlin Multiplatform AP
 ### 🏪 Core Methods
 Essential methods for initializing connections, loading products, and processing purchases.
 
-- **Connection Management**: `KmpIAP.initConnection()`, `KmpIAP.dispose()`
-- **Product Loading**: `KmpIAP.requestProducts()`, `KmpIAP.requestSubscriptions()`
-- **Purchase Processing**: `KmpIAP.requestPurchase()`, `KmpIAP.requestSubscription()`
-- **Transaction Management**: `KmpIAP.finishTransaction()`, `KmpIAP.acknowledgePurchase()`
+- **Connection Management**: `kmpIAP.initConnection()`, `kmpIAP.dispose()`
+- **Product Loading**: `kmpIAP.requestProducts()`, `kmpIAP.requestSubscriptions()`
+- **Purchase Processing**: `kmpIAP.requestPurchase()`, `kmpIAP.requestSubscription()`
+- **Transaction Management**: `kmpIAP.finishTransaction()`, `kmpIAP.acknowledgePurchase()`
 
 ### 📱 Platform-Specific Methods
 Access iOS and Android specific features and capabilities.
@@ -54,24 +54,26 @@ class PurchaseManager {
     
     suspend fun initializePurchases() {
         // Initialize connection
-        KmpIAP.initConnection()
+        val kmpIAP = KmpIAP()
+        kmpIAP.initConnection()
         
         // Set up state listeners
         scope.launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseSuccess(purchase)
             }
         }
         
         scope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
     }
     
     suspend fun makePurchase(productId: String) {
-        KmpIAP.requestPurchase(
+        val kmpIAP = KmpIAP()
+        kmpIAP.requestPurchase(
             UnifiedPurchaseRequest(
                 sku = productId,
                 quantity = 1,

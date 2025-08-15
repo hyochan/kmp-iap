@@ -35,11 +35,45 @@ dependencies {
 
 ## 🚀 Quick Start
 
+### Option 1: Using Global Instance (Simple)
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.types.*
+
+// Use the global singleton instance
+kmpIapInstance.initConnection()
+
+// Get products
+val products = kmpIapInstance.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
+
+// Request purchase
+val purchase = kmpIapInstance.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
+
+// Finish transaction (after server-side validation)
+kmpIapInstance.finishTransaction(
+    purchase = purchase,
+    isConsumable = true // true for consumables, false for subscriptions
+)
+```
+
+### Option 2: Create Your Own Instance (Recommended for Testing)
+
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Create an instance
+// Create your own instance
 val kmpIAP = KmpIAP()
 
 // Initialize connection
