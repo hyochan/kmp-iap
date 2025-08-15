@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
  * iOS-specific implementation of KmpIAP class
  */
 actual class KmpIAP actual constructor() {
-    private val delegate = IosInAppPurchase()
+    private val delegate = InAppPurchaseIOS()
     
     actual fun getVersion(): String = delegate.getVersion()
     
@@ -24,7 +24,7 @@ actual class KmpIAP actual constructor() {
     // Connection Management
     actual suspend fun initConnection(): Boolean = delegate.initConnection()
     
-    actual suspend fun endConnection(): Boolean = delegate.endConnection()
+    actual suspend fun endConnection() = delegate.endConnection()
     
     // Product Management
     actual suspend fun requestProducts(params: ProductRequest): List<Product> = 
@@ -40,7 +40,7 @@ actual class KmpIAP actual constructor() {
     actual suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> = 
         delegate.getPurchaseHistories(options)
     
-    actual suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) = 
+    actual suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean = 
         delegate.finishTransaction(purchase, isConsumable)
     
     // Validation

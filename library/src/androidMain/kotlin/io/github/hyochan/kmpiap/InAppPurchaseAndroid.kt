@@ -23,7 +23,7 @@ import kotlinx.serialization.json.Json
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
+internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
     private var billingClient: BillingClient? = null
     private var isConnected = false
     private var context: Context? = null
@@ -177,12 +177,11 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         }
     }
     
-    override suspend fun endConnection(): Boolean {
+    override suspend fun endConnection() {
         billingClient?.endConnection()
         isConnected = false
         _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
         cleanupState()
-        return true
     }
     
     override suspend fun requestProducts(params: ProductRequest): List<Product> {
@@ -451,15 +450,21 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         return emptyList()
     }
     
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) {
-        if (isConsumable == true) {
-            purchase.purchaseTokenAndroid?.let { token ->
-                consumePurchaseAndroid(token)
+    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
+        return try {
+            if (isConsumable == true) {
+                purchase.purchaseTokenAndroid?.let { token ->
+                    consumePurchaseAndroid(token)
+                    true
+                } ?: false
+            } else {
+                purchase.purchaseTokenAndroid?.let { token ->
+                    acknowledgePurchaseAndroid(token)
+                    true
+                } ?: false
             }
-        } else {
-            purchase.purchaseTokenAndroid?.let { token ->
-                acknowledgePurchaseAndroid(token)
-            }
+        } catch (e: Exception) {
+            false
         }
     }
     

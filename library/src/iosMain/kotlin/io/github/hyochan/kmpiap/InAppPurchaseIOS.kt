@@ -114,7 +114,7 @@ private class PaymentObserver : NSObject(), SKPaymentTransactionObserverProtocol
     }
 }
 
-internal class IosInAppPurchase : KmpInAppPurchase {
+internal class InAppPurchaseIOS : KmpInAppPurchase {
     // Event flows
     private val _purchaseUpdatedListener = MutableSharedFlow<Purchase>(
         replay = 0,
@@ -240,12 +240,11 @@ internal class IosInAppPurchase : KmpInAppPurchase {
         return true
     }
     
-    override suspend fun endConnection(): Boolean {
+    override suspend fun endConnection() {
         SKPaymentQueue.defaultQueue().removeTransactionObserver(paymentObserver)
         isConnected = false
         cleanupState()
         _connectionStateListener.emit(ConnectionResult(connected = false, message = "Disconnected from App Store"))
-        return true
     }
     
     override suspend fun requestProducts(params: ProductRequest): List<Product> {
@@ -383,13 +382,14 @@ internal class IosInAppPurchase : KmpInAppPurchase {
         }
     }
     
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?) {
+    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
         ensureConnection()
-        val transactionId = purchase.transactionId ?: return
-        val transaction = transactionCache[transactionId] ?: return
+        val transactionId = purchase.transactionId ?: return false
+        val transaction = transactionCache[transactionId] ?: return false
         
         SKPaymentQueue.defaultQueue().finishTransaction(transaction)
         transactionCache.remove(transactionId)
+        return true
     }
     
     override suspend fun getStorefrontIOS(): String {

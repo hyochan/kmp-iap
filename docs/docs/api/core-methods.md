@@ -50,10 +50,10 @@ if (connected) {
 Ends the connection to the platform store and cleans up resources.
 
 ```kotlin
-suspend fun endConnection(): Boolean
+suspend fun endConnection()
 ```
 
-**Returns**: `true` if disconnection successful
+**Returns**: Unit (void)
 
 **Description**: Cleanly closes the store connection and frees resources. Should be called when IAP functionality is no longer needed.
 
@@ -169,22 +169,30 @@ Completes a transaction after successful purchase processing.
 suspend fun finishTransaction(
     purchase: Purchase,
     isConsumable: Boolean? = null
-)
+): Boolean
 ```
 
 **Parameters**:
 - `purchase` - The purchase to finish
 - `isConsumable` - Whether the product is consumable (null for auto-detection)
 
+**Returns**: `true` if transaction was successfully finished, `false` otherwise
+
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 
 // For consumable products
-kmpIapInstance.finishTransaction(purchase, isConsumable = true)
+val success = kmpIapInstance.finishTransaction(purchase, isConsumable = true)
+if (success) {
+    println("Transaction finished successfully")
+}
 
 // For subscriptions (acknowledge only, don't consume)
-kmpIapInstance.finishTransaction(purchase, isConsumable = false)
+val acknowledged = kmpIapInstance.finishTransaction(purchase, isConsumable = false)
+if (acknowledged) {
+    println("Subscription acknowledged")
+}
 ```
 
 **Platform Behavior**:

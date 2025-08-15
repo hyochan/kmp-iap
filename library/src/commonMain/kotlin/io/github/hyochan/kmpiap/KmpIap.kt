@@ -98,9 +98,8 @@ interface KmpInAppPurchase {
 
     /**
      * End connection to the store service
-     * @return True if successful
      */
-    suspend fun endConnection(): Boolean
+    suspend fun endConnection()
 
     // ===== Product Management =====
     
@@ -138,8 +137,9 @@ interface KmpInAppPurchase {
      * Complete a purchase transaction
      * @param purchase The purchase to finish
      * @param isConsumable Whether the purchase is consumable
+     * @return True if transaction was successfully finished
      */
-    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null)
+    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null): Boolean
 
     // ===== Validation =====
     
@@ -256,12 +256,12 @@ expect class KmpIAP() {
     val purchaseErrorListener: Flow<PurchaseError>
     val promotedProductListener: Flow<String?>
     suspend fun initConnection(): Boolean
-    suspend fun endConnection(): Boolean
+    suspend fun endConnection()
     suspend fun requestProducts(params: ProductRequest): List<Product>
     suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
     suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
-    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null)
+    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null): Boolean
     suspend fun validateReceipt(options: ValidationOptions): ValidationResult
     suspend fun isPurchaseValid(purchase: Purchase): Boolean
     suspend fun finishTransactionIOS(transactionId: String)
