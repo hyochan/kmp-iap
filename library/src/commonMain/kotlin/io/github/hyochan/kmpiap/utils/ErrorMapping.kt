@@ -88,40 +88,6 @@ object ErrorCodeUtils {
         ErrorCode.E_CONNECTION_CLOSED to 26
     )
 
-    /**
-     * Android error code mapping based on OpenIAP specification
-     * Maps Google Play Billing response codes to OpenIAP error codes
-     */
-    private val androidErrorMapping = mapOf(
-        // OpenIAP Core Error Codes
-        ErrorCode.E_UNKNOWN to "E_UNKNOWN",
-        ErrorCode.E_USER_CANCELLED to "E_USER_CANCELLED",
-        ErrorCode.E_USER_ERROR to "E_USER_ERROR",
-        ErrorCode.E_ITEM_UNAVAILABLE to "E_ITEM_UNAVAILABLE",
-        ErrorCode.E_PRODUCT_NOT_AVAILABLE to "E_PRODUCT_NOT_AVAILABLE",
-        ErrorCode.E_PRODUCT_ALREADY_OWNED to "E_PRODUCT_ALREADY_OWNED",
-        ErrorCode.E_ALREADY_OWNED to "E_ALREADY_OWNED",
-        ErrorCode.E_NETWORK_ERROR to "E_NETWORK_ERROR",
-        ErrorCode.E_SERVICE_ERROR to "E_SERVICE_ERROR",
-        ErrorCode.E_REMOTE_ERROR to "E_REMOTE_ERROR",
-        ErrorCode.E_RECEIPT_FAILED to "E_RECEIPT_FAILED",
-        ErrorCode.E_RECEIPT_FINISHED to "E_RECEIPT_FINISHED",
-        ErrorCode.E_PENDING to "E_PENDING",
-        ErrorCode.E_NOT_ENDED to "E_NOT_ENDED",
-        ErrorCode.E_DEVELOPER_ERROR to "E_DEVELOPER_ERROR",
-        ErrorCode.E_RECEIPT_FINISHED_FAILED to "E_RECEIPT_FINISHED_FAILED",
-        ErrorCode.E_NOT_PREPARED to "E_NOT_PREPARED",
-        ErrorCode.E_BILLING_RESPONSE_JSON_PARSE_ERROR to "E_BILLING_RESPONSE_JSON_PARSE_ERROR",
-        ErrorCode.E_DEFERRED_PAYMENT to "E_DEFERRED_PAYMENT",
-        ErrorCode.E_INTERRUPTED to "E_INTERRUPTED",
-        ErrorCode.E_IAP_NOT_AVAILABLE to "E_IAP_NOT_AVAILABLE",
-        ErrorCode.E_PURCHASE_ERROR to "E_PURCHASE_ERROR",
-        ErrorCode.E_SYNC_ERROR to "E_SYNC_ERROR",
-        ErrorCode.E_TRANSACTION_VALIDATION_FAILED to "E_TRANSACTION_VALIDATION_FAILED",
-        ErrorCode.E_ACTIVITY_UNAVAILABLE to "E_ACTIVITY_UNAVAILABLE",
-        ErrorCode.E_ALREADY_PREPARED to "E_ALREADY_PREPARED",
-        ErrorCode.E_CONNECTION_CLOSED to "E_CONNECTION_CLOSED"
-    )
 
     /**
      * Convert platform-specific error code to OpenIAP error code
@@ -144,17 +110,11 @@ object ErrorCodeUtils {
                 }
             }
             IAPPlatform.ANDROID -> {
-                when (val code = platformCode as? String) {
-                    "E_USER_CANCELLED" -> ErrorCode.E_USER_CANCELLED
-                    "E_SERVICE_ERROR" -> ErrorCode.E_SERVICE_ERROR
-                    "E_ITEM_UNAVAILABLE" -> ErrorCode.E_ITEM_UNAVAILABLE
-                    "E_DEVELOPER_ERROR" -> ErrorCode.E_DEVELOPER_ERROR
-                    "E_ALREADY_OWNED" -> ErrorCode.E_ALREADY_OWNED
-                    "E_PRODUCT_NOT_AVAILABLE" -> ErrorCode.E_PRODUCT_NOT_AVAILABLE
-                    "E_NETWORK_ERROR" -> ErrorCode.E_NETWORK_ERROR
-                    "E_RECEIPT_FAILED" -> ErrorCode.E_RECEIPT_FAILED
-                    "E_PENDING" -> ErrorCode.E_PENDING
-                    else -> ErrorCode.E_UNKNOWN
+                val code = platformCode as? String ?: return ErrorCode.E_UNKNOWN
+                try {
+                    ErrorCode.valueOf(code)
+                } catch (e: IllegalArgumentException) {
+                    ErrorCode.E_UNKNOWN
                 }
             }
         }
@@ -163,7 +123,7 @@ object ErrorCodeUtils {
     fun toPlatformCode(errorCode: ErrorCode, platform: IAPPlatform): Any {
         return when (platform) {
             IAPPlatform.IOS -> iosErrorMapping[errorCode] ?: 0
-            IAPPlatform.ANDROID -> androidErrorMapping[errorCode] ?: "E_UNKNOWN"
+            IAPPlatform.ANDROID -> errorCode.name
         }
     }
 
@@ -171,29 +131,9 @@ object ErrorCodeUtils {
      * Check if an error code is valid for a specific platform
      */
     fun isValidForPlatform(errorCode: ErrorCode, platform: IAPPlatform): Boolean {
-        // Core OpenIAP error codes are valid for all platforms
-        val coreErrorCodes = setOf(
-            ErrorCode.E_UNKNOWN,
-            ErrorCode.E_USER_CANCELLED,
-            ErrorCode.E_USER_ERROR,
-            ErrorCode.E_ITEM_UNAVAILABLE,
-            ErrorCode.E_PRODUCT_NOT_AVAILABLE,
-            ErrorCode.E_PRODUCT_ALREADY_OWNED,
-            ErrorCode.E_ALREADY_OWNED,
-            ErrorCode.E_NETWORK_ERROR,
-            ErrorCode.E_SERVICE_ERROR,
-            ErrorCode.E_REMOTE_ERROR,
-            ErrorCode.E_RECEIPT_FAILED,
-            ErrorCode.E_RECEIPT_FINISHED,
-            ErrorCode.E_DEVELOPER_ERROR
-        )
-        
-        if (errorCode in coreErrorCodes) return true
-        
-        // Platform-specific error codes
         return when (platform) {
-            IAPPlatform.IOS -> errorCode == ErrorCode.E_NOT_ENDED
-            IAPPlatform.ANDROID -> errorCode == ErrorCode.E_PENDING
+            IAPPlatform.IOS -> iosErrorMapping.containsKey(errorCode)
+            IAPPlatform.ANDROID -> true // All error codes are valid for Android since we use the enum name directly
         }
     }
     
