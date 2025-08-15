@@ -55,7 +55,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-beta.8
+- **Current Version**: 1.0.0-beta.9
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 11.0+
 - **Android Requirements**: API level 24+
@@ -67,7 +67,7 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.8")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.9")
 }
 ```
 
