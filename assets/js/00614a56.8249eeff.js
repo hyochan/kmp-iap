@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[3104],{3273:s=>{s.exports=JSON.parse('{"label":"StoreKit2","permalink":"/blog/tags/store-kit-2","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

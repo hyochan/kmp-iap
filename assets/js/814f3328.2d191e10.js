@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[7472],{5513:e=>{e.exports=JSON.parse('{"title":"Recent posts","items":[{"title":"Initial Release - StoreKit 2 and Google Play Billing Library Support","permalink":"/blog/initial-release","unlisted":false}]}')}}]);
