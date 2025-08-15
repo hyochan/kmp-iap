@@ -175,7 +175,7 @@ internal class IosInAppPurchase : KmpInAppPurchase {
         paymentObserver.deferredHandler = { transaction ->
             _purchaseErrorListener.tryEmit(
                 PurchaseError(
-                    code = ErrorCode.E_DEFERRED_PAYMENT.name,
+                    code = ErrorCode.E_PENDING.name,
                     message = "Purchase is deferred and waiting for approval",
                     productId = transaction.payment.productIdentifier
                 )
@@ -191,8 +191,8 @@ internal class IosInAppPurchase : KmpInAppPurchase {
             isRestoring = false
             _purchaseErrorListener.tryEmit(
                 PurchaseError(
-                    code = ErrorCode.E_RESTORE_FAILED.name,
-                    message = error.localizedDescription
+                    code = ErrorCode.E_UNKNOWN.name,
+                    message = "Restore failed: ${error.localizedDescription}"
                 )
             )
             restoreCompletion?.invoke()
@@ -217,8 +217,8 @@ internal class IosInAppPurchase : KmpInAppPurchase {
             productRequests.remove(request)
             _purchaseErrorListener.tryEmit(
                 PurchaseError(
-                    code = ErrorCode.E_PRODUCT_LOAD_FAILED.name,
-                    message = error.localizedDescription
+                    code = ErrorCode.E_SERVICE_ERROR.name,
+                    message = "Failed to load products: ${error.localizedDescription}"
                 )
             )
         }
@@ -314,7 +314,7 @@ internal class IosInAppPurchase : KmpInAppPurchase {
             }
             
             skProduct = productCache[sku] ?: throw PurchaseError(
-                code = ErrorCode.E_PRODUCT_NOT_FOUND.name,
+                code = ErrorCode.E_PRODUCT_NOT_AVAILABLE.name,
                 message = "Product not in cache after fetch: $sku"
             )
         }
@@ -347,7 +347,7 @@ internal class IosInAppPurchase : KmpInAppPurchase {
             )
         } catch (e: Exception) {
             throw PurchaseError(
-                code = ErrorCode.E_PURCHASE_FAILED.name,
+                code = ErrorCode.E_UNKNOWN.name,
                 message = "Failed to create payment: ${e.message}"
             )
         }
@@ -597,7 +597,7 @@ internal class IosInAppPurchase : KmpInAppPurchase {
     private suspend fun ensureConnection() {
         if (!isConnected) {
             throw PurchaseError(
-                code = ErrorCode.E_NOT_INITIALIZED.name,
+                code = ErrorCode.E_SERVICE_ERROR.name,
                 message = "IAP connection not initialized. Call initConnection() first."
             )
         }
@@ -615,10 +615,10 @@ internal class IosInAppPurchase : KmpInAppPurchase {
         val error = transaction.error
         val errorCode = when ((error as? NSError)?.code) {
             2L -> ErrorCode.E_USER_CANCELLED
-            0L -> ErrorCode.E_PAYMENT_INVALID
-            1L -> ErrorCode.E_PAYMENT_NOT_ALLOWED
+            0L -> ErrorCode.E_DEVELOPER_ERROR  // Payment invalid
+            1L -> ErrorCode.E_USER_ERROR       // Payment not allowed
             5L -> ErrorCode.E_ITEM_UNAVAILABLE
-            else -> ErrorCode.E_PURCHASE_FAILED
+            else -> ErrorCode.E_UNKNOWN
         }
         
         _purchaseErrorListener.tryEmit(
