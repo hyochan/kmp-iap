@@ -31,45 +31,11 @@ dependencies {
 
 ## 🚀 Quick Start
 
-### Option 1: Singleton Pattern (Recommended)
-
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Use the singleton instance
-KmpIAP.instance.initConnection()
-
-// Get products
-val products = KmpIAP.instance.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
-    )
-)
-
-// Request purchase
-val purchase = KmpIAP.instance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
-        quantity = 1
-    )
-)
-
-// Finish transaction (after server-side validation)
-KmpIAP.instance.finishTransaction(
-    purchase = purchase,
-    isConsumable = true // true for consumables, false for subscriptions
-)
-```
-
-### Option 2: Create Your Own Instance
-
-```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
-
-// Create your own instance
+// Create an instance
 val kmpIAP = KmpIAP()
 
 // Initialize connection
