@@ -194,11 +194,11 @@ Test your setup with this verification code:
 
 ```kotlin
 suspend fun testConnection() {
-    val kmpIAP = KmpIAP()
+    import io.github.hyochan.kmpiap.kmpIapInstance
     
     try {
         // Initialize connection
-        val connected = kmpIAP.initConnection()
+        val connected = kmpIapInstance.initConnection()
         println("Connection status: $connected")
         
         if (!connected) {

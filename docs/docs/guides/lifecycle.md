@@ -42,6 +42,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
 class IAPViewModel : ViewModel() {
+    private val kmpIAP = KmpIAP()
     
     data class ConnectionState(
         val isConnected: Boolean = false,
@@ -63,8 +64,7 @@ class IAPViewModel : ViewModel() {
             _connectionState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                val kmpIAP = KmpIAP()
-            val connected = kmpIAP.initConnection()
+                val connected = kmpIAP.initConnection()
                 _connectionState.update { 
                     it.copy(
                         isConnected = connected,
@@ -95,7 +95,6 @@ class IAPViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
 ```
@@ -166,13 +165,13 @@ class PurchaseViewModel : ViewModel() {
         val error: PurchaseError? = null
     )
     
+    private val kmpIAP = KmpIAP()
     private val _uiState = MutableStateFlow(PurchaseUiState())
     val uiState: StateFlow<PurchaseUiState> = _uiState.asStateFlow()
     
     init {
         setupPurchaseObservers()
         viewModelScope.launch {
-            val kmpIAP = KmpIAP()
             val connected = kmpIAP.initConnection()
             if (connected) {
                 checkPendingPurchases()
@@ -225,7 +224,6 @@ class PurchaseViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
 }
@@ -320,7 +318,6 @@ class GoodPurchaseManager : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
 }

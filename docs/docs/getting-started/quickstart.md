@@ -109,22 +109,23 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
+    private val kmpIAP = KmpIAP()
+    private val scope = CoroutineScope(Dispatchers.Main)
     
     suspend fun initialize() {
         try {
             // Initialize connection using instance
-            val kmpIAP = KmpIAP()
             kmpIAP.initConnection()
             
             // Listen to purchase updates
-            launch {
+            scope.launch {
                 kmpIAP.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
             
             // Listen to errors
-            launch {
+            scope.launch {
                 kmpIAP.purchaseErrorListener.collect { error ->
                     handlePurchaseError(error)
                 }
@@ -137,7 +138,6 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // Load in-app products
-            val kmpIAP = KmpIAP()
             val products = kmpIAP.requestProducts(
                 ProductRequest(
                     skus = listOf("remove_ads", "premium_upgrade"),
@@ -156,7 +156,6 @@ class IAPManager {
     suspend fun purchaseProduct(productId: String) {
         try {
             // Request purchase with unified API
-            val kmpIAP = KmpIAP()
             val purchase = kmpIAP.requestPurchase(
                 UnifiedPurchaseRequest(
                     sku = productId,
@@ -181,7 +180,6 @@ class IAPManager {
             deliverProduct(purchase.productId)
             
             // Finish the transaction
-            val kmpIAP = KmpIAP()
             kmpIAP.finishTransaction(
                 purchase = purchase,
                 isConsumable = true // true for consumables, false for subscriptions
@@ -208,9 +206,9 @@ class IAPManager {
         println("Product delivered: $productId")
     }
     
-    suspend fun disconnect() {
-        val kmpIAP = KmpIAP()
+    fun disconnect() {
         kmpIAP.endConnection()
+        scope.cancel()
     }
 }
 ```

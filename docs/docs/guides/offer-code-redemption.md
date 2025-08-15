@@ -23,6 +23,7 @@ This library provides native support for:
 import kotlinx.coroutines.*
 import io.github.hyochan.kmpiap.*
 import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.kmpIapInstance
 
 class OfferCodeHandler(
     private val scope: CoroutineScope
@@ -39,8 +40,7 @@ class OfferCodeHandler(
         
         try {
             // Present the system offer code redemption sheet
-            val kmpIAP = KmpIAP()
-            kmpIAP.presentCodeRedemptionSheet()
+            kmpIapInstance.presentCodeRedemptionSheet()
             println("Offer code redemption sheet presented")
             
             // Results will come through purchaseUpdatedListener
@@ -52,9 +52,8 @@ class OfferCodeHandler(
     }
     
     private fun listenForRedemptionResults() {
-        val kmpIAP = KmpIAP()
         scope.launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 println("Offer code redeemed: ${purchase.productId}")
                 // Handle successful redemption
                 handleRedeemedPurchase(purchase)
@@ -65,8 +64,7 @@ class OfferCodeHandler(
     private suspend fun handleRedeemedPurchase(purchase: Purchase) {
         // Process the redeemed purchase
         // Verify receipt, deliver content, etc.
-        val kmpIAP = KmpIAP()
-        val success = kmpIAP.finishTransaction(
+        val success = kmpIapInstance.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
@@ -89,8 +87,7 @@ class StorefrontHandler() {
         if (getCurrentPlatform() != IapPlatform.IOS) return null
         
         return try {
-            val kmpIAP = KmpIAP()
-            val storefront = kmpIAP.getStorefront()
+            val storefront = kmpIapInstance.getStorefront()
             println("Storefront info: $storefront")
             storefront
         } catch (e: PurchaseError) {
@@ -103,8 +100,7 @@ class StorefrontHandler() {
      * Get the current store type
      */
     fun getCurrentStore(): Store {
-        val kmpIAP = KmpIAP()
-        return kmpIAP.getStore()
+        return kmpIapInstance.getStore()
     }
 }
 ```
@@ -128,8 +124,7 @@ class SubscriptionManager(
         }
         
         try {
-            val kmpIAP = KmpIAP()
-            kmpIAP.showManageSubscriptions()
+            kmpIapInstance.showManageSubscriptions()
             println("Subscription management screen presented")
         } catch (e: PurchaseError) {
             println("Failed to show subscription management: $e")
@@ -140,8 +135,7 @@ class SubscriptionManager(
      * Monitor subscription state changes
      */
     suspend fun observeSubscriptions() {
-        val kmpIAP = KmpIAP()
-        val subscriptions = kmpIAP.requestSubscriptions(
+        val subscriptions = kmpIapInstance.requestSubscriptions(
             ProductRequest(
                 skus = listOf("monthly_sub", "yearly_sub"),
                 type = ProductType.SUBS
@@ -176,12 +170,11 @@ class AndroidSubscriptionManager() {
         
         try {
             // Deep link to subscription management in Play Store
-            val kmpIAP = KmpIAP()
             productId?.let {
-                kmpIAP.deepLinkToSubscriptions(it)
+                kmpIapInstance.deepLinkToSubscriptions(it)
             } ?: run {
                 // Open general subscription management
-                kmpIAP.deepLinkToSubscriptions("")
+                kmpIapInstance.deepLinkToSubscriptions("")
             }
             
             println("Opened Android subscription management")
@@ -197,8 +190,7 @@ class AndroidSubscriptionManager() {
         if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
-            val kmpIAP = KmpIAP()
-            val history = kmpIAP.getAvailablePurchases()
+            val history = kmpIapInstance.getAvailablePurchases()
             
             val subscriptions = history.filter { 
                 it.productId.contains("subscription") || 
@@ -243,8 +235,7 @@ class CrossPlatformOfferViewModel : ViewModel() {
     
     private fun initializeIAP() {
         viewModelScope.launch {
-            val kmpIAP = KmpIAP()
-            kmpIAP.initConnection()
+            kmpIapInstance.initConnection()
         }
     }
     
@@ -252,8 +243,7 @@ class CrossPlatformOfferViewModel : ViewModel() {
         // Load subscriptions
         viewModelScope.launch {
             try {
-                val kmpIAP = KmpIAP()
-                val subs = kmpIAP.requestSubscriptions(
+                val subs = kmpIapInstance.requestSubscriptions(
                     ProductRequest(
                         skus = listOf("monthly_sub", "yearly_sub"),
                         type = ProductType.SUBS
@@ -278,17 +268,16 @@ class CrossPlatformOfferViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, error = null) }
         
         try {
-            val kmpIAP = KmpIAP()
             when (getCurrentPlatform()) {
                 IapPlatform.IOS -> {
                     // iOS: Present code redemption sheet
-                    kmpIAP.presentCodeRedemptionSheet()
+                    kmpIapInstance.presentCodeRedemptionSheet()
                     println("iOS offer code redemption sheet presented")
                     listenForPurchases()
                 }
                 IapPlatform.ANDROID -> {
                     // Android: Open subscription management
-                    kmpIAP.deepLinkToSubscriptions("")
+                    kmpIapInstance.deepLinkToSubscriptions("")
                     println("Android subscription management opened")
                 }
             }
@@ -307,16 +296,15 @@ class CrossPlatformOfferViewModel : ViewModel() {
      */
     suspend fun showSubscriptionManagement() {
         try {
-            val kmpIAP = KmpIAP()
             when (getCurrentPlatform()) {
                 IapPlatform.IOS -> {
-                    kmpIAP.showManageSubscriptions()
+                    kmpIapInstance.showManageSubscriptions()
                 }
                 IapPlatform.ANDROID -> {
                     // For Android, deep link to the first active subscription
                     val firstSub = _state.value.activeSubscriptions.firstOrNull()
                     firstSub?.let {
-                        kmpIAP.deepLinkToSubscriptions(it.id)
+                        kmpIapInstance.deepLinkToSubscriptions(it.id)
                     }
                 }
             }
@@ -328,9 +316,8 @@ class CrossPlatformOfferViewModel : ViewModel() {
     }
     
     private fun listenForPurchases() {
-        val kmpIAP = KmpIAP()
         viewModelScope.launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 println("Purchase received: ${purchase.productId}")
                 handlePurchaseSuccess(purchase)
             }
@@ -342,8 +329,7 @@ class CrossPlatformOfferViewModel : ViewModel() {
         deliverContent(purchase.productId)
         
         // Finish transaction
-        val kmpIAP = KmpIAP()
-        kmpIAP.finishTransaction(
+        kmpIapInstance.finishTransaction(
             purchase = purchase,
             isConsumable = false
         )
@@ -353,8 +339,7 @@ class CrossPlatformOfferViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
-        kmpIAP.dispose()
+        kmpIapInstance.dispose()
     }
 }
 ```
@@ -375,8 +360,7 @@ class PlatformSpecificFeatures(
         
         return try {
             // Load promoted products
-            val kmpIAP = KmpIAP()
-            val products = kmpIAP.requestProducts(
+            val products = kmpIapInstance.requestProducts(
                 ProductRequest(
                     skus = listOf("promoted_product_1", "promoted_product_2"),
                     type = ProductType.INAPP
@@ -403,8 +387,7 @@ class PlatformSpecificFeatures(
         if (getCurrentPlatform() != IapPlatform.ANDROID) return
         
         try {
-            val kmpIAP = KmpIAP()
-            kmpIAP.requestSubscription(
+            kmpIapInstance.requestSubscription(
                 SubscriptionRequest(
                     sku = productId,
                     offerToken = offerToken

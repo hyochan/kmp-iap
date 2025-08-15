@@ -10,7 +10,7 @@ import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
 <AdFitTopFixed />
 
-A comprehensive Kotlin Multiplatform library implementing the [**Open IAP Specification**](https://openiap.dev) for consistent cross-platform in-app purchases on iOS and Android.
+A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
 
 <div style={{textAlign: 'center', margin: '2rem 0'}}>
   <img src="/img/logo.png" alt="kmp-iap Logo" style={{maxWidth: '100%', height: 'auto'}} />

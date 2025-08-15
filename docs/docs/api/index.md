@@ -50,11 +50,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class PurchaseManager {
+    private val kmpIAP = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
     
     suspend fun initializePurchases() {
         // Initialize connection
-        val kmpIAP = KmpIAP()
         kmpIAP.initConnection()
         
         // Set up state listeners
@@ -72,7 +72,6 @@ class PurchaseManager {
     }
     
     suspend fun makePurchase(productId: String) {
-        val kmpIAP = KmpIAP()
         kmpIAP.requestPurchase(
             UnifiedPurchaseRequest(
                 sku = productId,

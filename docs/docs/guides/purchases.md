@@ -75,7 +75,6 @@ class PurchaseHandler(
     }
     
     fun dispose() {
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
 }
@@ -102,6 +101,7 @@ class ProductsViewModel : ViewModel() {
         val products: List<Product> = emptyList()
     )
     
+    private val kmpIAP = KmpIAP()
     private val _state = MutableStateFlow(PurchaseState())
     val state: StateFlow<PurchaseState> = _state.asStateFlow()
     
@@ -110,7 +110,6 @@ class ProductsViewModel : ViewModel() {
         
         // Initialize connection and load products
         viewModelScope.launch {
-            val kmpIAP = KmpIAP()
             val connected = kmpIAP.initConnection()
             if (connected) {
                 loadProducts()
@@ -120,7 +119,6 @@ class ProductsViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
     
@@ -143,7 +141,6 @@ suspend fun handlePurchase(productId: String) {
         }
 
         // Request purchase
-        val kmpIAP = KmpIAP()
         kmpIAP.requestPurchase(
             sku = productId,
             quantityIOS = 1, // iOS only
@@ -670,7 +667,6 @@ class PurchaseService : ViewModel() {
     }
     
     suspend fun purchaseProduct(productId: String) {
-        val kmpIAP = KmpIAP()
         kmpIAP.requestPurchase(
             sku = productId,
             quantityIOS = 1,
@@ -680,7 +676,6 @@ class PurchaseService : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        val kmpIAP = KmpIAP()
         kmpIAP.dispose()
     }
     

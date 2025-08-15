@@ -1,17 +1,63 @@
 ---
-sidebar_position: 100
 title: Sponsors
-description: Support kmp-iap development through sponsorship
 ---
-
-import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
 # Sponsors
 
-<AdFitTopFixed />
+Thank you to all our sponsors for supporting the kmp-iap project and the Open IAP ecosystem!
 
-For information about our sponsors and sponsorship opportunities, please visit:
+## Become a Sponsor
 
-👉 **[Sponsors - openiap.dev](https://openiap.dev/sponsors)**
+Your support helps us maintain and improve kmp-iap. By becoming a sponsor, you're directly contributing to:
 
-Support the development of [kmp-iap](https://github.com/hyochan/kmp-iap) and the broader [Open IAP](https://openiap.dev) ecosystem through the unified sponsorship program.
+- 🚀 Continuous development and maintenance
+- 📚 Better documentation and examples
+- 🐛 Faster bug fixes and feature releases
+- 🌐 Support for more platforms and stores
+
+## Support Us
+
+### GitHub Sponsors
+[Support us on GitHub Sponsors](https://github.com/sponsors/hyochan)
+
+### Open Collective
+[Support us on Open Collective](https://opencollective.com/dooboolab)
+
+## Our Sponsors
+
+### 🥇 Gold Sponsors
+*Become our first gold sponsor!*
+
+### 🥈 Silver Sponsors
+*Become our first silver sponsor!*
+
+### 🥉 Bronze Sponsors
+*Become our first bronze sponsor!*
+
+### Individual Supporters
+Thank you to all our individual supporters who help keep this project alive!
+
+## Why Sponsor?
+
+By sponsoring kmp-iap, you're not just supporting a library - you're investing in:
+
+- **Open Source**: Keep the library free and open for everyone
+- **Innovation**: Enable new features and platform support
+- **Community**: Help build better tools for the Kotlin Multiplatform ecosystem
+- **Reliability**: Ensure long-term maintenance and support
+
+## Recognition
+
+All sponsors will receive:
+- Recognition on this page
+- Logo/name in our README (based on tier)
+- Priority support for issues
+- Early access to new features
+
+## Contact
+
+For sponsorship inquiries or custom support plans, please contact us at [support@dooboolab.com](mailto:support@dooboolab.com)
+
+---
+
+💖 Thank you for considering sponsorship!

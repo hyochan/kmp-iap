@@ -23,11 +23,12 @@ val purchaseUpdatedListener: Flow<Purchase>
 ```kotlin
 import kotlinx.coroutines.flow.collectLatest
 
-class PurchaseManager(private val iap: InAppPurchase) {
+class PurchaseManager {
+    private val kmpIAP = KmpIAP()
+    private val scope = CoroutineScope(Dispatchers.Main)
     
     init {
         scope.launch {
-            val kmpIAP = KmpIAP()
             kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
                 println("Purchase updated: ${purchase.productId}")
                 println("Transaction ID: ${purchase.transactionId}")
@@ -57,7 +58,6 @@ class PurchaseManager(private val iap: InAppPurchase) {
         grantEntitlement(purchase.productId)
         
         // Finish transaction
-        val kmpIAP = KmpIAP()
         kmpIAP.finishTransaction(purchase, isConsumable = true)
     }
 }
@@ -79,9 +79,10 @@ val purchaseErrorListener: Flow<PurchaseError>
 
 **Example**:
 ```kotlin
-val kmpIAP = KmpIAP()
+import io.github.hyochan.kmpiap.kmpIapInstance
+
 scope.launch {
-    kmpIAP.purchaseErrorListener.collectLatest { error ->
+    kmpIapInstance.purchaseErrorListener.collectLatest { error ->
         println("Purchase error: ${error.message}")
         println("Error code: ${error.code}")
         
@@ -125,9 +126,8 @@ suspend fun isConnected(): Boolean
 **Example**:
 ```kotlin
 // Check connection state
-val kmpIAP = KmpIAP()
 scope.launch {
-    val connected = kmpIAP.isConnected()
+    val connected = kmpIapInstance.isConnected()
     if (connected) {
         enablePurchaseButtons()
         loadProducts()
@@ -147,14 +147,13 @@ class ConnectionManager(private val iap: InAppPurchase) {
     }
     
     private fun monitorConnection() {
-        val kmpIAP = KmpIAP()
         scope.launch {
-            kmpIAP.isConnected.collectLatest { connected ->
+            kmpIapInstance.isConnected.collectLatest { connected ->
                 if (!connected && retryCount < maxRetries) {
                     delay(2000 * (retryCount + 1)) // Exponential backoff
                     retryCount++
                     try {
-                        kmpIAP.initConnection()
+                        kmpIapInstance.initConnection()
                     } catch (e: Exception) {
                         println("Retry failed: ${e.message}")
                     }
@@ -183,17 +182,16 @@ val promotedProductIOS: StateFlow<Product?>
 
 **Example**:
 ```kotlin
-val kmpIAP = KmpIAP()
 if (getCurrentPlatform() == IapPlatform.IOS) {
     scope.launch {
-        kmpIAP.promotedProductListener.collect { product ->
+        kmpIapInstance.promotedProductListener.collect { product ->
             product?.let {
                 // Show promoted product immediately
                 showProductDetail(it)
                 
                 // Optionally auto-purchase
                 if (userSettings.autoPromotedPurchase) {
-                    kmpIAP.buyPromotedProductIOS()
+                    kmpIapInstance.buyPromotedProductIOS()
                 }
             }
         }
@@ -207,9 +205,8 @@ While not exposed as a direct flow, Android billing client state changes can be 
 
 ```kotlin
 // Monitor through connection state
-val kmpIAP = KmpIAP()
 scope.launch {
-    kmpIAP.isConnected.collectLatest { connected ->
+    kmpIapInstance.isConnected.collectLatest { connected ->
         if (connected) {
             // BillingClient is ready
             println("Google Play Billing connected")
@@ -232,9 +229,10 @@ Monitor multiple events simultaneously:
 ```kotlin
 class PurchaseFlowManager(private val iap: InAppPurchase) {
     
+    private val kmpIAP = KmpIAP()
+    
     init {
         // Combine purchase and error flows
-        val kmpIAP = KmpIAP()
         scope.launch {
             merge(
                 kmpIAP.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
@@ -261,8 +259,7 @@ Listen for specific events:
 
 ```kotlin
 // Only listen for subscription purchases
-val kmpIAP = KmpIAP()
-kmpIAP.purchaseUpdatedListener
+kmpIapInstance.purchaseUpdatedListener
     .filter { purchase ->
         purchase.products.any { it.type == PurchaseType.SUBS }
     }
@@ -289,8 +286,7 @@ Prevent rapid successive events:
 
 ```kotlin
 // Debounce purchase updates
-val kmpIAP = KmpIAP()
-kmpIAP.purchaseUpdatedListener
+kmpIapInstance.purchaseUpdatedListener
     .debounce(500) // Wait 500ms for stable state
     .collectLatest { purchase ->
         updatePurchaseUI(purchase)
@@ -316,10 +312,9 @@ fun PurchaseScreen(iap: InAppPurchase) {
     val lifecycleOwner = LocalLifecycleOwner.current
     
     // Purchase updates
-    val kmpIAP = KmpIAP()
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
                 // Only collect when screen is visible
                 showPurchaseSuccess(purchase)
             }
@@ -353,10 +348,9 @@ class PurchaseActivity : AppCompatActivity() {
     
     private fun setupListeners() {
         // Lifecycle-aware collection
-        val kmpIAP = KmpIAP()
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
+                kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
@@ -364,7 +358,7 @@ class PurchaseActivity : AppCompatActivity() {
         
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                kmpIAP.purchaseErrorListener.collectLatest { error ->
+                kmpIapInstance.purchaseErrorListener.collectLatest { error ->
                     handlePurchaseError(error)
                 }
             }
@@ -392,9 +386,8 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
     private val retryAttempts = mutableMapOf<String, Int>()
     
     init {
-        val kmpIAP = KmpIAP()
         scope.launch {
-            kmpIAP.purchaseErrorListener.collectLatest { error ->
+            kmpIapInstance.purchaseErrorListener.collectLatest { error ->
                 when (error.code) {
                     ErrorCode.NETWORK_ERROR,
                     ErrorCode.SERVICE_UNAVAILABLE -> {

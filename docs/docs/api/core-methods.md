@@ -29,10 +29,9 @@ suspend fun initConnection(): Boolean
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 
-val kmpIAP = KmpIAP()
-val connected = kmpIAP.initConnection()
+val connected = kmpIapInstance.initConnection()
 if (connected) {
     println("IAP connection initialized successfully")
 } else {
@@ -60,13 +59,12 @@ suspend fun endConnection(): Boolean
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 
 // In your cleanup code
 override fun onCleared() {
     scope.launch {
-        val kmpIAP = KmpIAP()
-        kmpIAP.endConnection()
+        kmpIapInstance.endConnection()
     }
 }
 ```
@@ -88,12 +86,11 @@ suspend fun requestProducts(params: ProductRequest): List<Product>
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 
-val kmpIAP = KmpIAP()
 // Load in-app products
-val products = kmpIAP.requestProducts(
+val products = kmpIapInstance.requestProducts(
     ProductRequest(
         skus = listOf("coins_100", "coins_500", "remove_ads"),
         type = ProductType.INAPP
@@ -136,12 +133,11 @@ suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 
-val kmpIAP = KmpIAP()
 // Simple purchase
-val purchase = kmpIAP.requestPurchase(
+val purchase = kmpIapInstance.requestPurchase(
     UnifiedPurchaseRequest(
         sku = "premium_upgrade",
         quantity = 1
@@ -149,7 +145,7 @@ val purchase = kmpIAP.requestPurchase(
 )
 
 // With platform-specific options
-val purchase = kmpIAP.requestPurchase(
+val purchase = kmpIapInstance.requestPurchase(
     UnifiedPurchaseRequest(
         sku = "coins_100",
         quantity = 5,
@@ -182,14 +178,13 @@ suspend fun finishTransaction(
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 
-val kmpIAP = KmpIAP()
 // For consumable products
-kmpIAP.finishTransaction(purchase, isConsumable = true)
+kmpIapInstance.finishTransaction(purchase, isConsumable = true)
 
 // For subscriptions (acknowledge only, don't consume)
-kmpIAP.finishTransaction(purchase, isConsumable = false)
+kmpIapInstance.finishTransaction(purchase, isConsumable = false)
 ```
 
 **Platform Behavior**:
@@ -214,10 +209,9 @@ suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purcha
 
 **Example**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 
-val kmpIAP = KmpIAP()
-val purchases = kmpIAP.getAvailablePurchases()
+val purchases = kmpIapInstance.getAvailablePurchases()
 purchases.forEach { purchase ->
     println("Product: ${purchase.productId}")
     println("Date: ${purchase.transactionDate}")
@@ -266,24 +260,23 @@ val promotedProductListener: Flow<String?>
 
 **Example Usage**:
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import kotlinx.coroutines.flow.collectLatest
 
-val kmpIAP = KmpIAP()
 // Listen for purchase updates
 scope.launch {
-    kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
+    kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
         println("Purchase completed: ${purchase.productId}")
         // Deliver content to user
         deliverContent(purchase.productId)
         // Finish transaction
-        kmpIAP.finishTransaction(purchase, isConsumable = true)
+        kmpIapInstance.finishTransaction(purchase, isConsumable = true)
     }
 }
 
 // Listen for errors
 scope.launch {
-    kmpIAP.purchaseErrorListener.collectLatest { error ->
+    kmpIapInstance.purchaseErrorListener.collectLatest { error ->
         when (error.code) {
             ErrorCode.E_USER_CANCELLED.name -> {
                 println("User cancelled purchase")
@@ -372,8 +365,9 @@ suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
 
 **Example**:
 ```kotlin
-val kmpIAP = KmpIAP()
-kmpIAP.deepLinkToSubscriptions(
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+kmpIapInstance.deepLinkToSubscriptions(
     DeepLinkOptions(skuAndroid = "premium_monthly")
 )
 ```
@@ -407,8 +401,9 @@ suspend fun isPurchaseValid(purchase: Purchase): Boolean
 
 **Example**:
 ```kotlin
-val kmpIAP = KmpIAP()
-val isValid = kmpIAP.isPurchaseValid(purchase)
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val isValid = kmpIapInstance.isPurchaseValid(purchase)
 if (isValid) {
     // Proceed with server validation
     validateOnServer(purchase)
@@ -462,9 +457,10 @@ fun getVersion(): String
 All methods can throw `PurchaseError` with specific error codes:
 
 ```kotlin
-val kmpIAP = KmpIAP()
+import io.github.hyochan.kmpiap.kmpIapInstance
+
 try {
-    val purchase = kmpIAP.requestPurchase(request)
+    val purchase = kmpIapInstance.requestPurchase(request)
 } catch (e: PurchaseError) {
     when (e.code) {
         ErrorCode.E_USER_CANCELLED.name -> handleCancellation()
