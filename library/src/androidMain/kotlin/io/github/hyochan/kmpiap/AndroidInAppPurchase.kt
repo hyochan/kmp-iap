@@ -130,7 +130,7 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         }
         
         context ?: throw PurchaseError(
-            code = ErrorCode.E_NOT_INITIALIZED.name,
+            code = ErrorCode.E_SERVICE_ERROR.name,
             message = "Context not available"
         )
         
@@ -333,7 +333,7 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         }
         
         currentActivity ?: throw PurchaseError(
-            code = ErrorCode.E_ACTIVITY_UNAVAILABLE.name,
+            code = ErrorCode.E_SERVICE_ERROR.name,
             message = "Activity not available for purchase. Please ensure your app has an active Activity."
         )
         
@@ -554,7 +554,7 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
     private fun ensureConnection() {
         if (!isConnected) {
             throw PurchaseError(
-                code = ErrorCode.E_NOT_INITIALIZED.name,
+                code = ErrorCode.E_SERVICE_ERROR.name,
                 message = "Not connected to billing service"
             )
         }
@@ -583,12 +583,12 @@ internal class AndroidInAppPurchase : KmpInAppPurchase, Application.ActivityLife
         return when (responseCode) {
             BillingClient.BillingResponseCode.USER_CANCELED -> ErrorCode.E_USER_CANCELLED
             BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> ErrorCode.E_SERVICE_ERROR
-            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ErrorCode.E_BILLING_UNAVAILABLE
+            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ErrorCode.E_SERVICE_ERROR
             BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ErrorCode.E_ITEM_UNAVAILABLE
             BillingClient.BillingResponseCode.DEVELOPER_ERROR -> ErrorCode.E_DEVELOPER_ERROR
             BillingClient.BillingResponseCode.ERROR -> ErrorCode.E_UNKNOWN
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> ErrorCode.E_ALREADY_OWNED
-            BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> ErrorCode.E_PURCHASE_NOT_ALLOWED
+            BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> ErrorCode.E_PRODUCT_NOT_AVAILABLE
             else -> ErrorCode.E_UNKNOWN
         }
     }
