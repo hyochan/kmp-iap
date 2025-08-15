@@ -5,7 +5,7 @@ sidebar_position: 6
 
 # Error Codes
 
-Comprehensive error handling reference for kmp-iap v1.0.0-beta.2. Understanding error codes helps implement robust error recovery and provide better user experiences.
+Comprehensive error handling reference for kmp-iap. The library follows the OpenIAP specification for standardized error codes across platforms.
 
 ## Error Types
 
@@ -15,407 +15,393 @@ The main error class for all IAP-related exceptions.
 
 ```kotlin
 data class PurchaseError(
-    val code: ErrorCode,
+    val code: String,  // Error code from ErrorCode enum
     val message: String,
-    val underlyingError: Throwable? = null
+    val productId: String? = null
 ) : Exception(message)
 ```
 
 **Properties**:
-- `code` - Standardized error code enum
+- `code` - Standardized error code string (from ErrorCode enum)
 - `message` - Human-readable error description
-- `underlyingError` - Platform-specific underlying error (optional)
+- `productId` - Related product ID (optional)
 
-## Error Code Reference
+## OpenIAP Error Code Reference
+
+kmp-iap implements all 27 standard OpenIAP error codes for consistent error handling across platforms.
 
 ### ErrorCode Enum
 
 ```kotlin
 enum class ErrorCode {
-    // User Actions
-    USER_CANCELLED,
+    // General Errors
+    E_UNKNOWN,                        // Unknown error occurred
+    E_DEVELOPER_ERROR,                // Developer configuration error
     
-    // Network & Service
-    NETWORK_ERROR,
-    SERVICE_UNAVAILABLE,
-    SERVICE_TIMEOUT,
-    SERVICE_DISCONNECTED,
+    // User Action Errors  
+    E_USER_CANCELLED,                 // User cancelled the purchase flow
+    E_USER_ERROR,                     // User-related error during purchase
+    E_DEFERRED_PAYMENT,               // Payment was deferred (pending family approval, etc.)
+    E_INTERRUPTED,                    // Purchase flow was interrupted
     
-    // Product & Purchase
-    PRODUCT_NOT_AVAILABLE,
-    PRODUCT_ALREADY_OWNED,
-    PURCHASE_INVALID,
-    PURCHASE_DEFERRED,
+    // Product Errors
+    E_ITEM_UNAVAILABLE,               // Product not available in store
+    E_PRODUCT_NOT_AVAILABLE,          // Product SKU not found
+    E_PRODUCT_ALREADY_OWNED,          // Non-consumable product already purchased
+    E_ALREADY_OWNED,                  // Item already owned by user
     
-    // Configuration
-    NOT_INITIALIZED,
-    ALREADY_INITIALIZED,
-    INVALID_CONFIGURATION,
+    // Network & Service Errors
+    E_NETWORK_ERROR,                  // Network connection error
+    E_SERVICE_ERROR,                  // Store service error
+    E_REMOTE_ERROR,                   // Remote server error
+    E_CONNECTION_CLOSED,              // Connection to store service was closed
+    E_IAP_NOT_AVAILABLE,              // In-app purchase service not available
+    E_SYNC_ERROR,                     // Synchronization error with store
     
-    // Platform Specific
-    BILLING_UNAVAILABLE,
-    FEATURE_NOT_SUPPORTED,
-    DEVELOPER_ERROR,
+    // Validation Errors
+    E_RECEIPT_FAILED,                 // Receipt validation failed
+    E_RECEIPT_FINISHED,               // Receipt already processed/finished
+    E_RECEIPT_FINISHED_FAILED,        // Failed to finish receipt processing
+    E_TRANSACTION_VALIDATION_FAILED,  // Transaction validation failed
     
-    // General
-    UNKNOWN_ERROR
+    // Platform-Specific Errors
+    E_PENDING,                        // Purchase is pending approval (Android)
+    E_NOT_ENDED,                      // Transaction not finished (iOS)
+    E_NOT_PREPARED,                   // Store connection not initialized
+    E_ALREADY_PREPARED,               // Store connection already initialized
+    E_BILLING_RESPONSE_JSON_PARSE_ERROR, // Failed to parse billing response (Android)
+    E_PURCHASE_ERROR,                 // General purchase error
+    E_ACTIVITY_UNAVAILABLE            // Activity context not available (Android)
 }
 ```
 
 ## Error Code Details
 
-### User Action Errors
+### General Errors
 
-#### USER_CANCELLED
-**Description**: User cancelled the purchase flow  
+#### E_UNKNOWN
+**Description**: Unknown error occurred  
 **Platforms**: iOS, Android  
-**Recovery**: No action needed - expected user behavior
-
-```kotlin
-scope.launch {
-    KmpIAP.purchaseErrorListener.collect { error ->
-        when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
-                    // Don't show error - user intended to cancel
-                    println("Purchase cancelled by user")
-                }
-            else -> showErrorDialog(error.message)
-            }
-    }
-}
-```
-
-### Network & Service Errors
-
-#### NETWORK_ERROR
-**Description**: Network connection failed  
-**Platforms**: iOS, Android  
-**Recovery**: Retry with exponential backoff
-
-```kotlin
-private fun handleNetworkError() {
-    var retryCount = 0
-    val maxRetries = 3
-    
-    scope.launch {
-        while (retryCount < maxRetries) {
-            delay(1000L * (2.0.pow(retryCount).toLong()))
-            try {
-                KmpIAP.initConnection()
-                break // Success
-            } catch (e: PurchaseError) {
-                if (e.code != ErrorCode.E_NETWORK_ERROR.name || ++retryCount >= maxRetries) {
-                    showError("Network error. Please check your connection.")
-                    break
-                }
-            }
-        }
-    }
-}
-```
-
-#### SERVICE_UNAVAILABLE
-**Description**: Store service is temporarily unavailable  
-**Platforms**: iOS, Android  
-**Recovery**: Retry later or check service status
+**Recovery**: Log and report error for debugging
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
-        showRetryableError(
-            message = "Store service unavailable. Please try again later.",
-            retryAction = { reconnectToStore() }
-        )
+    ErrorCode.E_UNKNOWN.name -> {
+        // Log full error details
+        logger.error("Unknown IAP error", error)
+        showError("An unexpected error occurred. Please try again.")
     }
 }
 ```
 
-#### SERVICE_TIMEOUT
-**Description**: Request to store service timed out  
-**Platforms**: iOS, Android  
-**Recovery**: Retry with longer timeout
-
-```kotlin
-// Handle timeout errors
-when (error.code) {
-    ErrorCode.E_SERVICE_TIMEOUT.name -> {
-        // Retry with exponential backoff
-        retryWithDelay()
-    }
-}
-```
-
-#### SERVICE_DISCONNECTED
-**Description**: Lost connection to store service  
-**Platforms**: iOS, Android  
-**Recovery**: Re-initialize connection
-
-```kotlin
-scope.launch {
-    KmpIAP.isConnected.collectLatest { connected ->
-        if (!connected) {
-            // Attempt reconnection
-            delay(2000)
-            try {
-                KmpIAP.initConnection()
-            } catch (e: PurchaseError) {
-                scheduleReconnection()
-            }
-        }
-    }
-}
-```
-
-### Product & Purchase Errors
-
-#### PRODUCT_NOT_AVAILABLE
-**Description**: Requested product not found in store  
-**Platforms**: iOS, Android  
-**Common Causes**:
-- Invalid product ID
-- Product not approved in store
-- Regional restrictions
-
-```kotlin
-try {
-    val products = KmpIAP.getProducts(listOf("invalid_sku"))
-} catch (e: PurchaseError) {
-    when (e.code) {
-        ErrorCode.E_ITEM_UNAVAILABLE.name -> {
-            println("Product not found. Check product IDs:")
-            println("- Verify product ID matches store configuration")
-            println("- Ensure product is approved and available")
-            println("- Check regional availability")
-        }
-    }
-}
-```
-
-#### PRODUCT_ALREADY_OWNED
-**Description**: User already owns this non-consumable product  
-**Platforms**: iOS, Android  
-**Recovery**: Restore purchases or check ownership
-
-```kotlin
-when (error.code) {
-    ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
-        showInfo("You already own this product.")
-        // Refresh purchase state
-        scope.launch {
-            kmpIAP.getAvailablePurchases()
-        }
-    }
-}
-```
-
-#### PURCHASE_INVALID
-**Description**: Purchase validation failed  
-**Platforms**: iOS, Android  
-**Common Causes**:
-- Invalid receipt
-- Signature verification failed
-- Purchase token expired
-
-```kotlin
-// Server-side validation example
-suspend fun validatePurchase(purchase: Purchase): Boolean {
-    return try {
-        val response = api.validatePurchase(
-            productId = purchase.productId,
-            purchaseToken = purchase.purchaseToken,
-            receipt = purchase.transactionReceipt
-        )
-        response.isValid
-    } catch (e: Exception) {
-        throw PurchaseError(
-            code = ErrorCode.E_PURCHASE_INVALID.name,
-            message = "Purchase validation failed",
-            underlyingError = e
-        )
-    }
-}
-```
-
-#### PURCHASE_DEFERRED
-**Description**: Purchase requires additional approval (family sharing)  
-**Platforms**: iOS (Ask to Buy)  
-**Recovery**: Wait for approval
-
-```kotlin
-when (error.code) {
-    ErrorCode.E_DEFERRED_PAYMENT.name -> {
-        showInfo(
-            "Purchase is pending approval. " +
-            "You'll be notified when it's approved."
-        )
-        // Store pending purchase for later processing
-        savePendingPurchase(purchase)
-    }
-}
-```
-
-### Configuration Errors
-
-#### NOT_INITIALIZED
-**Description**: IAP not initialized before use  
-**Platforms**: iOS, Android  
-**Recovery**: Call initConnection() first
-
-```kotlin
-class IAPManager {
-    private var initialized = false
-    
-    suspend fun ensureInitialized() {
-        if (!initialized) {
-            try {
-                KmpIAP.initConnection()
-                initialized = true
-            } catch (e: PurchaseError) {
-                throw PurchaseError(
-                    code = ErrorCode.E_NOT_INITIALIZED.name,
-                    message = "Failed to initialize IAP",
-                    underlyingError = e
-                )
-            }
-        }
-    }
-    
-    suspend fun loadProducts(skus: List<String>) {
-        ensureInitialized()
-        return KmpIAP.getProducts(skus)
-    }
-}
-```
-
-#### ALREADY_INITIALIZED
-**Description**: Attempted to initialize already initialized connection  
-**Platforms**: iOS, Android  
-**Recovery**: Use existing connection
-
-```kotlin
-// Safe initialization
-suspend fun safeInitialize() {
-    if (!KmpIAP.isConnected.value) {
-        try {
-            KmpIAP.initConnection()
-        } catch (e: PurchaseError) {
-            if (e.code != ErrorCode.E_NOT_INITIALIZED.name) {
-                throw e
-            }
-            // Already initialized - continue
-        }
-    }
-}
-```
-
-#### INVALID_CONFIGURATION
-**Description**: Invalid configuration parameters  
-**Platforms**: iOS, Android  
-**Common Causes**:
-- Missing required parameters
-- Invalid SKU format
-- Incorrect platform configuration
-
-```kotlin
-// Validate configuration before use
-fun validateProductIds(ids: List<String>) {
-    ids.forEach { id ->
-        require(id.isNotBlank()) { "Product ID cannot be blank" }
-        require(!id.contains(" ")) { "Product ID cannot contain spaces" }
-        require(id.length <= 255) { "Product ID too long" }
-    }
-}
-```
-
-### Platform-Specific Errors
-
-#### BILLING_UNAVAILABLE
-**Description**: Billing service not available on device  
-**Platforms**: Android  
-**Common Causes**:
-- Google Play Store not installed
-- Play Store account not configured
-- Device doesn't support billing
-
-```kotlin
-when (error.code) {
-    ErrorCode.BILLING_UNAVAILABLE -> {
-        if (getCurrentPlatform() == IapPlatform.ANDROID) {
-            showError(
-                "Google Play Store is not available. " +
-                "Please install or update Google Play Store."
-            )
-        }
-    }
-}
-```
-
-#### FEATURE_NOT_SUPPORTED
-**Description**: Requested feature not supported  
-**Platforms**: iOS, Android  
-**Examples**:
-- Subscriptions on older iOS versions
-- Promotional offers on Android
-
-```kotlin
-// Check feature availability
-suspend fun checkFeatureSupport() {
-    when (getCurrentPlatform()) {
-        IapPlatform.IOS -> {
-            if (Build.VERSION.SDK_INT < 14) {
-                throw PurchaseError(
-                    code = ErrorCode.FEATURE_NOT_SUPPORTED,
-                    message = "Code redemption requires iOS 14+"
-                )
-            }
-        }
-        IapPlatform.ANDROID -> {
-            // Check Android feature support
-        }
-    }
-}
-```
-
-#### DEVELOPER_ERROR
+#### E_DEVELOPER_ERROR
 **Description**: Developer configuration error  
 **Platforms**: iOS, Android  
 **Common Causes**:
 - Incorrect bundle ID
 - Missing entitlements
 - Invalid signing
+- Product not configured in store
 
 ```kotlin
 when (error.code) {
-    ErrorCode.DEVELOPER_ERROR -> {
+    ErrorCode.E_DEVELOPER_ERROR.name -> {
         if (BuildConfig.DEBUG) {
-            println("Developer error details:")
-            println("- Check app bundle ID matches store listing")
-            println("- Verify in-app purchase entitlements")
-            println("- Ensure proper app signing")
-            error.underlyingError?.printStackTrace()
+            println("Developer error - check configuration:")
+            println("- App bundle ID matches store listing")
+            println("- In-app purchase entitlements enabled")
+            println("- Products configured in store console")
         }
     }
 }
 ```
 
-### General Errors
+### User Action Errors
 
-#### UNKNOWN_ERROR
-**Description**: Unexpected error occurred  
+#### E_USER_CANCELLED
+**Description**: User cancelled the purchase flow  
 **Platforms**: iOS, Android  
-**Recovery**: Log and report error
+**Recovery**: No action needed - expected user behavior
+
+```kotlin
+kmpIapInstance.purchaseErrorListener.collect { error ->
+    when (error.code) {
+        ErrorCode.E_USER_CANCELLED.name -> {
+            // Don't show error - user intended to cancel
+            println("Purchase cancelled by user")
+        }
+        else -> showErrorDialog(error.message)
+    }
+}
+```
+
+#### E_USER_ERROR
+**Description**: User-related error during purchase  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- User not signed in
+- Parental controls active
+- Payment method issues
+
+#### E_DEFERRED_PAYMENT
+**Description**: Payment was deferred (pending family approval, etc.)  
+**Platforms**: iOS (Ask to Buy), Android (Pending purchases)  
+**Recovery**: Wait for approval
 
 ```kotlin
 when (error.code) {
-    ErrorCode.UNKNOWN_ERROR -> {
-        // Log full error details
-        logger.error("Unknown IAP error", error)
-        
-        // Report to crash analytics
-        crashlytics.recordException(error)
-        
-        // Show generic error to user
-        showError("An unexpected error occurred. Please try again.")
+    ErrorCode.E_DEFERRED_PAYMENT.name -> {
+        showInfo("Purchase is pending approval. You'll be notified when approved.")
+        // Store pending purchase for later processing
+        savePendingPurchase(purchase)
+    }
+}
+```
+
+#### E_INTERRUPTED
+**Description**: Purchase flow was interrupted  
+**Platforms**: iOS, Android  
+**Recovery**: Retry the purchase
+
+### Product Errors
+
+#### E_ITEM_UNAVAILABLE
+**Description**: Product not available in store  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- Product not approved
+- Regional restrictions
+- Product removed from store
+
+#### E_PRODUCT_NOT_AVAILABLE
+**Description**: Product SKU not found  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- Invalid product ID
+- Typo in SKU
+- Product not yet published
+
+```kotlin
+try {
+    val products = kmpIapInstance.requestProducts(listOf("invalid_sku"))
+} catch (e: PurchaseError) {
+    when (e.code) {
+        ErrorCode.E_PRODUCT_NOT_AVAILABLE.name -> {
+            println("Product not found. Check product ID configuration.")
+        }
+    }
+}
+```
+
+#### E_PRODUCT_ALREADY_OWNED
+**Description**: Non-consumable product already purchased  
+**Platforms**: iOS, Android  
+**Recovery**: Restore purchases
+
+#### E_ALREADY_OWNED
+**Description**: Item already owned by user  
+**Platforms**: iOS, Android  
+**Recovery**: Check purchase history or restore
+
+```kotlin
+when (error.code) {
+    ErrorCode.E_ALREADY_OWNED.name,
+    ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
+        showInfo("You already own this product.")
+        // Refresh purchase state
+        kmpIapInstance.getAvailablePurchases()
+    }
+}
+```
+
+### Network & Service Errors
+
+#### E_NETWORK_ERROR
+**Description**: Network connection error  
+**Platforms**: iOS, Android  
+**Recovery**: Retry with exponential backoff
+
+```kotlin
+private suspend fun handleNetworkError() {
+    var retryCount = 0
+    val maxRetries = 3
+    
+    while (retryCount < maxRetries) {
+        delay(1000L * (2.0.pow(retryCount).toLong()))
+        try {
+            kmpIapInstance.initConnection()
+            break // Success
+        } catch (e: PurchaseError) {
+            if (e.code != ErrorCode.E_NETWORK_ERROR.name || ++retryCount >= maxRetries) {
+                showError("Network error. Please check your connection.")
+                break
+            }
+        }
+    }
+}
+```
+
+#### E_SERVICE_ERROR
+**Description**: Store service error  
+**Platforms**: iOS, Android  
+**Recovery**: Retry later or check service status
+
+#### E_REMOTE_ERROR
+**Description**: Remote server error  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- Backend validation server down
+- API timeout
+- Server configuration issues
+
+#### E_CONNECTION_CLOSED
+**Description**: Connection to store service was closed  
+**Platforms**: iOS, Android  
+**Recovery**: Re-initialize connection
+
+#### E_IAP_NOT_AVAILABLE
+**Description**: In-app purchase service not available  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- IAP disabled on device
+- Restricted user account
+- Store app not installed (Android)
+
+#### E_SYNC_ERROR
+**Description**: Synchronization error with store  
+**Platforms**: iOS, Android  
+**Recovery**: Retry synchronization
+
+### Validation Errors
+
+#### E_RECEIPT_FAILED
+**Description**: Receipt validation failed  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- Invalid receipt format
+- Signature verification failed
+- Receipt tampering detected
+
+```kotlin
+// Server-side validation example
+suspend fun validatePurchase(purchase: Purchase): Boolean {
+    return try {
+        val response = api.validateReceipt(
+            receipt = purchase.transactionReceipt,
+            productId = purchase.productId
+        )
+        response.isValid
+    } catch (e: Exception) {
+        throw PurchaseError(
+            code = ErrorCode.E_RECEIPT_FAILED.name,
+            message = "Receipt validation failed"
+        )
+    }
+}
+```
+
+#### E_RECEIPT_FINISHED
+**Description**: Receipt already processed/finished  
+**Platforms**: iOS, Android  
+**Recovery**: Check transaction history
+
+#### E_RECEIPT_FINISHED_FAILED
+**Description**: Failed to finish receipt processing  
+**Platforms**: iOS, Android  
+**Recovery**: Retry finishing transaction
+
+#### E_TRANSACTION_VALIDATION_FAILED
+**Description**: Transaction validation failed  
+**Platforms**: iOS, Android  
+**Common Causes**:
+- Transaction data corrupted
+- Validation server error
+- Invalid transaction state
+
+### Platform-Specific Errors
+
+#### E_PENDING (Android)
+**Description**: Purchase is pending approval  
+**Platform**: Android  
+**Recovery**: Wait for purchase to be approved
+
+```kotlin
+when (error.code) {
+    ErrorCode.E_PENDING.name -> {
+        if (getCurrentPlatform() == Platform.ANDROID) {
+            showInfo("Purchase is pending. Check back later.")
+        }
+    }
+}
+```
+
+#### E_NOT_ENDED (iOS)
+**Description**: Transaction not finished  
+**Platform**: iOS  
+**Recovery**: Call finishTransaction()
+
+```kotlin
+when (error.code) {
+    ErrorCode.E_NOT_ENDED.name -> {
+        // Finish the pending transaction
+        kmpIapInstance.finishTransaction(purchase)
+    }
+}
+```
+
+#### E_NOT_PREPARED
+**Description**: Store connection not initialized  
+**Platforms**: iOS, Android  
+**Recovery**: Call initConnection() first
+
+```kotlin
+class IAPManager {
+    suspend fun ensureInitialized() {
+        if (!kmpIapInstance.isInitialized()) {
+            try {
+                kmpIapInstance.initConnection()
+            } catch (e: PurchaseError) {
+                if (e.code == ErrorCode.E_NOT_PREPARED.name) {
+                    throw PurchaseError(
+                        code = ErrorCode.E_NOT_PREPARED.name,
+                        message = "Failed to initialize IAP connection"
+                    )
+                }
+            }
+        }
+    }
+}
+```
+
+#### E_ALREADY_PREPARED
+**Description**: Store connection already initialized  
+**Platforms**: iOS, Android  
+**Recovery**: Use existing connection
+
+#### E_BILLING_RESPONSE_JSON_PARSE_ERROR (Android)
+**Description**: Failed to parse billing response  
+**Platform**: Android  
+**Common Causes**:
+- Corrupted response from Google Play
+- Library version mismatch
+
+#### E_PURCHASE_ERROR
+**Description**: General purchase error  
+**Platforms**: iOS, Android  
+**Recovery**: Check specific error details
+
+#### E_ACTIVITY_UNAVAILABLE (Android)
+**Description**: Activity context not available  
+**Platform**: Android  
+**Common Causes**:
+- App in background
+- Activity destroyed
+- No active activity
+
+```kotlin
+when (error.code) {
+    ErrorCode.E_ACTIVITY_UNAVAILABLE.name -> {
+        showError("Please ensure the app is in foreground and try again.")
     }
 }
 ```
@@ -426,14 +412,12 @@ when (error.code) {
 
 ```kotlin
 class IAPErrorHandler(
-    private val iapHelper: UseIap,
-    private val analytics: Analytics,
-    private val logger: Logger
+    private val kmpIap: KmpIAP
 ) {
     init {
         scope.launch {
-            KmpIAP.currentError.collectLatest { error ->
-                error?.let { handleError(it) }
+            kmpIap.purchaseErrorListener.collect { error ->
+                handleError(error)
             }
         }
     }
@@ -442,31 +426,23 @@ class IAPErrorHandler(
         // Log error
         logger.error("IAP Error: ${error.code}", error)
         
-        // Track in analytics
-        analytics.track("iap_error", mapOf(
-            "error_code" to error.code.name,
-            "message" to error.message
-        ))
-        
         // Handle by type
         when (error.code) {
-            ErrorCode.USER_CANCELLED -> {
+            ErrorCode.E_USER_CANCELLED.name -> {
                 // Silent - user action
             }
             ErrorCode.E_NETWORK_ERROR.name,
-            ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
+            ErrorCode.E_SERVICE_ERROR.name -> {
                 showRetryableError(error)
             }
-            ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+            ErrorCode.E_ALREADY_OWNED.name,
+            ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
                 handleAlreadyOwned()
             }
             else -> {
                 showGenericError(error)
             }
         }
-        
-        // Clear error
-        kmpIAP.clearError()
     }
 }
 ```
@@ -475,39 +451,33 @@ class IAPErrorHandler(
 
 ```kotlin
 fun getErrorMessage(error: PurchaseError): String {
-    return when (error.code) {
-        ErrorCode.USER_CANCELLED -> "Purchase cancelled"
-        ErrorCode.E_NETWORK_ERROR.name -> "Network connection failed. Please check your internet connection."
-        ErrorCode.E_SERVICE_UNAVAILABLE.name -> "Store service is temporarily unavailable. Please try again later."
-        ErrorCode.E_ITEM_UNAVAILABLE.name -> "This product is not available in your region."
-        ErrorCode.E_ITEM_ALREADY_OWNED.name -> "You already own this item."
-        ErrorCode.E_PURCHASE_INVALID.name -> "Purchase verification failed. Please contact support."
-        ErrorCode.BILLING_UNAVAILABLE -> "Billing service not available on this device."
-        ErrorCode.DEVELOPER_ERROR -> "Configuration error. Please update the app."
-        else -> "Something went wrong. Please try again."
-    }
+    return ErrorCodeUtils.getErrorMessage(
+        ErrorCode.valueOf(error.code)
+    )
 }
 ```
 
 ### 3. Error Recovery Strategies
 
 ```kotlin
-class ErrorRecoveryManager(private val iapHelper: UseIap) {
+class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
     
     suspend fun recoverFromError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.SERVICE_DISCONNECTED,
+            ErrorCode.E_CONNECTION_CLOSED.name,
             ErrorCode.E_NETWORK_ERROR.name -> {
                 attemptReconnection()
             }
-            ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+            ErrorCode.E_ALREADY_OWNED.name,
+            ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
                 refreshPurchases()
             }
-            ErrorCode.E_PURCHASE_INVALID.name -> {
-                validateAllPurchases()
+            ErrorCode.E_RECEIPT_FAILED.name,
+            ErrorCode.E_TRANSACTION_VALIDATION_FAILED.name -> {
+                revalidatePurchases()
             }
-            else -> {
-                // No automatic recovery
+            ErrorCode.E_NOT_PREPARED.name -> {
+                kmpIap.initConnection()
             }
         }
     }
@@ -516,16 +486,12 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
         repeat(3) { attempt ->
             delay(2000L * (attempt + 1))
             try {
-                KmpIAP.initConnection()
+                kmpIap.initConnection()
                 return
             } catch (e: PurchaseError) {
                 if (attempt == 2) throw e
             }
         }
-    }
-    
-    private suspend fun refreshPurchases() {
-        KmpIAP.getAvailablePurchases()
     }
 }
 ```
@@ -533,71 +499,34 @@ class ErrorRecoveryManager(private val iapHelper: UseIap) {
 ### 4. Debug Logging
 
 ```kotlin
-// Debug error details in development
 if (BuildConfig.DEBUG) {
     scope.launch {
-        KmpIAP.currentError.collectLatest { error ->
-            error?.let {
-                println("=====================================")
-                println("IAP ERROR DETAILS")
-                println("=====================================")
-                println("Code: ${it.code}")
-                println("Message: ${it.message}")
-                println("Platform: ${getCurrentPlatform()}")
-                println("Timestamp: ${System.currentTimeMillis()}")
-                it.underlyingError?.let { underlying ->
-                    println("Underlying error: ${underlying.message}")
-                    underlying.printStackTrace()
-                }
-                println("=====================================")
-            }
+        kmpIapInstance.purchaseErrorListener.collect { error ->
+            println("=====================================")
+            println("IAP ERROR DETAILS")
+            println("=====================================")
+            println("Code: ${error.code}")
+            println("Message: ${error.message}")
+            println("Product ID: ${error.productId}")
+            println("Platform: ${getCurrentPlatform()}")
+            println("Timestamp: ${System.currentTimeMillis()}")
+            println("=====================================")
         }
     }
 }
 ```
 
-## Platform-Specific Error Mapping
+## Platform Error Code Mapping
 
-### iOS Error Mapping
+The library automatically maps platform-specific error codes to OpenIAP standard codes:
 
-```kotlin
-// StoreKit error codes to ErrorCode mapping
-fun mapIOSError(code: Int): ErrorCode {
-    return when (code) {
-        0 -> ErrorCode.UNKNOWN_ERROR
-        1 -> ErrorCode.E_SERVICE_UNAVAILABLE.name
-        2 -> ErrorCode.USER_CANCELLED
-        3 -> ErrorCode.E_PURCHASE_INVALID.name
-        4 -> ErrorCode.E_ITEM_UNAVAILABLE.name
-        5 -> ErrorCode.E_NOT_INITIALIZED.name
-        6 -> ErrorCode.E_NETWORK_ERROR.name
-        7 -> ErrorCode.E_DEFERRED_PAYMENT.name
-        8 -> ErrorCode.FEATURE_NOT_SUPPORTED
-        else -> ErrorCode.UNKNOWN_ERROR
-    }
-}
-```
+### iOS (StoreKit) Mapping
+- Uses integer codes from StoreKit
+- Mapped via `ErrorCodeUtils.fromPlatformCode()`
 
-### Android Error Mapping
-
-```kotlin
-// BillingClient response codes to ErrorCode mapping
-fun mapAndroidError(responseCode: Int): ErrorCode {
-    return when (responseCode) {
-        1 -> ErrorCode.USER_CANCELLED
-        2 -> ErrorCode.E_SERVICE_UNAVAILABLE.name
-        3 -> ErrorCode.BILLING_UNAVAILABLE
-        4 -> ErrorCode.E_ITEM_UNAVAILABLE.name
-        5 -> ErrorCode.DEVELOPER_ERROR
-        6 -> ErrorCode.UNKNOWN_ERROR
-        7 -> ErrorCode.E_ITEM_ALREADY_OWNED.name
-        8 -> ErrorCode.E_ITEM_UNAVAILABLE.name
-        -1 -> ErrorCode.SERVICE_DISCONNECTED
-        -2 -> ErrorCode.FEATURE_NOT_SUPPORTED
-        else -> ErrorCode.UNKNOWN_ERROR
-    }
-}
-```
+### Android (Google Play Billing) Mapping  
+- Uses string error codes directly (matching enum names)
+- Direct conversion via `ErrorCode.valueOf()`
 
 ## Testing Error Scenarios
 
@@ -606,20 +535,17 @@ fun mapAndroidError(responseCode: Int): ErrorCode {
 ```kotlin
 @Test
 fun testErrorHandling() = runTest {
-    val mockIap = MockUseIap()
-    val errorHandler = IAPErrorHandler(mockIap)
-    
-    // Simulate network error
-    mockIap.emitError(
-        PurchaseError(
-            code = ErrorCode.E_NETWORK_ERROR.name,
-            message = "Network unavailable"
-        )
+    val error = PurchaseError(
+        code = ErrorCode.E_NETWORK_ERROR.name,
+        message = "Network unavailable"
     )
     
-    // Verify error handled
-    assertTrue(errorHandler.lastError?.code == ErrorCode.E_NETWORK_ERROR.name)
-    assertTrue(errorHandler.retriedCount > 0)
+    // Verify error code
+    assertEquals(ErrorCode.E_NETWORK_ERROR.name, error.code)
+    
+    // Verify error message utility
+    val message = ErrorCodeUtils.getErrorMessage(ErrorCode.E_NETWORK_ERROR)
+    assertEquals("Network connection error", message)
 }
 ```
 
@@ -628,30 +554,42 @@ fun testErrorHandling() = runTest {
 ```kotlin
 @Test
 fun testPurchaseErrorRecovery() = runTest {
-    // Test purchase with network failure
-    coEvery { api.purchase(any()) } throws NetworkException()
+    // Simulate network failure
+    val error = PurchaseError(
+        code = ErrorCode.E_NETWORK_ERROR.name,
+        message = "Connection failed"
+    )
     
-    val result = iapManager.purchaseProduct("test_product")
+    val recoveryManager = ErrorRecoveryManager(kmpIap)
+    recoveryManager.recoverFromError(error)
     
-    // Verify error propagated correctly
-    assertTrue(result.isFailure)
-    val error = result.exceptionOrNull() as? PurchaseError
-    assertEquals(ErrorCode.E_NETWORK_ERROR.name, error?.code)
+    // Verify reconnection attempted
+    assertTrue(kmpIap.isInitialized())
 }
 ```
 
-## Migration from flutter_inapp_purchase
+## OpenIAP Specification Compliance
 
-Key differences in error handling:
+kmp-iap fully implements the [OpenIAP error specification](https://openiap.dev/docs/errors), ensuring:
 
-1. **Structured Errors**: KMP uses `PurchaseError` class vs numeric codes
-2. **Flow**: Errors emitted via `purchaseErrorListener` Flow vs callbacks
-3. **Coroutines**: Error handling with try-catch vs Future error callbacks
-4. **Platform Abstraction**: Unified `ErrorCode` enum vs platform-specific codes
+- **Consistent error codes** across all platforms
+- **Standardized error messages** for better UX
+- **Compatible with expo-iap** and other OpenIAP implementations
+- **27 standard error codes** covering all IAP scenarios
+
+## Migration Notes
+
+### From Previous Versions
+If migrating from older versions of kmp-iap, note that error codes now follow the OpenIAP standard. Update your error handling code to use the new `ErrorCode` enum values.
+
+### From Other Libraries
+- **expo-iap**: Error codes are identical (both follow OpenIAP)
+- **flutter_inapp_purchase**: Similar error codes with minor naming differences
+- **Native SDKs**: Platform codes are automatically mapped to OpenIAP codes
 
 ## See Also
 
+- [OpenIAP Error Specification](https://openiap.dev/docs/errors)
 - [Core Methods](./core-methods.md) - Methods that may throw errors
-- [State Management](./listeners.md) - Error state observation
+- [Event Listeners](./listeners.md) - Error event handling
 - [Troubleshooting](../guides/troubleshooting.md) - Common error solutions
-- [Examples](../examples/complete-implementation.md) - Complete error handling examples
