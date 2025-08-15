@@ -250,6 +250,7 @@ interface KmpInAppPurchase {
  * kmpIAP.requestProducts(...)
  * ```
  */
+@OptIn(kotlin.ExperimentalMultiplatform::class)
 expect class KmpIAP() {
     fun getVersion(): String
     val purchaseUpdatedListener: Flow<Purchase>

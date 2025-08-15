@@ -41,32 +41,6 @@ data class RequestProductsParams(
     val type: PurchaseType = PurchaseType.INAPP
 )
 
-/**
- * Base class for purchase requests
- */
-@Deprecated("Use UnifiedPurchaseRequest instead")
-sealed class RequestPurchase {
-    abstract val sku: String
-    abstract val platform: IAPPlatform?
-}
-
-/**
- * Cross-platform purchase request
- */
-@Deprecated("Use UnifiedPurchaseRequest instead")
-data class RequestPurchaseGeneric(
-    override val sku: String,
-    override val platform: IAPPlatform? = null
-) : RequestPurchase()
-
-/**
- * Base interface for purchase request parameters
- */
-@Deprecated("Use UnifiedPurchaseRequest instead")
-interface RequestPurchaseBase {
-    val sku: String
-    val skus: List<String>
-}
 
 /**
  * Purchase type enum

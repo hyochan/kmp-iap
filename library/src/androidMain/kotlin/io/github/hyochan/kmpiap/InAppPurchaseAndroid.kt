@@ -170,7 +170,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 .setListener { billingResult, purchases ->
                     handlePurchaseUpdate(billingResult, purchases)
                 }
-                .enablePendingPurchases()
+                .enablePendingPurchases(
+                    PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .build()
+                )
                 .build()
                 
             billingClient?.startConnection(listener)
@@ -224,6 +228,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     }
                     
                     // Set up a timeout for the query
+                    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
                     val timeoutJob = kotlinx.coroutines.GlobalScope.launch {
                         kotlinx.coroutines.delay(5000) // 5 second timeout
                         if (continuation.isActive) {
@@ -237,7 +242,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         println("[KMP-IAP] Product query callback for $productType: ${billingResult.responseCode}, ${productDetailsList?.size ?: 0} products")
                         
                         try {
-                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList != null) {
+                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                                 // Store product details for later use
                                 productDetailsList.forEach { productDetails ->
                                     println("[KMP-IAP] Product found: ${productDetails.productId} - ${productDetails.title}")

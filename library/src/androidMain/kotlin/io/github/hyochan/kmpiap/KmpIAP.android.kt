@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Android-specific implementation of KmpIAP class
  */
+@OptIn(kotlin.ExperimentalMultiplatform::class)
 actual class KmpIAP actual constructor() {
     private val delegate = InAppPurchaseAndroid()
     

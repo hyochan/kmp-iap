@@ -17,29 +17,6 @@ enum class IosTransactionState(val value: Int) {
     DEFERRED(4)
 }
 
-/**
- * iOS-specific purchase request
- */
-data class RequestPurchaseIOS(
-    override val sku: String,
-    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean = false,
-    val appAccountToken: String? = null,
-    val quantity: Int? = null,
-    val withOffer: PaymentDiscount? = null,
-    override val platform: IAPPlatform? = IAPPlatform.IOS
-) : RequestPurchase()
-
-/**
- * iOS-specific subscription request
- */
-data class RequestSubscriptionIOS(
-    override val sku: String,
-    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean = false,
-    val appAccountToken: String? = null,
-    val quantity: Int? = null,
-    val withOffer: PaymentDiscount? = null,
-    override val platform: IAPPlatform? = IAPPlatform.IOS
-) : RequestPurchase()
 
 // PaymentDiscount and PromotionalOffer are now defined in Products.kt
 
