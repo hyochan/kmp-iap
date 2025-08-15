@@ -4,360 +4,294 @@ sidebar_label: iOS Setup
 sidebar_position: 2
 ---
 
-# iOS Setup Guide
+import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
-Complete guide to configure kmp-iap for iOS with StoreKit 2 support.
+# iOS Setup
 
-## Prerequisites
+<AdFitTopFixed />
 
-- **iOS 11.0+** (StoreKit 2 requires iOS 15.0+)
-- **Xcode 14+** for StoreKit 2 development
-- **Apple Developer Account** with valid agreements
-- **Physical device** for production testing
+For complete iOS setup instructions including App Store Connect configuration, Xcode setup, and testing guidelines, please visit:
 
-## Xcode Configuration
+👉 **[iOS Setup Guide - openiap.dev](https://openiap.dev/docs/ios-setup)**
 
-### Enable In-App Purchase Capability
+The guide covers:
+- App Store Connect configuration
+- Xcode project setup
+- Sandbox testing
+- Common troubleshooting steps
 
-1. Open your project in Xcode
-2. Select your project in the navigator
-3. Select your target under **TARGETS**
-4. Go to **Signing & Capabilities** tab
-5. Click **+ Capability** and add **In-App Purchase**
+## Code Implementation
 
-### Configure Info.plist
-
-Add the following to your `iosApp/Info.plist` for iOS 14+ compatibility:
-
-```xml title="iosApp/Info.plist"
-<key>LSApplicationQueriesSchemes</key>
-<array>
-    <string>itms-apps</string>
-</array>
-
-<!-- Optional: For subscription management -->
-<key>NSAppTransportSecurity</key>
-<dict>
-    <key>NSAllowsLocalNetworking</key>
-    <true/>
-    <key>NSExceptionDomains</key>
-    <dict>
-        <key>apps.apple.com</key>
-        <dict>
-            <key>NSExceptionRequiresForwardSecrecy</key>
-            <false/>
-            <key>NSIncludesSubdomains</key>
-            <true/>
-        </dict>
-    </dict>
-</dict>
-```
-
-### Configure StoreKit Testing
-
-For local testing with StoreKit Configuration File:
-
-1. In Xcode, go to **File** → **New** → **File**
-2. Choose **StoreKit Configuration File**
-3. Name it (e.g., `Products.storekit`)
-4. Add your products for testing
-
-## App Store Connect Configuration
-
-### Create Your App
-
-1. Sign in to [App Store Connect](https://appstoreconnect.apple.com)
-2. Go to **My Apps** → **+** → **New App**
-3. Fill in the required information:
-   - Platform: iOS
-   - Name: Your app name
-   - Primary Language
-   - Bundle ID: Must match your Xcode project
-   - SKU: Unique identifier for your app
-
-### Configure In-App Purchases
-
-1. Select your app in App Store Connect
-2. Go to **Monetization** → **In-App Purchases**
-3. Click **+** to create a new in-app purchase
-4. Choose the product type:
-   - **Consumable**: Can be purchased multiple times
-   - **Non-Consumable**: One-time purchase
-   - **Auto-Renewable Subscription**: Recurring subscription
-   - **Non-Renewing Subscription**: Fixed-term subscription
-
-### Product Configuration
-
-Fill in the required fields for each product:
-
-```text
-Reference Name: Premium Upgrade (internal use)
-Product ID: com.yourapp.premium_upgrade
-Price: Choose from price tiers
-Display Name: Premium Features
-Description: Unlock all premium features
-```
-
-:::tip Product ID Best Practices
-- Use reverse domain notation: `com.yourapp.productname`
-- Keep IDs consistent across platforms
-- Avoid special characters and spaces
-- Use descriptive names: `premium_monthly`, `coins_pack_large`
-:::
-
-## StoreKit 2 Implementation
-
-### Enable StoreKit 2
-
-kmp-iap automatically uses StoreKit 2 on iOS 15+. To ensure compatibility:
+### Basic Setup
 
 ```kotlin
-// Check iOS version for StoreKit 2 availability
-suspend fun checkStoreKit2Support() {
-    val platform = getCurrentPlatform()
-    if (platform == IapPlatform.IOS) {
-        // StoreKit 2 is available on iOS 15+
-        println("Platform: iOS")
-        // kmp-iap will automatically use StoreKit 2 when available
-    }
-}
-```
-
-### StoreKit Configuration File
-
-Create a `.storekit` file for testing:
-
-```json title="Products.storekit"
-{
-  "identifier": "YOUR_BUNDLE_ID",
-  "nonRenewingSubscriptions": [],
-  "products": [
-    {
-      "displayPrice": "0.99",
-      "familyShareable": false,
-      "internalID": "XXXXXX",
-      "localizations": [
-        {
-          "description": "Remove all advertisements",
-          "displayName": "Remove Ads",
-          "locale": "en_US"
-        }
-      ],
-      "productID": "com.yourapp.remove_ads",
-      "referenceName": "Remove Ads",
-      "type": "NonConsumable"
-    }
-  ],
-  "settings": {},
-  "subscriptionGroups": []
-}
-```
-
-## Testing Setup
-
-### Sandbox Testing
-
-1. Create sandbox tester accounts in App Store Connect:
-   - Go to **Users and Access** → **Sandbox Testers**
-   - Click **+** to add a new tester
-   - Use a unique email (not associated with an Apple ID)
-
-2. Configure your device for sandbox testing:
-   - Sign out of your Apple ID in Settings
-   - When prompted during purchase, sign in with sandbox account
-
-### StoreKit Testing in Xcode
-
-1. In Xcode, go to **Product** → **Scheme** → **Edit Scheme**
-2. Select **Run** → **Options**
-3. Under **StoreKit Configuration**, select your `.storekit` file
-4. Run your app - purchases will use the local configuration
-
-### Test Purchase Flow
-
-```kotlin title="iOS Testing Example"
-import io.github.hyochan.kmpiap.*
+import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
-suspend fun testIOSPurchase() {
-    try {
-        // Initialize connection
-        KmpIAP.initConnection()
-        println("StoreKit connected")
-        
-        // Get products
-        val products = KmpIAP.requestProducts(
-            ProductRequest(
-                skus = listOf(
-                    "com.yourapp.premium_upgrade",
-                    "com.yourapp.remove_ads"
-                ),
-                type = ProductType.INAPP
-            )
-        )
-        println("Found ${products.size} products")
-        
-        // Display products
-        products.forEach { product ->
-            println("Product: ${product.id}")
-            println("Price: ${product.price}")
-            println("Title: ${product.title}")
+class IAPManager {
+    private val kmpIAP = KmpIAP()
+    private val scope = CoroutineScope(Dispatchers.Main)
+    
+    fun initialize() {
+        scope.launch {
+            try {
+                // Initialize connection
+                kmpIAP.initConnection()
+                println("StoreKit connected")
+                
+                // Set up purchase listeners
+                setupPurchaseListeners()
+                
+                // Load products
+                loadProducts()
+            } catch (e: Exception) {
+                println("Failed to initialize: ${e.message}")
+            }
+        }
+    }
+    
+    private fun setupPurchaseListeners() {
+        scope.launch {
+            // Listen for purchase updates
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                handlePurchaseUpdate(purchase)
+            }
         }
         
-        // Test purchase
-        if (products.isNotEmpty()) {
-            KmpIAP.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = products.first().id,
-                    quantity = 1
+        scope.launch {
+            // Listen for purchase errors
+            kmpIAP.purchaseErrorListener.collect { error ->
+                handlePurchaseError(error)
+            }
+        }
+        
+        scope.launch {
+            // Listen for promoted products (iOS only)
+            kmpIAP.promotedProductListener.collect { productId ->
+                productId?.let {
+                    // Handle promoted product
+                    handlePromotedProduct(it)
+                }
+            }
+        }
+    }
+    
+    private suspend fun loadProducts() {
+        try {
+            val products = kmpIAP.requestProducts(
+                ProductRequest(
+                    skus = listOf("premium_upgrade", "remove_ads"),
+                    type = ProductType.INAPP
                 )
             )
+            println("Found ${products.size} products")
+        } catch (e: Exception) {
+            println("Failed to load products: ${e.message}")
         }
-    } catch (e: PurchaseError) {
-        println("iOS test failed: $e")
     }
-}
-```
-
-## StoreKit 2 Features
-
-### Transaction Management
-
-```kotlin
-// Listen for transaction updates
-import kotlinx.coroutines.flow.collect
-
-scope.launch {
-    KmpIAP.purchaseUpdatedListener.collect { purchase ->
-        println("Transaction updated: ${purchase.transactionId}")
-        
-        // Verify the purchase
-        val isValid = verifyPurchase(purchase)
+    
+    private suspend fun handlePurchaseUpdate(purchase: Purchase) {
+        // Verify purchase with your backend
+        val isValid = verifyPurchaseWithBackend(purchase)
         
         if (isValid) {
-            // Deliver content
-            deliverContent(purchase)
+            // Grant entitlement
+            grantEntitlement(purchase.productId)
             
             // Finish transaction
-            KmpIAP.finishTransaction(
+            kmpIAP.finishTransaction(
                 purchase = purchase,
-                isConsumable = false
+                isConsumable = isConsumableProduct(purchase.productId)
             )
         }
     }
-}
-```
-
-### Subscription Management
-
-```kotlin
-// Show subscription management page
-suspend fun showSubscriptionManagement() {
-    val platform = getCurrentPlatform()
-    if (platform == IapPlatform.IOS) {
-        KmpIAP.showManageSubscriptions()
+    
+    private fun handlePurchaseError(error: PurchaseError) {
+        when (error.code) {
+            ErrorCode.USER_CANCELLED -> {
+                // User cancelled, no action needed
+            }
+            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+                // Item already owned, restore it
+                restorePurchases()
+            }
+            else -> {
+                // Show error to user
+                showError(error.message)
+            }
+        }
     }
-}
-
-// Present code redemption sheet
-suspend fun redeemCode() {
-    val platform = getCurrentPlatform()
-    if (platform == IapPlatform.IOS) {
-        KmpIAP.presentCodeRedemptionSheet()
+    
+    private suspend fun handlePromotedProduct(productId: String) {
+        // Handle App Store promoted product
+        println("Promoted product: $productId")
+        // Optionally purchase the promoted product
+        kmpIAP.buyPromotedProductIOS()
     }
-}
-```
-
-## Common Issues & Solutions
-
-### Issue: Products not loading
-
-**Solutions:**
-- Ensure your Apple Developer agreements are active
-- Verify product IDs match exactly
-- Products must be submitted for review at least once
-- Wait 24 hours after creating products
-- Check that Bundle ID matches App Store Connect
-
-### Issue: "Cannot connect to iTunes Store"
-
-**Solutions:**
-- Test on a real device (not simulator)
-- Ensure you're using a sandbox account
-- Check network connectivity
-- Verify In-App Purchase capability is enabled
-
-### Issue: Sandbox purchases not working
-
-**Solutions:**
-- Sign out of production Apple ID first
-- Use a valid sandbox tester account
-- Clear App Store cache: Settings → App Store → Sign Out/In
-- Ensure device region matches product availability
-
-### Issue: StoreKit 2 compatibility
-
-**Solutions:**
-- Update to Xcode 14 or later
-- Ensure minimum iOS deployment target is correct
-- Check device/simulator iOS version (15.0+ for StoreKit 2)
-
-## Advanced Configuration
-
-### Receipt Validation
-
-Always validate receipts on your server:
-
-```kotlin
-scope.launch {
-    KmpIAP.purchaseUpdatedListener.collect { purchase ->
-        // Send receipt to your server
-        val validationResult = validateReceiptOnServer(
-            receipt = purchase.transactionReceipt ?: "",
-            productId = purchase.productId
+    
+    suspend fun purchaseProduct(productId: String) {
+        kmpIAP.requestPurchase(
+            UnifiedPurchaseRequest(
+                sku = productId,
+                quantity = 1
+            )
         )
-        
-        if (validationResult.isValid) {
-            // Grant access to content
-            grantPurchase(purchase)
+    }
+    
+    suspend fun restorePurchases() {
+        val purchases = kmpIAP.getAvailablePurchases()
+        purchases.forEach { purchase ->
+            grantEntitlement(purchase.productId)
+        }
+    }
+    
+    private suspend fun verifyPurchaseWithBackend(purchase: Purchase): Boolean {
+        // TODO: Implement your backend verification
+        return true
+    }
+    
+    private fun grantEntitlement(productId: String) {
+        // Grant the appropriate entitlement based on productId
+        when (productId) {
+            "remove_ads" -> UserSettings.adsRemoved = true
+            "premium_upgrade" -> UserSettings.isPremium = true
+            // Handle other products
+        }
+    }
+    
+    private fun isConsumableProduct(productId: String): Boolean {
+        return when (productId) {
+            "coins_100", "coins_500" -> true
+            else -> false
+        }
+    }
+    
+    private fun showError(message: String) {
+        // Show error message to user
+    }
+    
+    fun cleanup() {
+        scope.cancel()
+        runBlocking {
+            kmpIAP.endConnection()
         }
     }
 }
+
+// Simple user settings example
+object UserSettings {
+    var adsRemoved: Boolean = false
+    var isPremium: Boolean = false
+}
 ```
 
-### Family Sharing
-
-Enable family sharing for non-consumable purchases:
-
-1. In App Store Connect, edit your in-app purchase
-2. Enable **Family Sharing**
-3. Submit for review
-
-### Promotional Offers
-
-Configure promotional offers for subscriptions:
+### iOS-specific Features
 
 ```kotlin
-// Request purchase with promotional offer
-suspend fun purchaseWithOffer() {
-    KmpIAP.requestPurchase(
-        UnifiedPurchaseRequest(
-            sku = "monthly_subscription",
-            quantity = 1
-            // Add promotional offer parameters if needed
+// Get current storefront (iOS only)
+val storefront = kmpIAP.getStorefrontIOS()
+println("Current storefront: $storefront") // e.g., "US", "GB", "JP"
+
+// Present code redemption sheet (iOS only)
+kmpIAP.presentCodeRedemptionSheetIOS()
+
+// Handle promoted products
+scope.launch {
+    kmpIAP.promotedProductListener.collect { productId ->
+        productId?.let {
+            println("Promoted product: $it")
+            // Purchase the promoted product
+            kmpIAP.buyPromotedProductIOS()
+        }
+    }
+}
+
+// Clear pending transactions (iOS only)
+kmpIAP.clearTransactionIOS()
+
+// Clear products cache (iOS only)
+kmpIAP.clearProductsIOS()
+
+// Finish specific transaction by ID
+kmpIAP.finishTransactionIOS(transactionId)
+```
+
+### StoreKit 2 Support
+
+The library automatically uses StoreKit 2 on iOS 15.0+ with fallback to StoreKit 1:
+
+```kotlin
+// StoreKit 2 features are used automatically when available
+// The same API works for both StoreKit 1 and 2
+
+// Validate receipt (uses StoreKit 2 verification when available)
+val validationResult = kmpIAP.validateReceipt(
+    ValidationOptions(
+        receiptData = purchase.transactionReceipt,
+        isTest = false
+    )
+)
+
+// Check if purchase is valid
+val isValid = kmpIAP.isPurchaseValid(purchase)
+```
+
+### Subscription Offers
+
+```kotlin
+// Handle subscription with promotional offers
+kmpIAP.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "monthly_subscription",
+        quantity = 1,
+        promotionalOffer = PromotionalOffer(
+            identifier = "offer_id",
+            keyIdentifier = "key_id",
+            nonce = "nonce_value",
+            signature = "signature",
+            timestamp = System.currentTimeMillis()
         )
     )
+)
+```
+
+### Error Handling
+
+```kotlin
+scope.launch {
+    kmpIAP.purchaseErrorListener.collect { error ->
+        when (error.code) {
+            ErrorCode.E_NETWORK.name -> {
+                // Network error
+                showDialog("Please check your internet connection")
+            }
+            ErrorCode.E_PAYMENT_CANCELLED.name -> {
+                // Payment cancelled by user
+                println("Purchase cancelled")
+            }
+            ErrorCode.E_PAYMENT_INVALID.name -> {
+                // Invalid payment
+                showDialog("Payment could not be processed")
+            }
+            ErrorCode.E_PERMISSION_DENIED.name -> {
+                // Permission denied
+                showDialog("In-app purchases are not allowed")
+            }
+            else -> {
+                showDialog("Purchase failed: ${error.message}")
+            }
+        }
+    }
 }
 ```
 
 ## Next Steps
 
-Once iOS setup is complete:
-
-1. **[Basic Implementation](/docs/guides/purchases)** - Start implementing purchases
-2. **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
+- **[Android Setup](/docs/getting-started/android-setup)** - Configure for Android platform
+- **[Basic Implementation](/docs/guides/purchases)** - Start implementing purchases
+- **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
 
 ---
 
-Need help? Check our [troubleshooting guide](/docs/guides/troubleshooting) or [open an issue](https://github.com/hyochan/kmp-iap/issues) on GitHub.
+For detailed platform configuration, product setup, and testing instructions, visit the [iOS Setup Guide at openiap.dev](https://openiap.dev/docs/ios-setup).

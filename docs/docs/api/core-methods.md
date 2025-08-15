@@ -25,7 +25,7 @@ suspend fun initConnection(): Boolean
 
 **Platform Differences**:
 - **iOS**: Connects to StoreKit 2 (iOS 15+)
-- **Android**: Connects to Google Play Billing Client v7+
+- **Android**: Connects to Google Play Billing Client v8+
 
 **Example**:
 ```kotlin

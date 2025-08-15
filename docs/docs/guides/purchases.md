@@ -32,7 +32,7 @@ The in-app purchase flow follows this standardized pattern:
 
 ### Platform Differences
 - **iOS**: Uses StoreKit 2 (iOS 15.0+)
-- **Android**: Uses Google Play Billing Client v7
+- **Android**: Uses Google Play Billing Client v8
 - Both platforms use the same API surface in kmp-iap
 
 ## Basic Purchase Flow

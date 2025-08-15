@@ -15,6 +15,10 @@
   A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms.
 </p>
 
+<p align="center">
+  Implementing the <a href="https://openiap.dev"><strong>Open IAP Specification</strong></a> for consistent cross-platform in-app purchase handling.
+</p>
+
 ## 📚 Documentation
 
 Visit the documentation site for installation guides, API reference, and examples:

@@ -10,7 +10,7 @@ import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
 <AdFitTopFixed />
 
-A comprehensive Kotlin Multiplatform library for implementing in-app purchases on iOS and Android platforms.
+A comprehensive Kotlin Multiplatform library implementing the [**Open IAP Specification**](https://openiap.dev) for consistent cross-platform in-app purchases on iOS and Android.
 
 <div style={{textAlign: 'center', margin: '2rem 0'}}>
   <img src="/img/logo.png" alt="kmp-iap Logo" style={{maxWidth: '100%', height: 'auto'}} />
@@ -26,7 +26,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 - **Kotlin Multiplatform**: Share IAP logic across iOS and Android
 - **StoreKit 2 Support**: Full StoreKit 2 support for iOS 15.0+ with automatic fallback
-- **Billing Client v7**: Latest Android Billing Client features
+- **Billing Client v8**: Latest Android Billing Client features
 - **Type-safe**: Complete type safety with Kotlin's strong typing
 - **Coroutines Support**: Modern async/await pattern with Kotlin Coroutines
 - **StateFlow Integration**: Reactive state management with StateFlow
@@ -51,7 +51,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 | Subscription Management  | ✅  | ✅      |
 | Promotional Offers       | ✅  | N/A     |
 | StoreKit 2               | ✅  | N/A     |
-| Billing Client v7        | N/A | ✅      |
+| Billing Client v8        | N/A | ✅      |
 
 ## 🔄 Version Information
 
@@ -71,42 +71,13 @@ dependencies {
 }
 ```
 
-### Using Singleton Pattern (Recommended)
+### Basic Usage
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Use the singleton instance throughout your app
-KmpIAP.instance.initConnection()
-
-// Get products
-val products = KmpIAP.instance.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
-    )
-)
-
-// Request purchase
-val purchase = KmpIAP.instance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
-        quantity = 1
-    )
-)
-
-// Finish transaction after validation
-KmpIAP.instance.finishTransaction(purchase, isConsumable = true)
-```
-
-### Creating Your Own Instance
-
-```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
-
-// Create your own instance (useful for testing or DI)
+// Create an instance
 val kmpIAP = KmpIAP()
 
 // Initialize connection
