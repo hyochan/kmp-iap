@@ -60,8 +60,20 @@ jobs:
         run: |
           ./gradlew :library:publishAllPublicationsToMavenCentral --no-daemon --no-parallel
 
+      - name: Create GitHub Release (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create release artifacts
-        if: github.event_name == 'release'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           mkdir -p release-artifacts
           cp library/build/outputs/aar/*.aar release-artifacts/
@@ -69,10 +81,11 @@ jobs:
           zip -r release-artifacts.zip release-artifacts/
 
       - name: Upload release artifacts
-        if: github.event_name == 'release'
+        if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
           files: ./release-artifacts.zip
           name: ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
