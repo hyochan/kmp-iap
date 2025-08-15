@@ -234,20 +234,9 @@ interface KmpInAppPurchase {
 }
 
 /**
- * KMP In-App Purchase class for creating instances.
+ * KMP In-App Purchase class.
  * 
- * You can use KmpIAP in two ways:
- * 
- * 1. Singleton pattern (recommended for most apps):
- * ```kotlin
- * import io.github.hyochan.kmpiap.KmpIAP
- * 
- * // Use singleton instance
- * KmpIAP.instance.initConnection()
- * KmpIAP.instance.requestProducts(...)
- * ```
- * 
- * 2. Create your own instance:
+ * Usage:
  * ```kotlin
  * import io.github.hyochan.kmpiap.KmpIAP
  * 
@@ -257,12 +246,30 @@ interface KmpInAppPurchase {
  * kmpIAP.requestProducts(...)
  * ```
  */
-expect class KmpIAP() : KmpInAppPurchase {
-    companion object {
-        /**
-         * Singleton instance of KmpIAP for convenient access throughout the app.
-         * Use this when you want a single shared instance.
-         */
-        val instance: KmpIAP
-    }
+expect class KmpIAP() {
+    fun getVersion(): String
+    val purchaseUpdatedListener: Flow<Purchase>
+    val purchaseErrorListener: Flow<PurchaseError>
+    val promotedProductListener: Flow<String?>
+    suspend fun initConnection(): Boolean
+    suspend fun endConnection(): Boolean
+    suspend fun requestProducts(params: ProductRequest): List<Product>
+    suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
+    suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
+    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null)
+    suspend fun validateReceipt(options: ValidationOptions): ValidationResult
+    suspend fun isPurchaseValid(purchase: Purchase): Boolean
+    suspend fun finishTransactionIOS(transactionId: String)
+    suspend fun clearTransactionIOS()
+    suspend fun clearProductsIOS()
+    suspend fun getStorefrontIOS(): String
+    suspend fun presentCodeRedemptionSheetIOS()
+    suspend fun getPromotedProductIOS(): String?
+    suspend fun buyPromotedProductIOS()
+    suspend fun acknowledgePurchaseAndroid(purchaseToken: String)
+    suspend fun consumePurchaseAndroid(purchaseToken: String)
+    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
+    fun getStore(): Store
+    suspend fun canMakePayments(): Boolean
 }

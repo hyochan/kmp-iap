@@ -165,12 +165,13 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
+    private val kmpIAP = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
     
     fun initialize() {
         scope.launch {
             try {
-                KmpIAP.initConnection()
+                kmpIAP.initConnection()
                 println("IAP connection initialized successfully")
             } catch (e: PurchaseError) {
                 println("Failed to initialize IAP connection: $e")
@@ -179,7 +180,9 @@ class IAPManager {
     }
     
     fun dispose() {
-        KmpIAP.dispose()
+        scope.launch {
+            kmpIAP.endConnection()
+        }
         scope.cancel()
     }
 }
@@ -191,9 +194,11 @@ Test your setup with this verification code:
 
 ```kotlin
 suspend fun testConnection() {
+    val kmpIAP = KmpIAP()
+    
     try {
         // Initialize connection
-        val connected = KmpIAP.initConnection()
+        val connected = kmpIAP.initConnection()
         println("Connection status: $connected")
         
         if (!connected) {
@@ -202,7 +207,7 @@ suspend fun testConnection() {
         }
         
         // Connection successful, test product fetching
-        val products = KmpIAP.requestProducts(
+        val products = kmpIAP.requestProducts(
             ProductRequest(
                 skus = listOf("test_product_id"),
                 type = ProductType.INAPP
@@ -212,6 +217,8 @@ suspend fun testConnection() {
         
     } catch (e: PurchaseError) {
         println("Connection test failed: $e")
+    } finally {
+        kmpIAP.endConnection()
     }
 }
 ```
