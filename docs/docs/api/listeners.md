@@ -27,7 +27,8 @@ class PurchaseManager(private val iap: InAppPurchase) {
     
     init {
         scope.launch {
-            iap.purchaseUpdatedListener.collectLatest { purchase ->
+            val kmpIAP = KmpIAP()
+            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
                 println("Purchase updated: ${purchase.productId}")
                 println("Transaction ID: ${purchase.transactionId}")
                 println("State: ${purchase.purchaseState}")
@@ -56,7 +57,8 @@ class PurchaseManager(private val iap: InAppPurchase) {
         grantEntitlement(purchase.productId)
         
         // Finish transaction
-        iap.finishTransaction(purchase, isConsumable = true)
+        val kmpIAP = KmpIAP()
+        kmpIAP.finishTransaction(purchase, isConsumable = true)
     }
 }
 ```
@@ -77,8 +79,9 @@ val purchaseErrorListener: Flow<PurchaseError>
 
 **Example**:
 ```kotlin
+val kmpIAP = KmpIAP()
 scope.launch {
-    iap.purchaseErrorListener.collectLatest { error ->
+    kmpIAP.purchaseErrorListener.collectLatest { error ->
         println("Purchase error: ${error.message}")
         println("Error code: ${error.code}")
         
@@ -122,8 +125,9 @@ suspend fun isConnected(): Boolean
 **Example**:
 ```kotlin
 // Check connection state
+val kmpIAP = KmpIAP()
 scope.launch {
-    val connected = KmpIAP.isConnected()
+    val connected = kmpIAP.isConnected()
     if (connected) {
         enablePurchaseButtons()
         loadProducts()
@@ -143,13 +147,14 @@ class ConnectionManager(private val iap: InAppPurchase) {
     }
     
     private fun monitorConnection() {
+        val kmpIAP = KmpIAP()
         scope.launch {
-            iap.isConnected.collectLatest { connected ->
+            kmpIAP.isConnected.collectLatest { connected ->
                 if (!connected && retryCount < maxRetries) {
                     delay(2000 * (retryCount + 1)) // Exponential backoff
                     retryCount++
                     try {
-                        iap.initConnection()
+                        kmpIAP.initConnection()
                     } catch (e: Exception) {
                         println("Retry failed: ${e.message}")
                     }
@@ -178,16 +183,17 @@ val promotedProductIOS: StateFlow<Product?>
 
 **Example**:
 ```kotlin
+val kmpIAP = KmpIAP()
 if (getCurrentPlatform() == IapPlatform.IOS) {
     scope.launch {
-        KmpIAP.promotedProductListener.collect { product ->
+        kmpIAP.promotedProductListener.collect { product ->
             product?.let {
                 // Show promoted product immediately
                 showProductDetail(it)
                 
                 // Optionally auto-purchase
                 if (userSettings.autoPromotedPurchase) {
-                    KmpIAP.buyPromotedProductIOS()
+                    kmpIAP.buyPromotedProductIOS()
                 }
             }
         }
@@ -201,8 +207,9 @@ While not exposed as a direct flow, Android billing client state changes can be 
 
 ```kotlin
 // Monitor through connection state
+val kmpIAP = KmpIAP()
 scope.launch {
-    iap.isConnected.collectLatest { connected ->
+    kmpIAP.isConnected.collectLatest { connected ->
         if (connected) {
             // BillingClient is ready
             println("Google Play Billing connected")
@@ -227,10 +234,11 @@ class PurchaseFlowManager(private val iap: InAppPurchase) {
     
     init {
         // Combine purchase and error flows
+        val kmpIAP = KmpIAP()
         scope.launch {
             merge(
-                iap.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
-                iap.purchaseErrorListener.map { PurchaseEvent.Error(it) }
+                kmpIAP.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
+                kmpIAP.purchaseErrorListener.map { PurchaseEvent.Error(it) }
             ).collectLatest { event ->
                 when (event) {
                     is PurchaseEvent.Success -> handleSuccess(event.purchase)
@@ -253,7 +261,8 @@ Listen for specific events:
 
 ```kotlin
 // Only listen for subscription purchases
-iap.purchaseUpdatedListener
+val kmpIAP = KmpIAP()
+kmpIAP.purchaseUpdatedListener
     .filter { purchase ->
         purchase.products.any { it.type == PurchaseType.SUBS }
     }
@@ -262,7 +271,7 @@ iap.purchaseUpdatedListener
     }
 
 // Only listen for specific error types
-iap.purchaseErrorListener
+kmpIAP.purchaseErrorListener
     .filter { error ->
         error.code in listOf(
             ErrorCode.NETWORK_ERROR,
@@ -280,14 +289,15 @@ Prevent rapid successive events:
 
 ```kotlin
 // Debounce purchase updates
-iap.purchaseUpdatedListener
+val kmpIAP = KmpIAP()
+kmpIAP.purchaseUpdatedListener
     .debounce(500) // Wait 500ms for stable state
     .collectLatest { purchase ->
         updatePurchaseUI(purchase)
     }
 
 // Throttle error messages
-iap.purchaseErrorListener
+kmpIAP.purchaseErrorListener
     .throttleLatest(2000) // Max one error dialog per 2 seconds
     .collectLatest { error ->
         showErrorDialog(error)
@@ -306,9 +316,10 @@ fun PurchaseScreen(iap: InAppPurchase) {
     val lifecycleOwner = LocalLifecycleOwner.current
     
     // Purchase updates
+    val kmpIAP = KmpIAP()
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            iap.purchaseUpdatedListener.collectLatest { purchase ->
+            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
                 // Only collect when screen is visible
                 showPurchaseSuccess(purchase)
             }
@@ -318,7 +329,7 @@ fun PurchaseScreen(iap: InAppPurchase) {
     // Error handling
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            iap.purchaseErrorListener.collectLatest { error ->
+            kmpIAP.purchaseErrorListener.collectLatest { error ->
                 showErrorSnackbar(error.message)
             }
         }
@@ -342,9 +353,10 @@ class PurchaseActivity : AppCompatActivity() {
     
     private fun setupListeners() {
         // Lifecycle-aware collection
+        val kmpIAP = KmpIAP()
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                iap.purchaseUpdatedListener.collectLatest { purchase ->
+                kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
@@ -352,7 +364,7 @@ class PurchaseActivity : AppCompatActivity() {
         
         purchaseJobs += lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                iap.purchaseErrorListener.collectLatest { error ->
+                kmpIAP.purchaseErrorListener.collectLatest { error ->
                     handlePurchaseError(error)
                 }
             }
@@ -380,8 +392,9 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
     private val retryAttempts = mutableMapOf<String, Int>()
     
     init {
+        val kmpIAP = KmpIAP()
         scope.launch {
-            iap.purchaseErrorListener.collectLatest { error ->
+            kmpIAP.purchaseErrorListener.collectLatest { error ->
                 when (error.code) {
                     ErrorCode.NETWORK_ERROR,
                     ErrorCode.SERVICE_UNAVAILABLE -> {
@@ -396,7 +409,7 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
         }
         
         scope.launch {
-            iap.purchaseUpdatedListener.collectLatest { purchase ->
+            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
                 // Success - reset retry count
                 resetRetryCount(purchase.productId)
             }
@@ -426,7 +439,7 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
 ### Mock Flow Testing
 
 ```kotlin
-class MockInAppPurchase : InAppPurchase {
+class MockKmpIAP : KmpIAP {
     private val _purchaseUpdated = MutableFlow<Purchase>()
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdated
     
@@ -446,7 +459,7 @@ class MockInAppPurchase : InAppPurchase {
 // In tests
 @Test
 fun testPurchaseListener() = runTest {
-    val mockIap = MockInAppPurchase()
+    val mockIap = MockKmpIAP()
     var receivedPurchase: Purchase? = null
     
     val job = launch {

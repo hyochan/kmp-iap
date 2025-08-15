@@ -78,13 +78,14 @@ Products must be properly configured and approved in the respective stores.
 
 ```kotlin
 // For consumable products
-val success = KmpIAP.finishTransaction(
+val kmpIAP = KmpIAP()
+val success = kmpIAP.finishTransaction(
     purchase = purchase,
     isConsumable = true
 )
 
 // For non-consumable products and subscriptions
-val success = KmpIAP.finishTransaction(
+val success = kmpIAP.finishTransaction(
     purchase = purchase,
     isConsumable = false
 )
@@ -103,8 +104,9 @@ The library will return trial information in the product data.
 **A:** Subscriptions auto-renew by default. To check status:
 
 ```kotlin
+val kmpIAP = KmpIAP()
 scope.launch {
-    val purchases = KmpIAP.getAvailablePurchases()
+    val purchases = kmpIAP.getAvailablePurchases()
         val activeSubscriptions = purchases.filter { purchase ->
             subscriptionIds.contains(purchase.productId) && 
             isActive(purchase)
@@ -131,9 +133,10 @@ Implement server-side receipt validation for accurate expiration checking.
 
 ```kotlin
 suspend fun restorePurchases() {
+    val kmpIAP = KmpIAP()
     try {
         // Get available purchases
-        val purchases = KmpIAP.getAvailablePurchases()
+        val purchases = kmpIAP.getAvailablePurchases()
         purchases.forEach { purchase ->
             // Re-deliver non-consumable products
             if (isNonConsumable(purchase.productId)) {
@@ -235,8 +238,9 @@ val isValid = api.validateAndroidPurchase(
 **A:** Monitor error state:
 
 ```kotlin
+val kmpIAP = KmpIAP()
 scope.launch {
-    KmpIAP.purchaseErrorListener.collect { error ->
+    kmpIAP.purchaseErrorListener.collect { error ->
         when (error.code) {
             ErrorCode.E_USER_CANCELLED.name -> {
                 // User cancelled - no error message needed
@@ -293,7 +297,8 @@ class ProductCache {
     ): Product? {
         cache[id]?.let { return it }
         
-        val products = KmpIAP.requestProducts(
+        val kmpIAP = KmpIAP()
+        val products = kmpIAP.requestProducts(
             ProductRequest(
                 skus = listOf(id),
                 type = ProductType.INAPP
@@ -320,13 +325,15 @@ class ProductCache {
 class PurchaseViewModel : ViewModel() {
     init {
         viewModelScope.launch {
-            KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            kmpIAP.initConnection()
         }
     }
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -357,7 +364,8 @@ fun PurchaseButton(productId: String) {
     
     Button(onClick = {
         scope.launch {
-            KmpIAP.requestPurchase(
+            val kmpIAP = KmpIAP()
+            kmpIAP.requestPurchase(
                 UnifiedPurchaseRequest(
                     sku = productId,
                     quantity = 1
@@ -411,8 +419,9 @@ actual class IAPManager {
 
 ```kotlin
 // Add logging to your IAP operations
+val kmpIAP = KmpIAP()
 scope.launch {
-    KmpIAP.purchaseErrorListener.collect { error ->
+    kmpIAP.purchaseErrorListener.collect { error ->
         println("[IAP Debug] Error: ${error.code} - ${error.message}")
     }
 }

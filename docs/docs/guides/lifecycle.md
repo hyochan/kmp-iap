@@ -63,7 +63,8 @@ class IAPViewModel : ViewModel() {
             _connectionState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                val connected = KmpIAP.initConnection()
+                val kmpIAP = KmpIAP()
+            val connected = kmpIAP.initConnection()
                 _connectionState.update { 
                     it.copy(
                         isConnected = connected,
@@ -84,7 +85,7 @@ class IAPViewModel : ViewModel() {
     
     private fun observePurchaseEvents() {
         viewModelScope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 _connectionState.update { 
                     it.copy(error = error.message)
                 }
@@ -94,7 +95,8 @@ class IAPViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 ```
 
@@ -170,7 +172,8 @@ class PurchaseViewModel : ViewModel() {
     init {
         setupPurchaseObservers()
         viewModelScope.launch {
-            val connected = KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            val connected = kmpIAP.initConnection()
             if (connected) {
                 checkPendingPurchases()
             }
@@ -180,7 +183,7 @@ class PurchaseViewModel : ViewModel() {
     private fun setupPurchaseObservers() {
         // Observe purchase success
         viewModelScope.launch {
-            KmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 purchase?.let {
                     _uiState.update { state ->
                         state.copy(
@@ -195,7 +198,7 @@ class PurchaseViewModel : ViewModel() {
         
         // Observe errors
         viewModelScope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIAP.purchaseErrorListener.collect { error ->
                 error?.let {
                     _uiState.update { state ->
                         state.copy(
@@ -222,7 +225,8 @@ class PurchaseViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -316,7 +320,8 @@ class GoodPurchaseManager : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```

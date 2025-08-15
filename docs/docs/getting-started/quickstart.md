@@ -10,15 +10,98 @@ Get up and running with KMP IAP in just a few minutes!
 
 KMP IAP supports two usage patterns:
 
-### Option 1: Singleton Pattern (Recommended)
-Use `KmpIAP.instance` for a global singleton instance that's shared across your app.
+### Option 1: Global Instance (Simple)
+Use the pre-created `kmpIapInstance` for convenience and simplicity.
 
-### Option 2: Instance Creation
-Create your own `KmpIAP()` instances for more control, testing, or dependency injection.
+### Option 2: Create Your Own Instance (Recommended for Testing)
+Create your own `KmpIAP()` instances for better control, testing, or dependency injection.
 
-## Basic Implementation with Singleton
+## Basic Implementation
 
-Here's a complete example using the singleton pattern:
+### Using Global Instance
+
+Here's a complete example using the global instance:
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.types.*
+import kotlinx.coroutines.*
+
+class IAPManager {
+    private val scope = CoroutineScope(Dispatchers.Main)
+    
+    suspend fun initialize() {
+        try {
+            // Initialize connection using global instance
+            kmpIapInstance.initConnection()
+            
+            // Listen to purchase updates
+            scope.launch {
+                kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+                    handlePurchaseUpdate(purchase)
+                }
+            }
+            
+            // Listen to errors
+            scope.launch {
+                kmpIapInstance.purchaseErrorListener.collect { error ->
+                    handlePurchaseError(error)
+                }
+            }
+        } catch (e: Exception) {
+            println("Initialization failed: ${e.message}")
+        }
+    }
+    
+    suspend fun loadProducts() {
+        try {
+            val products = kmpIapInstance.requestProducts(
+                ProductRequest(
+                    skus = listOf("product_1", "product_2"),
+                    type = ProductType.INAPP
+                )
+            )
+            println("Loaded ${products.size} products")
+        } catch (e: Exception) {
+            println("Failed to load products: ${e.message}")
+        }
+    }
+    
+    suspend fun purchaseProduct(productId: String) {
+        try {
+            val purchase = kmpIapInstance.requestPurchase(
+                UnifiedPurchaseRequest(
+                    sku = productId,
+                    quantity = 1
+                )
+            )
+            println("Purchase initiated for: ${purchase.productId}")
+        } catch (e: Exception) {
+            println("Purchase failed: ${e.message}")
+        }
+    }
+    
+    private suspend fun handlePurchaseUpdate(purchase: Purchase) {
+        // Verify purchase with your backend
+        val isValid = verifyPurchaseWithBackend(purchase)
+        
+        if (isValid) {
+            // Grant the purchased content
+            grantPurchase(purchase)
+            
+            // Finish the transaction
+            kmpIapInstance.finishTransaction(
+                purchase = purchase,
+                isConsumable = isConsumableProduct(purchase.productId)
+            )
+        }
+    }
+}
+```
+
+### Using Your Own Instance
+
+Here's the same example creating your own instance:
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
@@ -29,19 +112,20 @@ class IAPManager {
     
     suspend fun initialize() {
         try {
-            // Initialize connection using singleton
-            KmpIAP.instance.initConnection()
+            // Initialize connection using instance
+            val kmpIAP = KmpIAP()
+            kmpIAP.initConnection()
             
             // Listen to purchase updates
             launch {
-                KmpIAP.instance.purchaseUpdatedListener.collect { purchase ->
+                kmpIAP.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
             
             // Listen to errors
             launch {
-                KmpIAP.instance.purchaseErrorListener.collect { error ->
+                kmpIAP.purchaseErrorListener.collect { error ->
                     handlePurchaseError(error)
                 }
             }
@@ -53,7 +137,8 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // Load in-app products
-            val products = KmpIAP.instance.requestProducts(
+            val kmpIAP = KmpIAP()
+            val products = kmpIAP.requestProducts(
                 ProductRequest(
                     skus = listOf("remove_ads", "premium_upgrade"),
                     type = ProductType.INAPP
@@ -71,7 +156,8 @@ class IAPManager {
     suspend fun purchaseProduct(productId: String) {
         try {
             // Request purchase with unified API
-            val purchase = KmpIAP.instance.requestPurchase(
+            val kmpIAP = KmpIAP()
+            val purchase = kmpIAP.requestPurchase(
                 UnifiedPurchaseRequest(
                     sku = productId,
                     quantity = 1
@@ -95,7 +181,8 @@ class IAPManager {
             deliverProduct(purchase.productId)
             
             // Finish the transaction
-            KmpIAP.instance.finishTransaction(
+            val kmpIAP = KmpIAP()
+            kmpIAP.finishTransaction(
                 purchase = purchase,
                 isConsumable = true // true for consumables, false for subscriptions
             )
@@ -122,7 +209,8 @@ class IAPManager {
     }
     
     suspend fun disconnect() {
-        KmpIAP.instance.endConnection()
+        val kmpIAP = KmpIAP()
+        kmpIAP.endConnection()
     }
 }
 ```
@@ -175,9 +263,8 @@ import io.github.hyochan.kmpiap.types.*
 
 @Composable
 fun StoreScreen() {
-    // Create instance for this screen (or use singleton)
+    // Create instance for this screen
     val kmpIAP = remember { KmpIAP() }
-    // Or use singleton: val kmpIAP = KmpIAP.instance
     
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }

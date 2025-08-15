@@ -55,7 +55,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-beta.8
+- **Current Version**: 1.0.0-beta.9
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 11.0+
 - **Android Requirements**: API level 24+
@@ -67,17 +67,46 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.8")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.9")
 }
 ```
 
-### Basic Usage
+### Option 1: Using Global Instance (Simple)
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.types.*
+
+// Use the global singleton instance
+kmpIapInstance.initConnection()
+
+// Get products
+val products = kmpIapInstance.requestProducts(
+    ProductRequest(
+        skus = listOf("product_id"),
+        type = ProductType.INAPP
+    )
+)
+
+// Request purchase
+val purchase = kmpIapInstance.requestPurchase(
+    UnifiedPurchaseRequest(
+        sku = "product_id",
+        quantity = 1
+    )
+)
+
+// Finish transaction after validation
+kmpIapInstance.finishTransaction(purchase, isConsumable = true)
+```
+
+### Option 2: Create Your Own Instance (Recommended for Testing)
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
-// Create an instance
+// Create your own instance
 val kmpIAP = KmpIAP()
 
 // Initialize connection

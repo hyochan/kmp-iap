@@ -54,7 +54,7 @@ class PurchaseHandler(
     fun setupPurchaseObservers() {
         // Observe successful purchases
         scope.launch {
-            KmpIAP.currentPurchase.collectLatest { purchase ->
+            kmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     println("Purchase update received: ${it.productId}")
                     handlePurchaseUpdate(it)
@@ -64,18 +64,19 @@ class PurchaseHandler(
 
         // Observe purchase errors
         scope.launch {
-            KmpIAP.currentError.collectLatest { error ->
+            kmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     println("Purchase failed: ${it.message}")
                     handlePurchaseError(it)
-                    KmpIAP.clearError()
+                    kmpIAP.clearError()
                 }
             }
         }
     }
     
     fun dispose() {
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
 }
 ```
@@ -109,7 +110,8 @@ class ProductsViewModel : ViewModel() {
         
         // Initialize connection and load products
         viewModelScope.launch {
-            val connected = KmpIAP.initConnection()
+            val kmpIAP = KmpIAP()
+            val connected = kmpIAP.initConnection()
             if (connected) {
                 loadProducts()
             }
@@ -118,7 +120,8 @@ class ProductsViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
     
     // Purchase observer setup...
@@ -140,7 +143,8 @@ suspend fun handlePurchase(productId: String) {
         }
 
         // Request purchase
-        KmpIAP.requestPurchase(
+        val kmpIAP = KmpIAP()
+        kmpIAP.requestPurchase(
             sku = productId,
             quantityIOS = 1, // iOS only
             obfuscatedAccountIdAndroid = getUserId() // Android only
@@ -620,7 +624,7 @@ class PurchaseService : ViewModel() {
     private fun setupPurchaseObservers() {
         // Observe purchase success
         viewModelScope.launch {
-            KmpIAP.currentPurchase.collectLatest { purchase ->
+            kmpIAP.currentPurchase.collectLatest { purchase ->
                 purchase?.let {
                     handlePurchaseSuccess(it)
                 }
@@ -629,10 +633,10 @@ class PurchaseService : ViewModel() {
         
         // Observe errors
         viewModelScope.launch {
-            KmpIAP.currentError.collectLatest { error ->
+            kmpIAP.currentError.collectLatest { error ->
                 error?.let {
                     handlePurchaseError(it)
-                    KmpIAP.clearError()
+                    kmpIAP.clearError()
                 }
             }
         }
@@ -666,7 +670,8 @@ class PurchaseService : ViewModel() {
     }
     
     suspend fun purchaseProduct(productId: String) {
-        KmpIAP.requestPurchase(
+        val kmpIAP = KmpIAP()
+        kmpIAP.requestPurchase(
             sku = productId,
             quantityIOS = 1,
             obfuscatedAccountIdAndroid = getUserId()
@@ -675,7 +680,8 @@ class PurchaseService : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        val kmpIAP = KmpIAP()
+        kmpIAP.dispose()
     }
     
     private fun deliverProduct(productId: String) {

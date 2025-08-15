@@ -20,7 +20,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
@@ -34,8 +34,8 @@ fun PurchaseFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
     
-    // Create IAP instance
-    val kmpIAP = remember { KmpIAP() }
+    // Use global IAP instance for this example
+    // This demonstrates using the pre-created singleton instance
     
     var isConnecting by remember { mutableStateOf(true) }
     var isLoadingProducts by remember { mutableStateOf(false) }
@@ -52,7 +52,7 @@ fun PurchaseFlowScreen(navController: NavController) {
     // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
                 
                 // Handle successful purchase
@@ -77,7 +77,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 // For consumable products (like bulb packs), set isConsumable to true
                 scope.launch {
                     try {
-                        kmpIAP.finishTransaction(
+                        kmpIapInstance.finishTransaction(
                             purchase = purchase,
                             isConsumable = true // Set to true for consumable products
                         )
@@ -90,7 +90,7 @@ fun PurchaseFlowScreen(navController: NavController) {
         }
         
         launch {
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.E_USER_CANCELLED.name -> "⚠️ Purchase cancelled by user"
@@ -105,7 +105,7 @@ fun PurchaseFlowScreen(navController: NavController) {
             // Step 1: Initialize connection
             isConnecting = true
             try {
-                val connectionResult = kmpIAP.initConnection()
+                val connectionResult = kmpIapInstance.initConnection()
                 connected = connectionResult
                 
                 if (!connectionResult) {
@@ -122,7 +122,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 val loadJob = async {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                        val result = kmpIAP.requestProducts(
+                        val result = kmpIapInstance.requestProducts(
                             ProductRequest(
                                 skus = PRODUCT_IDS,
                                 type = ProductType.INAPP
@@ -305,7 +305,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 isProcessing = true
                                 purchaseResult = null
                                 try {
-                                    val purchase = kmpIAP.requestPurchase(
+                                    val purchase = kmpIapInstance.requestPurchase(
                                         UnifiedPurchaseRequest(
                                             sku = product.id,
                                             quantity = 1
