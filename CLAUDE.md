@@ -4,47 +4,49 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
 
 ## Naming Conventions
 
-### IAP Acronym Usage
-When using "IAP" (In-App Purchase) in class/variable names:
+### Acronym Usage
 
-1. **When IAP is the final suffix**: Use all caps `IAP`
-   - ✅ `KmpIAP` (class name ending with IAP)
-   - ✅ `MyServiceIAP`
+1. **IAP (In-App Purchase)**:
 
-2. **When IAP is followed by other words**: Use camelCase `Iap`
-   - ✅ `KmpIapInstance` (IAP followed by "Instance")
-   - ✅ `IapManager` (IAP followed by "Manager")
-   - ✅ `kmpIapInstance` (variable name)
+   - When final suffix: Use `IAP` (e.g., `KmpIAP`)
+   - When followed by other words: Use `Iap` (e.g., `KmpIapInstance`, `IapManager`)
+
+2. **Platform-specific**:
+   - iOS: Use `IOS` (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`)
+   - Android: Use `Android` (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`)
 
 ### Examples
+
 ```kotlin
 // Class names
 class KmpIAP()          // ✅ Correct - IAP is final
 class KmpIapInstance    // ✅ Correct - IAP followed by Instance
-class KmpIAPInstance    // ❌ Wrong - should be KmpIapInstance
+class PurchaseIOS       // ✅ Correct - iOS platform specific
 
 // Variable names
-val kmpIAP = KmpIAP()        // ✅ Correct - instance of KmpIAP
-val kmpIapInstance: KmpIAP   // ✅ Correct - follows camelCase
-val kmpIAPInstance: KmpIAP   // ❌ Wrong - should be kmpIapInstance
+val kmpIAP = KmpIAP()        // ✅ Correct
+val kmpIapInstance: KmpIAP   // ✅ Correct
 ```
 
 ## API Design Patterns
 
 ### Instance Creation
+
 The library supports two patterns for maximum flexibility:
 
 1. **Global Instance** (for convenience)
+
    ```kotlin
    import io.github.hyochan.kmpiap.kmpIapInstance
-   
+
    kmpIapInstance.initConnection()
    ```
 
 2. **Constructor Pattern** (for testing and DI)
+
    ```kotlin
    import io.github.hyochan.kmpiap.KmpIAP
-   
+
    val kmpIAP = KmpIAP()
    kmpIAP.initConnection()
    ```
@@ -52,21 +54,23 @@ The library supports two patterns for maximum flexibility:
 ## Code Style Guidelines
 
 ### General Principles
+
 - Follow [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
 - Use instance-based patterns over static/singleton patterns in examples
 - Provide clear comments for receipt validation and server-side processing
 
 ### Purchase Flow Pattern
+
 ```kotlin
 // 1. Listen for purchase updates
 kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
     // 2. Validate receipt with your backend
     val isValid = validateReceiptOnServer(purchase)
-    
+
     if (isValid) {
         // 3. Grant entitlement
         grantEntitlement(purchase.productId)
-        
+
         // 4. Finish transaction
         kmpIapInstance.finishTransaction(
             purchase = purchase,
@@ -76,27 +80,64 @@ kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
 }
 ```
 
-## Testing Commands
+## Build & Testing
 
-### Build Library
+### Commands
+
 ```bash
+# Build library
 ./gradlew :library:build
-```
 
-### Run Example App
-```bash
-# Android
+# Run tests
+./gradlew :library:test
+
+# Check code quality (if configured)
+./gradlew :library:detekt
+
+# Run example app - Android
 ./gradlew :example:composeApp:assembleDebug
 
-# iOS (requires Mac)
+# Run example app - iOS (requires Mac)
 cd example/iosApp
 xed .
 ```
 
+### Pre-Commit Checklist
+
+1. Run build to ensure compilation succeeds
+2. Run tests to verify functionality
+3. Run code quality checks
+4. Only commit if all checks pass
+
+## API Guidelines
+
+### Method Naming
+
+- Use `request` prefix for event-dependent functions (e.g., `requestPurchase`, `requestSubscription`)
+- Follow OpenIAP terminology: <https://www.openiap.dev/docs/apis#terminology>
+- Avoid generic prefixes like `get`, `find`
+
+### OpenIAP Specification
+
+All implementations must follow the OpenIAP specification:
+
+- **APIs**: <https://www.openiap.dev/docs/apis>
+- **Types**: <https://www.openiap.dev/docs/types>
+- **Events**: <https://www.openiap.dev/docs/events>
+- **Errors**: <https://www.openiap.dev/docs/errors>
+
+#### Feature Development Process
+
+For new feature proposals:
+
+1. Before implementing, discuss at: <https://github.com/hyochan/openiap.dev/discussions>
+2. Get community feedback and consensus
+3. Ensure alignment with OpenIAP standards
+4. Implement following the agreed specification
+
 ## Contributing
 
-When contributing to this project:
-1. Follow the naming conventions outlined above
-2. Ensure all tests pass
-3. Update documentation if API changes are made
-4. Add comments for complex logic, especially around platform-specific code
+1. Follow the naming conventions and guidelines above
+2. Run all tests before committing
+3. Update documentation for API changes
+4. Comment complex logic, especially platform-specific code
