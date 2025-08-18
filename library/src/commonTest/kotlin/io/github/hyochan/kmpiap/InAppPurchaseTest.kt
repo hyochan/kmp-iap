@@ -77,20 +77,24 @@ class InAppPurchaseTest {
     @Test
     fun testPurchaseTypes() {
         val purchase = Purchase(
+            id = "12345",  // Primary identifier
             productId = "test_product",
-            transactionId = "12345",
+            purchaseToken = "token",  // Unified purchase token
+            transactionId = "12345",  // @deprecated - use id instead
             transactionReceipt = "receipt_data",
             transactionDate = 1234567890.0,
-            purchaseTokenAndroid = "token",
+            purchaseTokenAndroid = "token",  // @deprecated - use purchaseToken instead
             platform = IAPPlatform.ANDROID,
             acknowledgedAndroid = false,
             purchaseStateAndroid = 1
         )
         
+        assertEquals("12345", purchase.id)
         assertEquals("test_product", purchase.productId)
+        assertEquals("token", purchase.purchaseToken)  // Test unified field
         assertEquals("12345", purchase.transactionId)
         assertEquals("receipt_data", purchase.transactionReceipt)
-        assertEquals("token", purchase.purchaseTokenAndroid)
+        assertEquals("token", purchase.purchaseTokenAndroid)  // Test deprecated field
         assertEquals(IAPPlatform.ANDROID, purchase.platform)
         assertFalse(purchase.acknowledgedAndroid ?: true)
     }
