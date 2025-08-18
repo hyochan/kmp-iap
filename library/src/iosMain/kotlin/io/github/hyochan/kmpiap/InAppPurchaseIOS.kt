@@ -357,7 +357,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 productId = sku,
                 transactionDate = Clock.System.now().epochSeconds.toDouble(),
                 transactionReceipt = "",
-                platform = IAPPlatform.IOS
+                platform = IapPlatform.IOS
             )
         } catch (e: Exception) {
             val error = PurchaseError(
@@ -807,7 +807,7 @@ private fun SKProduct.toProduct(): Product {
         discounts = try { 
             discounts?.map { discount -> (discount as SKProductDiscount).toDiscount() }
         } catch (e: Exception) { null },
-        platform = IAPPlatform.IOS
+        platform = IapPlatform.IOS
     )
 }
 
@@ -824,7 +824,7 @@ private fun SKProduct.toSubscription(): SubscriptionProduct {
         introductoryPriceNumberOfPeriods = try { introductoryPrice?.numberOfPeriods?.toInt() } catch (e: Exception) { null },
         introductoryPriceSubscriptionPeriod = try { introductoryPrice?.subscriptionPeriod?.toReadableString() } catch (e: Exception) { null },
         subscriptionGroupIdentifier = try { subscriptionGroupIdentifier } catch (e: Exception) { null },
-        platform = IAPPlatform.IOS
+        platform = IapPlatform.IOS
     )
 }
 
@@ -907,6 +907,6 @@ private fun SKPaymentTransaction.toPurchase(): Purchase {
             SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> TransactionState.DEFERRED
             else -> null
         },
-        platform = IAPPlatform.IOS
+        platform = IapPlatform.IOS
     )
 }
