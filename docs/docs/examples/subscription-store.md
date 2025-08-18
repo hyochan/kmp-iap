@@ -46,7 +46,8 @@ class SubscriptionStoreViewModel : ViewModel() {
         val isConnected: Boolean = false,
         val isLoading: Boolean = false,
         val subscriptions: List<Product> = emptyList(),
-        val activeSubscriptions: List<Purchase> = emptyList(),
+        val activeSubscriptions: List<ActiveSubscription> = emptyList(),
+        val hasActiveSubscription: Boolean = false,
         val error: String? = null
     )
     
@@ -94,15 +95,10 @@ class SubscriptionStoreViewModel : ViewModel() {
             }
         }
         
-        // Observe active purchases
+        // Observe active subscriptions using new API
         viewModelScope.launch {
-            KmpIAP.availablePurchases.collectLatest { purchases ->
-                val activeSubscriptions = purchases.filter { purchase ->
-                    subscriptionIds.contains(purchase.productId) &&
-                    isSubscriptionActive(purchase)
-                }
-                _state.update { it.copy(activeSubscriptions = activeSubscriptions) }
-            }
+            // Check for active subscriptions periodically or when state changes
+            loadActiveSubscriptions()
         }
         
         // Observe purchase updates
@@ -129,10 +125,57 @@ class SubscriptionStoreViewModel : ViewModel() {
         try {
             val subscriptions = KmpIAP.getSubscriptions(subscriptionIds)
             println("Loaded ${subscriptions.size} subscriptions")
+            
+            // Also load active subscriptions
+            loadActiveSubscriptions()
         } catch (e: PurchaseError) {
             showError("Failed to load subscriptions: ${e.message}")
         } finally {
             _state.update { it.copy(isLoading = false) }
+        }
+    }
+    
+    private suspend fun loadActiveSubscriptions() {
+        try {
+            // Use new APIs to get active subscription information
+            val activeSubscriptions = kmpIapInstance.getActiveSubscriptions(subscriptionIds)
+            val hasActiveSubscription = kmpIapInstance.hasActiveSubscriptions(subscriptionIds)
+            
+            _state.update { 
+                it.copy(
+                    activeSubscriptions = activeSubscriptions,
+                    hasActiveSubscription = hasActiveSubscription
+                ) 
+            }
+            
+            println("Found ${activeSubscriptions.size} active subscriptions")
+            activeSubscriptions.forEach { subscription ->
+                println("Active subscription: ${subscription.productId}")
+                
+                // iOS-specific information
+                subscription.expirationDateIOS?.let { expDate ->
+                    val expirationDate = Instant.fromEpochMilliseconds(expDate)
+                    println("  Expires: $expirationDate")
+                }
+                subscription.environmentIOS?.let { env ->
+                    println("  Environment: $env")
+                }
+                subscription.daysUntilExpirationIOS?.let { days ->
+                    println("  Days until expiration: $days")
+                }
+                
+                // Android-specific information
+                subscription.autoRenewingAndroid?.let { autoRenew ->
+                    println("  Auto-renewing: $autoRenew")
+                }
+                
+                // Cross-platform warnings
+                if (subscription.willExpireSoon == true) {
+                    println("  ⚠️ This subscription will expire soon!")
+                }
+            }
+        } catch (e: Exception) {
+            showError("Failed to load active subscriptions: ${e.message}")
         }
     }
     
@@ -149,6 +192,9 @@ class SubscriptionStoreViewModel : ViewModel() {
                 
                 // Complete transaction
                 completeTransaction(purchase)
+                
+                // Reload active subscriptions to reflect changes
+                loadActiveSubscriptions()
                 
                 // Clear current purchase
                 KmpIAP.clearPurchase()
@@ -400,6 +446,7 @@ fun SubscriptionPlans(
         item {
             CurrentSubscriptionStatus(
                 activeSubscriptions = state.activeSubscriptions,
+                hasActiveSubscription = state.hasActiveSubscription,
                 viewModel = viewModel
             )
         }
@@ -420,6 +467,7 @@ fun SubscriptionPlans(
                     tier = tier,
                     subscriptions = subscriptions,
                     activeSubscriptions = state.activeSubscriptions,
+                    hasActiveSubscription = state.hasActiveSubscription,
                     viewModel = viewModel
                 )
             }
@@ -429,13 +477,14 @@ fun SubscriptionPlans(
 
 @Composable
 fun CurrentSubscriptionStatus(
-    activeSubscriptions: List<Purchase>,
+    activeSubscriptions: List<ActiveSubscription>,
+    hasActiveSubscription: Boolean,
     viewModel: SubscriptionStoreViewModel
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (activeSubscriptions.isEmpty())
+            containerColor = if (!hasActiveSubscription)
                 MaterialTheme.colorScheme.surfaceVariant
             else
                 Color(0xFF4CAF50).copy(alpha = 0.1f)
@@ -446,12 +495,12 @@ fun CurrentSubscriptionStatus(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (activeSubscriptions.isEmpty())
+                imageVector = if (!hasActiveSubscription)
                     Icons.Default.Info
                 else
                     Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = if (activeSubscriptions.isEmpty())
+                tint = if (!hasActiveSubscription)
                     MaterialTheme.colorScheme.onSurfaceVariant
                 else
                     Color(0xFF4CAF50)
@@ -459,7 +508,7 @@ fun CurrentSubscriptionStatus(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = if (activeSubscriptions.isEmpty())
+                    text = if (!hasActiveSubscription)
                         "No active subscriptions"
                     else
                         "Active Subscriptions",
@@ -468,11 +517,52 @@ fun CurrentSubscriptionStatus(
                 )
                 
                 activeSubscriptions.forEach { sub ->
-                    Text(
-                        text = "${viewModel.getSubscriptionTier(sub.productId)} ${viewModel.getSubscriptionPeriod(sub.productId)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF4CAF50)
-                    )
+                    Column {
+                        Text(
+                            text = "${viewModel.getSubscriptionTier(sub.productId)} ${viewModel.getSubscriptionPeriod(sub.productId)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF4CAF50)
+                        )
+                        
+                        // Show expiration information
+                        sub.expirationDateIOS?.let { expDate ->
+                            val expirationDate = Instant.fromEpochMilliseconds(expDate)
+                            Text(
+                                text = "Expires: ${expirationDate.toLocalDateTime(TimeZone.currentSystemDefault()).date}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        // Show environment (iOS)
+                        sub.environmentIOS?.let { env ->
+                            if (env == "Sandbox") {
+                                Text(
+                                    text = "🧪 Sandbox",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFFF9800)
+                                )
+                            }
+                        }
+                        
+                        // Show expiration warning
+                        if (sub.willExpireSoon == true) {
+                            Text(
+                                text = "⚠️ Expires soon",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF5722)
+                            )
+                        }
+                        
+                        // Show auto-renewal status (Android)
+                        sub.autoRenewingAndroid?.let { autoRenew ->
+                            Text(
+                                text = if (autoRenew) "🔄 Auto-renewing" else "⏸️ Will not renew",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (autoRenew) Color(0xFF4CAF50) else Color(0xFFFF5722)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -483,7 +573,8 @@ fun CurrentSubscriptionStatus(
 fun SubscriptionTierSection(
     tier: String,
     subscriptions: List<Product>,
-    activeSubscriptions: List<Purchase>,
+    activeSubscriptions: List<ActiveSubscription>,
+    hasActiveSubscription: Boolean,
     viewModel: SubscriptionStoreViewModel
 ) {
     val tierColor = viewModel.getTierColor(tier)
@@ -638,12 +729,111 @@ if (KmpIAP.getCurrentPlatform() == IapPlatform.ANDROID) {
 3. **Purchase Verification**: Placeholder for server-side verification
 4. **Transaction Completion**: Proper handling of iOS and Android differences
 5. **Restore Functionality**: Easy way for users to restore purchases
-6. **Status Display**: Clear indication of active subscriptions
+6. **Status Display**: Clear indication of active subscriptions with detailed information
 7. **StateFlow Usage**: Reactive state management with Kotlin StateFlow
+8. **Enhanced Subscription Management**: Uses new `getActiveSubscriptions()` and `hasActiveSubscriptions()` APIs
+9. **Platform-Specific Details**: Shows expiration dates (iOS), auto-renewal status (Android), and environment info
 
-## Subscription Management Features
+## Enhanced Subscription Management Features
 
-### Checking Subscription Status
+### Using New ActiveSubscription APIs
+
+The example now uses the enhanced subscription APIs for more detailed information:
+
+```kotlin
+// Check if user has any active subscriptions (quick check)
+val hasActiveSubscription = kmpIapInstance.hasActiveSubscriptions(subscriptionIds)
+
+// Get detailed subscription information
+val activeSubscriptions = kmpIapInstance.getActiveSubscriptions(subscriptionIds)
+
+activeSubscriptions.forEach { subscription ->
+    println("Active subscription: ${subscription.productId}")
+    
+    // iOS-specific information
+    subscription.expirationDateIOS?.let { expDate ->
+        val expirationDate = Instant.fromEpochMilliseconds(expDate)
+        println("  Expires: $expirationDate")
+    }
+    subscription.environmentIOS?.let { env ->
+        println("  Environment: $env") // "Sandbox" or "Production"
+    }
+    subscription.daysUntilExpirationIOS?.let { days ->
+        println("  Days until expiration: $days")
+    }
+    
+    // Android-specific information
+    subscription.autoRenewingAndroid?.let { autoRenew ->
+        println("  Auto-renewing: $autoRenew")
+    }
+    
+    // Cross-platform warnings
+    if (subscription.willExpireSoon == true) {
+        println("  ⚠️ This subscription will expire soon!")
+    }
+}
+```
+
+### Platform-Specific Subscription Details
+
+#### iOS Features
+- **Expiration Date**: Exact timestamp when subscription expires
+- **Environment Detection**: Automatically detects Sandbox vs Production
+- **Days Until Expiration**: Calculated remaining days
+- **Expiration Warnings**: `willExpireSoon` flag for subscriptions expiring within 7 days
+
+#### Android Features
+- **Auto-Renewal Status**: Shows if subscription will automatically renew
+- **Grace Period Support**: Can be extended with server-side validation
+
+### Visual Subscription Status
+
+The UI now shows rich subscription information:
+
+```kotlin
+// Show expiration information
+sub.expirationDateIOS?.let { expDate ->
+    val expirationDate = Instant.fromEpochMilliseconds(expDate)
+    Text(
+        text = "Expires: ${expirationDate.toLocalDateTime(TimeZone.currentSystemDefault()).date}",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+// Show environment (iOS)
+sub.environmentIOS?.let { env ->
+    if (env == "Sandbox") {
+        Text(
+            text = "🧪 Sandbox",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFFF9800)
+        )
+    }
+}
+
+// Show expiration warning
+if (sub.willExpireSoon == true) {
+    Text(
+        text = "⚠️ Expires soon",
+        style = MaterialTheme.typography.bodySmall,
+        color = Color(0xFFFF5722)
+    )
+}
+
+// Show auto-renewal status (Android)
+sub.autoRenewingAndroid?.let { autoRenew ->
+    Text(
+        text = if (autoRenew) "🔄 Auto-renewing" else "⏸️ Will not renew",
+        style = MaterialTheme.typography.bodySmall,
+        color = if (autoRenew) Color(0xFF4CAF50) else Color(0xFFFF5722)
+    )
+}
+```
+
+### Legacy Subscription Status Check
+
+For backward compatibility, you can still use the basic check:
 
 ```kotlin
 private fun isSubscriptionActive(purchase: Purchase): Boolean {

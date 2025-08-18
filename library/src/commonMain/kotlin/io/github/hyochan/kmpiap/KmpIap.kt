@@ -20,6 +20,7 @@ typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
 typealias Discount = io.github.hyochan.kmpiap.types.Discount
 typealias SubscriptionOffer = io.github.hyochan.kmpiap.types.SubscriptionOffer
 typealias PricingPhase = io.github.hyochan.kmpiap.types.PricingPhase
+typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
 
 // Re-export enums
 typealias Store = io.github.hyochan.kmpiap.types.Store
@@ -219,6 +220,19 @@ interface KmpInAppPurchase {
      */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
 
+    /**
+     * Get all active subscriptions with detailed information
+     * @param subscriptionIds Optional list of subscription IDs to check. If null, returns all active subscriptions
+     * @return List of active subscriptions
+     */
+    suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>
+
+    /**
+     * Check if the user has any active subscriptions
+     * @param subscriptionIds Optional list of subscription IDs to check. If null, checks all subscriptions
+     * @return True if the user has at least one active subscription
+     */
+    suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean
 
     /**
      * Get the current store type
@@ -250,34 +264,99 @@ interface KmpInAppPurchase {
  * kmpIAP.requestProducts(...)
  * ```
  */
-@OptIn(kotlin.ExperimentalMultiplatform::class)
-expect class KmpIAP() {
-    fun getVersion(): String
-    val purchaseUpdatedListener: Flow<Purchase>
-    val purchaseErrorListener: Flow<PurchaseError>
-    val promotedProductListener: Flow<String?>
-    suspend fun initConnection(): Boolean
-    suspend fun endConnection()
-    suspend fun requestProducts(params: ProductRequest): List<Product>
-    suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
-    suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
-    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
-    suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean? = null): Boolean
-    suspend fun validateReceipt(options: ValidationOptions): ValidationResult
-    suspend fun isPurchaseValid(purchase: Purchase): Boolean
-    suspend fun finishTransactionIOS(transactionId: String)
-    suspend fun clearTransactionIOS()
-    suspend fun clearProductsIOS()
-    suspend fun getStorefrontIOS(): String
-    suspend fun presentCodeRedemptionSheetIOS()
-    suspend fun getPromotedProductIOS(): String?
-    suspend fun buyPromotedProductIOS()
-    suspend fun acknowledgePurchaseAndroid(purchaseToken: String)
-    suspend fun consumePurchaseAndroid(purchaseToken: String)
-    suspend fun deepLinkToSubscriptions(options: DeepLinkOptions)
-    fun getStore(): Store
-    suspend fun canMakePayments(): Boolean
+class KmpIAP : KmpInAppPurchase {
+    private val delegate: KmpInAppPurchase = createPlatformInAppPurchase()
+    
+    override fun getVersion(): String = delegate.getVersion()
+    
+    // Event Listeners
+    override val purchaseUpdatedListener: Flow<Purchase>
+        get() = delegate.purchaseUpdatedListener
+    
+    override val purchaseErrorListener: Flow<PurchaseError>
+        get() = delegate.purchaseErrorListener
+    
+    override val promotedProductListener: Flow<String?>
+        get() = delegate.promotedProductListener
+    
+    // Connection Management
+    override suspend fun initConnection(): Boolean = delegate.initConnection()
+    
+    override suspend fun endConnection() = delegate.endConnection()
+    
+    // Product Management
+    override suspend fun requestProducts(params: ProductRequest): List<Product> = 
+        delegate.requestProducts(params)
+    
+    // Purchase Operations
+    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase = 
+        delegate.requestPurchase(request)
+    
+    override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
+        delegate.getAvailablePurchases(options)
+    
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> = 
+        delegate.getPurchaseHistories(options)
+    
+    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean = 
+        delegate.finishTransaction(purchase, isConsumable)
+    
+    // Validation
+    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = 
+        delegate.validateReceipt(options)
+    
+    override suspend fun isPurchaseValid(purchase: Purchase): Boolean = 
+        delegate.isPurchaseValid(purchase)
+    
+    // iOS-specific APIs
+    override suspend fun finishTransactionIOS(transactionId: String) = 
+        delegate.finishTransactionIOS(transactionId)
+    
+    override suspend fun clearTransactionIOS() = 
+        delegate.clearTransactionIOS()
+    
+    override suspend fun clearProductsIOS() = 
+        delegate.clearProductsIOS()
+    
+    override suspend fun getStorefrontIOS(): String = 
+        delegate.getStorefrontIOS()
+    
+    override suspend fun presentCodeRedemptionSheetIOS() = 
+        delegate.presentCodeRedemptionSheetIOS()
+    
+    override suspend fun getPromotedProductIOS(): String? = 
+        delegate.getPromotedProductIOS()
+    
+    override suspend fun buyPromotedProductIOS() = 
+        delegate.buyPromotedProductIOS()
+    
+    // Android-specific APIs
+    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) = 
+        delegate.acknowledgePurchaseAndroid(purchaseToken)
+    
+    override suspend fun consumePurchaseAndroid(purchaseToken: String) = 
+        delegate.consumePurchaseAndroid(purchaseToken)
+    
+    // Subscription Management
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = 
+        delegate.deepLinkToSubscriptions(options)
+    
+    override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> = 
+        delegate.getActiveSubscriptions(subscriptionIds)
+    
+    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean = 
+        delegate.hasActiveSubscriptions(subscriptionIds)
+    
+    // Utility
+    override fun getStore(): Store = delegate.getStore()
+    
+    override suspend fun canMakePayments(): Boolean = delegate.canMakePayments()
 }
+
+/**
+ * Creates platform-specific InAppPurchase implementation
+ */
+expect fun createPlatformInAppPurchase(): KmpInAppPurchase
 
 /**
  * Global singleton instance of KmpIAP for convenience.

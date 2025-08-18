@@ -259,8 +259,13 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                        purchase.productId.contains("subscription") ||
                                        purchase.productId.contains("sub_")
                     
-                    // Check if already acknowledged (for Android)
-                    val isAcknowledged = purchase.acknowledgedAndroid == true
+                    // Check if already acknowledged (for Android) or restored (for iOS)
+                    // Restored iOS transactions are already finished and cannot be finished again
+                    val isAcknowledged = when (purchase.platform) {
+                        IAPPlatform.ANDROID -> purchase.acknowledgedAndroid == true
+                        IAPPlatform.IOS -> purchase.transactionState == TransactionState.RESTORED
+                        else -> false
+                    }
                     
                     PurchaseCard(
                         purchase = purchase,
@@ -398,8 +403,13 @@ fun PurchaseCard(
                 )
                 
                 if (isSubscription && isAcknowledged) {
+                    val statusText = when (purchase.platform) {
+                        IAPPlatform.ANDROID -> "✓ Acknowledged"
+                        IAPPlatform.IOS -> "✓ Finished"
+                        else -> "✓ Processed"
+                    }
                     Text(
-                        text = "✓ Acknowledged",
+                        text = statusText,
                         fontSize = 12.sp,
                         color = AppColors.Success,
                         fontWeight = FontWeight.Medium
@@ -425,8 +435,13 @@ fun PurchaseCard(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val statusText = when (purchase.platform) {
+                            IAPPlatform.ANDROID -> "Already Acknowledged"
+                            IAPPlatform.IOS -> "Already Finished"
+                            else -> "Already Processed"
+                        }
                         Text(
-                            text = "Already Acknowledged",
+                            text = statusText,
                             color = AppColors.Secondary
                         )
                     }
@@ -447,7 +462,16 @@ fun PurchaseCard(
                             color = Color.White
                         )
                     } else {
-                        Text(if (isSubscription) "Acknowledge Subscription" else "Consume Purchase")
+                        val buttonText = if (isSubscription) {
+                            when (purchase.platform) {
+                                IAPPlatform.ANDROID -> "Acknowledge Subscription"
+                                IAPPlatform.IOS -> "Finish Transaction"
+                                else -> "Process Subscription"
+                            }
+                        } else {
+                            "Consume Purchase"
+                        }
+                        Text(buttonText)
                     }
                 }
             }

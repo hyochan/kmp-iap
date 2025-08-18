@@ -46,7 +46,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
     
     var connected by remember { mutableStateOf(false) }
     var subscriptions by remember { mutableStateOf<List<SubscriptionProduct>>(emptyList()) }
-    var activeSubscriptions by remember { mutableStateOf<List<Purchase>>(emptyList()) }
+    var activeSubscriptions by remember { mutableStateOf<List<ActiveSubscription>>(emptyList()) }
+    var hasActiveSubscription by remember { mutableStateOf(false) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
     var currentPurchase by remember { mutableStateOf<Purchase?>(null) }
     
@@ -84,14 +85,9 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         )
                         purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
                         
-                        // Update active subscriptions list to show "Subscribed" state
-                        if (SUBSCRIPTION_IDS.contains(purchase.productId)) {
-                            val updatedList = activeSubscriptions.toMutableList()
-                            if (!updatedList.any { it.productId == purchase.productId }) {
-                                updatedList.add(purchase)
-                                activeSubscriptions = updatedList
-                            }
-                        }
+                        // Refresh active subscriptions after successful purchase
+                        activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                        hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
                     } catch (e: Exception) {
                         purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
                     }
@@ -128,13 +124,22 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 isConnecting = false
                 isLoadingProducts = true
                 
-                // Load active purchases and subscription products in parallel
-                val activePurchasesDeferred = async {
+                // Load active subscriptions and subscription products in parallel
+                val activeSubscriptionsDeferred = async {
                     try {
-                        kmpIAP.getAvailablePurchases()
+                        kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
                     } catch (e: Exception) {
-                        println("Failed to get active purchases: ${e.message}")
+                        println("Failed to get active subscriptions: ${e.message}")
                         emptyList()
+                    }
+                }
+                
+                val hasActiveSubDeferred = async {
+                    try {
+                        kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                    } catch (e: Exception) {
+                        println("Failed to check active subscriptions: ${e.message}")
+                        false
                     }
                 }
                 
@@ -152,18 +157,19 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     }
                 }
                 
-                // Wait for both results with timeout
-                val (activePurchases, subscriptionProducts) = withTimeoutOrNull(10000) {
-                    Pair(
-                        activePurchasesDeferred.await(),
+                // Wait for all results with timeout
+                val results = withTimeoutOrNull(10000) {
+                    Triple(
+                        activeSubscriptionsDeferred.await(),
+                        hasActiveSubDeferred.await(),
                         subscriptionProductsDeferred.await()
                     )
-                } ?: Pair(emptyList(), emptyList())
+                } ?: Triple(emptyList(), false, emptyList())
                 
-                // Process active subscriptions
-                activeSubscriptions = activePurchases.filter { purchase ->
-                    SUBSCRIPTION_IDS.contains(purchase.productId)
-                }
+                // Process results
+                activeSubscriptions = results.first
+                hasActiveSubscription = results.second
+                val subscriptionProducts = results.third
                 
                 // Process subscription products
                 subscriptions = subscriptionProducts.filterIsInstance<SubscriptionProduct>()
@@ -259,6 +265,84 @@ fun SubscriptionFlowScreen(navController: NavController) {
             
             Spacer(modifier = Modifier.height(20.dp))
             
+            // Active Subscription Status
+            if (hasActiveSubscription) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppColors.Success.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Active Subscriptions (${activeSubscriptions.size})",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.OnSurface
+                        )
+                        
+                        activeSubscriptions.forEach { activeSub ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column {
+                                Text(
+                                    text = "• ${activeSub.productId}",
+                                    fontSize = 14.sp,
+                                    color = AppColors.OnSurface
+                                )
+                                
+                                // Show iOS-specific info
+                                activeSub.expirationDateIOS?.let { expDate ->
+                                    Text(
+                                        text = "  Expires: ${kotlinx.datetime.Instant.fromEpochMilliseconds(expDate)}",
+                                        fontSize = 12.sp,
+                                        color = AppColors.Secondary
+                                    )
+                                }
+                                
+                                activeSub.environmentIOS?.let { env ->
+                                    Text(
+                                        text = "  Environment: $env",
+                                        fontSize = 12.sp,
+                                        color = AppColors.Secondary
+                                    )
+                                }
+                                
+                                activeSub.daysUntilExpirationIOS?.let { days ->
+                                    Text(
+                                        text = "  Days until expiration: $days",
+                                        fontSize = 12.sp,
+                                        color = if (days <= 7) AppColors.Error else AppColors.Secondary
+                                    )
+                                }
+                                
+                                // Show Android-specific info
+                                activeSub.autoRenewingAndroid?.let { autoRenew ->
+                                    Text(
+                                        text = "  Auto-renewing: ${if (autoRenew) "Yes" else "No"}",
+                                        fontSize = 12.sp,
+                                        color = AppColors.Secondary
+                                    )
+                                }
+                                
+                                if (activeSub.willExpireSoon == true) {
+                                    Text(
+                                        text = "  ⚠️ Expiring soon!",
+                                        fontSize = 12.sp,
+                                        color = AppColors.Warning,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+            
             // Subscriptions Section
             Text(
                 text = "Available Subscriptions",
@@ -299,10 +383,12 @@ fun SubscriptionFlowScreen(navController: NavController) {
             } else {
                 subscriptions.forEach { subscription ->
                     val isSubscribed = activeSubscriptions.any { it.productId == subscription.id }
+                    val activeSubscription = activeSubscriptions.find { it.productId == subscription.id }
                     
                     SubscriptionCard(
                         subscription = subscription,
                         isSubscribed = isSubscribed,
+                        activeSubscription = activeSubscription,
                         onSubscribe = {
                             if (!isSubscribed) {
                                 scope.launch {
@@ -376,6 +462,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
 fun SubscriptionCard(
     subscription: SubscriptionProduct,
     isSubscribed: Boolean,
+    activeSubscription: ActiveSubscription? = null,
     onSubscribe: () -> Unit,
     isProcessing: Boolean
 ) {

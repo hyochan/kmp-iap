@@ -387,15 +387,27 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         val billingResult = billingClient?.launchBillingFlow(currentActivity!!, billingFlowParams)
         
         if (billingResult?.responseCode != BillingClient.BillingResponseCode.OK) {
+            // Emit error event instead of throwing
+            val errorCode = mapBillingResponseCode(billingResult?.responseCode ?: -1)
+            _purchaseErrorListener.tryEmit(
+                PurchaseError(
+                    code = errorCode.name,
+                    message = billingResult?.debugMessage ?: "Failed to launch billing flow",
+                    productId = sku,
+                    responseCode = billingResult?.responseCode
+                )
+            )
             throw PurchaseError(
-                code = mapBillingResponseCode(billingResult?.responseCode ?: -1).name,
+                code = errorCode.name,
                 message = billingResult?.debugMessage ?: "Failed to launch billing flow",
+                productId = sku,
                 responseCode = billingResult?.responseCode
             )
         }
         
         // Return a pending purchase - actual purchase will be handled by the listener
         return Purchase(
+            id = sku,  // Use SKU as temporary ID for immediate return
             productId = sku,
             transactionDate = Clock.System.now().epochSeconds.toDouble(),
             transactionReceipt = "",
@@ -457,14 +469,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
         return try {
+            val token = purchase.purchaseToken ?: purchase.purchaseTokenAndroid  // Try unified field first, fallback to deprecated
             if (isConsumable == true) {
-                purchase.purchaseTokenAndroid?.let { token ->
-                    consumePurchaseAndroid(token)
+                token?.let {
+                    consumePurchaseAndroid(it)
                     true
                 } ?: false
             } else {
-                purchase.purchaseTokenAndroid?.let { token ->
-                    acknowledgePurchaseAndroid(token)
+                token?.let {
+                    acknowledgePurchaseAndroid(it)
                     true
                 } ?: false
             }
@@ -493,16 +506,21 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         suspendCancellableCoroutine<Unit> { continuation ->
             billingClient?.acknowledgePurchase(params) { billingResult ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    println("[KMP-IAP] Purchase acknowledged successfully")
+                    continuation.resume(Unit)
+                } else if (billingResult.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                    // Already acknowledged, consider it a success
+                    println("[KMP-IAP] Purchase already acknowledged")
                     continuation.resume(Unit)
                 } else {
-                    _purchaseErrorListener.tryEmit(
-                        PurchaseError(
-                            code = ErrorCode.E_SERVICE_ERROR.name,
-                            message = billingResult.debugMessage ?: "Failed to acknowledge",
-                            responseCode = billingResult.responseCode
-                        )
+                    val error = PurchaseError(
+                        code = ErrorCode.E_SERVICE_ERROR.name,
+                        message = "Failed to acknowledge: ${billingResult.debugMessage} (code: ${billingResult.responseCode})",
+                        responseCode = billingResult.responseCode
                     )
-                    continuation.resume(Unit)
+                    _purchaseErrorListener.tryEmit(error)
+                    // Throw exception so finishTransaction returns false
+                    continuation.resumeWithException(Exception(error.message))
                 }
             }
         }
@@ -518,16 +536,17 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         suspendCancellableCoroutine<Unit> { continuation ->
             billingClient?.consumeAsync(params) { billingResult, _ ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    println("[KMP-IAP] Purchase consumed successfully")
                     continuation.resume(Unit)
                 } else {
-                    _purchaseErrorListener.tryEmit(
-                        PurchaseError(
-                            code = ErrorCode.E_SERVICE_ERROR.name,
-                            message = billingResult.debugMessage ?: "Failed to consume",
-                            responseCode = billingResult.responseCode
-                        )
+                    val error = PurchaseError(
+                        code = ErrorCode.E_SERVICE_ERROR.name,
+                        message = "Failed to consume: ${billingResult.debugMessage} (code: ${billingResult.responseCode})",
+                        responseCode = billingResult.responseCode
                     )
-                    continuation.resume(Unit)
+                    _purchaseErrorListener.tryEmit(error)
+                    // Throw exception so finishTransaction returns false
+                    continuation.resumeWithException(Exception(error.message))
                 }
             }
         }
@@ -542,13 +561,61 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
     
+    override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> {
+        ensureConnection()
+        
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+            
+        val result = billingClient?.queryPurchasesAsync(params) ?: return emptyList()
+        
+        return suspendCancellableCoroutine { continuation ->
+            billingClient?.queryPurchasesAsync(params) { billingResult, purchases ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val activeSubscriptions = purchases
+                        .filter { purchase ->
+                            // Filter by subscriptionIds if provided
+                            subscriptionIds?.let { ids ->
+                                purchase.products.any { productId -> ids.contains(productId) }
+                            } ?: true
+                        }
+                        .filter { purchase ->
+                            // Only include purchased (not pending) subscriptions
+                            purchase.purchaseState == com.android.billingclient.api.Purchase.PurchaseState.PURCHASED
+                        }
+                        .map { purchase ->
+                            ActiveSubscription(
+                                productId = purchase.products.firstOrNull() ?: "",
+                                isActive = purchase.purchaseState == com.android.billingclient.api.Purchase.PurchaseState.PURCHASED,
+                                expirationDateIOS = null, // iOS only
+                                autoRenewingAndroid = purchase.isAutoRenewing,
+                                environmentIOS = null, // iOS only
+                                willExpireSoon = null, // Would need server-side validation
+                                daysUntilExpirationIOS = null // iOS only
+                            )
+                        }
+                    continuation.resume(activeSubscriptions)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
+    }
+    
+    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean {
+        val activeSubscriptions = getActiveSubscriptions(subscriptionIds)
+        return activeSubscriptions.isNotEmpty()
+    }
+    
     // Validation methods
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult {
         return ValidationResult(isValid = false, status = -1)
     }
     
     override suspend fun isPurchaseValid(purchase: Purchase): Boolean {
-        return purchase.purchaseTokenAndroid?.isNotEmpty() == true
+        val token = purchase.purchaseToken ?: purchase.purchaseTokenAndroid  // Try unified field first
+        return token?.isNotEmpty() == true
     }
     
     
@@ -579,10 +646,13 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             }
         } else {
             val errorCode = mapBillingResponseCode(billingResult.responseCode)
+            // Try to get productId from purchases if available, or from the last requested SKU
+            val productId = purchases?.firstOrNull()?.products?.firstOrNull()
             _purchaseErrorListener.tryEmit(
                 PurchaseError(
                     code = errorCode.name,
                     message = billingResult.debugMessage ?: "Purchase failed",
+                    productId = productId,
                     responseCode = billingResult.responseCode
                 )
             )
@@ -607,10 +677,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 // Extension functions
 private fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
     return Purchase(
-        productId = products.firstOrNull() ?: "",
+        id = orderId ?: purchaseToken,  // Primary identifier (Android uses orderId, fallback to purchaseToken)
+        productId = products.firstOrNull() ?: "",  // Product ID for the purchased item
+        ids = products,  // Android: Product IDs array
+        purchaseToken = purchaseToken,  // Unified purchase token
         transactionDate = purchaseTime.toDouble() / 1000, // Convert millis to seconds
         transactionReceipt = originalJson,
-        purchaseTokenAndroid = purchaseToken,
+        transactionId = orderId,  // @deprecated - use id instead
+        purchaseTokenAndroid = purchaseToken,  // @deprecated - use purchaseToken instead
         purchaseStateAndroid = purchaseState,
         signatureAndroid = signature,
         acknowledgedAndroid = isAcknowledged,

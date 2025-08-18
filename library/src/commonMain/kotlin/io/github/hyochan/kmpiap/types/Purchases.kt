@@ -6,10 +6,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 /**
- * Base purchase interface following documentation spec
+ * Base purchase interface following OpenIAP spec
  */
 interface PurchaseBase {
-    val productId: String
+    val id: String  // Primary identifier (transaction ID)
     val transactionDate: Double
     val transactionReceipt: String
 }
@@ -23,6 +23,7 @@ interface PurchaseIOS {
     val originalTransactionIdIOS: String?
     val transactionState: TransactionState?
     val verificationResult: VerificationResult?
+    val jwsRepresentationIOS: String?  // iOS StoreKit 2 JWS representation
 }
 
 /**
@@ -40,24 +41,34 @@ interface PurchaseAndroid {
 }
 
 /**
- * Unified Purchase class following documentation spec
+ * Unified Purchase class following OpenIAP spec
  */
 @Serializable
 data class Purchase(
     // PurchaseBase fields
-    override val productId: String,
+    override val id: String,  // Primary identifier (transaction ID)
     override val transactionDate: Double,
     override val transactionReceipt: String,
     
+    // Product identification
+    val productId: String,  // Product ID for the purchased item
+    val ids: List<String>? = null,  // Android: Product IDs array
+    
+    // Unified purchase token field
+    val purchaseToken: String? = null,  // Android: purchase token, iOS: JWS representation
+    
     // iOS-specific fields (optional)
-    override val transactionId: String? = null,
+    override val transactionId: String? = null,  // @deprecated - use id instead
     override val originalTransactionDateIOS: Double? = null,
     override val originalTransactionIdIOS: String? = null,
     override val transactionState: TransactionState? = null,
     @Transient override val verificationResult: VerificationResult? = null,
+    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
+    override val jwsRepresentationIOS: String? = null,  // @deprecated - use purchaseToken instead
     
     // Android-specific fields (optional)
-    override val purchaseTokenAndroid: String? = null,
+    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
+    override val purchaseTokenAndroid: String? = null,  // @deprecated - use purchaseToken instead
     override val purchaseStateAndroid: Int? = null,
     override val signatureAndroid: String? = null,
     override val autoRenewingAndroid: Boolean? = null,
@@ -71,9 +82,6 @@ data class Purchase(
     @Transient val originalJson: Map<String, Any>? = null
 ) : PurchaseBase, PurchaseIOS, PurchaseAndroid {
     // Backward compatibility properties
-    @Deprecated("Use 'purchaseTokenAndroid' instead", ReplaceWith("purchaseTokenAndroid"))
-    val purchaseToken: String? get() = purchaseTokenAndroid
-    
     @Deprecated("Use 'acknowledgedAndroid' instead", ReplaceWith("acknowledgedAndroid"))
     val isAcknowledgedAndroid: Boolean get() = acknowledgedAndroid ?: false
 }
