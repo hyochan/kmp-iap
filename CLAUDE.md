@@ -11,21 +11,39 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
    - When final suffix: Use `IAP` (e.g., `KmpIAP`)
    - When followed by other words: Use `Iap` (e.g., `KmpIapInstance`, `IapManager`)
 
-2. **Platform-specific**:
-   - iOS: Use `IOS` (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`)
-   - Android: Use `Android` (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`)
+2. **ID (Identifier)**:
+
+   - Always use `Id` instead of `ID` (e.g., `productId`, `transactionId`, `orderId`)
+   - This applies to all platforms for consistency
+   - Examples: `productId`, `transactionId`, `orderIdAndroid`, `originalTransactionIdIOS`
+
+3. **Platform-specific**:
+
+   - iOS: Use `IOS` as suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`, `TransactionStateIOS`)
+   - Android: Use `Android` as suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`, `AndroidPurchaseState`)
+   - **Important**: Platform identifier should always be a suffix, not a prefix
+     - ✅ Correct: `TransactionStateIOS`, `DiscountPaymentModeIOS`
+     - ❌ Incorrect: `IosTransactionState`, `IosDiscountPaymentMode`
+
+4. **Field names with platform suffix**:
+   - When platform acronym appears at the end of a field name, use uppercase
+   - Examples: `quantityIOS`, `appBundleIdIOS`, `environmentIOS`
 
 ### Examples
 
 ```kotlin
-// Class names
-class KmpIAP()          // ✅ Correct - IAP is final
-class KmpIapInstance    // ✅ Correct - IAP followed by Instance
-class PurchaseIOS       // ✅ Correct - iOS platform specific
+// Class and enum names
+class KmpIAP()                    // ✅ Correct - IAP is final
+class KmpIapInstance              // ✅ Correct - IAP followed by Instance
+class PurchaseIOS                 // ✅ Correct - iOS platform specific
+enum class TransactionStateIOS    // ✅ Correct - Platform suffix
+enum class DiscountTypeIOS        // ✅ Correct - Platform suffix
 
-// Variable names
-val kmpIAP = KmpIAP()        // ✅ Correct
-val kmpIapInstance: KmpIAP   // ✅ Correct
+// Variable and field names
+val kmpIAP = KmpIAP()             // ✅ Correct
+val kmpIapInstance: KmpIAP        // ✅ Correct
+val quantityIOS: Int              // ✅ Correct - Field with iOS suffix
+val environmentIOS: String        // ✅ Correct - Field with iOS suffix
 ```
 
 ## API Design Patterns
