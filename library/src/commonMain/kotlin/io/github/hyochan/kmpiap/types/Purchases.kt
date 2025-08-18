@@ -79,9 +79,9 @@ data class Purchase(
     override val packageNameAndroid: String? = null,
     override val developerPayloadAndroid: String? = null,
     override val acknowledgedAndroid: Boolean? = null,
-    val dataAndroid: String? = null,  // Original JSON data
-    val obfuscatedAccountIdAndroid: String? = null,  // Account identifier
-    val obfuscatedProfileIdAndroid: String? = null,  // Profile identifier
+    override val dataAndroid: String? = null,  // Original JSON data
+    override val obfuscatedAccountIdAndroid: String? = null,  // Account identifier
+    override val obfuscatedProfileIdAndroid: String? = null,  // Profile identifier
     
     // Platform indicator
     @Transient val platform: IapPlatform = getCurrentPlatform(),

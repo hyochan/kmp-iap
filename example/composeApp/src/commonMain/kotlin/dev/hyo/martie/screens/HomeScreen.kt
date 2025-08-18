@@ -24,7 +24,7 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.types.IAPPlatform
+import io.github.hyochan.kmpiap.types.IapPlatform
 import io.github.hyochan.kmpiap.types.getCurrentPlatform
 import kotlinx.coroutines.launch
 
@@ -37,7 +37,7 @@ fun HomeScreen(navController: NavController) {
     val kmpIAP = remember { KmpIAP() }
     
     LaunchedEffect(Unit) {
-        if (getCurrentPlatform() == IAPPlatform.IOS) {
+        if (getCurrentPlatform() == IapPlatform.IOS) {
             try {
                 val storefront = kmpIAP.getStorefrontIOS()
                 storefrontInfo = "Storefront: $storefront"

@@ -120,7 +120,7 @@ All platform-specific types now follow a consistent suffix pattern:
 | `IosDiscountPaymentMode`    | `DiscountPaymentModeIOS`    |
 | `IosDiscountType`           | `DiscountTypeIOS`           |
 | `SubscriptionIosPeriod`     | `SubscriptionPeriodIOS`     |
-| `IAPPlatform`               | `IapPlatform`               |
+| `IapPlatform`               | `IapPlatform`               |
 
 #### ID Naming Consistency
 

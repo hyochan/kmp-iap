@@ -6,7 +6,7 @@
 When "IAP" (In-App Purchase) appears in names, it should follow these rules:
 - **As suffix**: Use all caps - `KmpIAP`, `SomeClassIAP`
 - **As prefix or middle**: Use Pascal case - `IapPlatform`, `IapHelper`, `IapEventManager`
-- **NOT**: `IAPPlatform` (incorrect), should be `IapPlatform`
+- **NOT**: `IapPlatform` (incorrect), should be `IapPlatform`
 
 ### Examples
 ✅ Correct:
@@ -16,7 +16,7 @@ When "IAP" (In-App Purchase) appears in names, it should follow these rules:
 - `IapEventManager` - IAP as prefix
 
 ❌ Incorrect:
-- `IAPPlatform` - Should be `IapPlatform`
+- `IapPlatform` - Should be `IapPlatform`
 - `KmpIap` - Should be `KmpIAP`
 
 ## API Design Patterns

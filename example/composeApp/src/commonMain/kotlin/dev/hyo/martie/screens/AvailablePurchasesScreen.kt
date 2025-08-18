@@ -262,8 +262,8 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     // Check if already acknowledged (for Android) or restored (for iOS)
                     // Restored iOS transactions are already finished and cannot be finished again
                     val isAcknowledged = when (purchase.platform) {
-                        IAPPlatform.ANDROID -> purchase.acknowledgedAndroid == true
-                        IAPPlatform.IOS -> purchase.transactionState == TransactionState.RESTORED
+                        IapPlatform.ANDROID -> purchase.acknowledgedAndroid == true
+                        IapPlatform.IOS -> purchase.transactionState == TransactionState.RESTORED
                         else -> false
                     }
                     
@@ -404,8 +404,8 @@ fun PurchaseCard(
                 
                 if (isSubscription && isAcknowledged) {
                     val statusText = when (purchase.platform) {
-                        IAPPlatform.ANDROID -> "✓ Acknowledged"
-                        IAPPlatform.IOS -> "✓ Finished"
+                        IapPlatform.ANDROID -> "✓ Acknowledged"
+                        IapPlatform.IOS -> "✓ Finished"
                         else -> "✓ Processed"
                     }
                     Text(
@@ -436,8 +436,8 @@ fun PurchaseCard(
                         contentAlignment = Alignment.Center
                     ) {
                         val statusText = when (purchase.platform) {
-                            IAPPlatform.ANDROID -> "Already Acknowledged"
-                            IAPPlatform.IOS -> "Already Finished"
+                            IapPlatform.ANDROID -> "Already Acknowledged"
+                            IapPlatform.IOS -> "Already Finished"
                             else -> "Already Processed"
                         }
                         Text(
@@ -464,8 +464,8 @@ fun PurchaseCard(
                     } else {
                         val buttonText = if (isSubscription) {
                             when (purchase.platform) {
-                                IAPPlatform.ANDROID -> "Acknowledge Subscription"
-                                IAPPlatform.IOS -> "Finish Transaction"
+                                IapPlatform.ANDROID -> "Acknowledge Subscription"
+                                IapPlatform.IOS -> "Finish Transaction"
                                 else -> "Process Subscription"
                             }
                         } else {

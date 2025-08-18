@@ -1,3 +1,6 @@
+import Foundation
+import StoreKit
+
 @available(iOS 15.0, *)
 func serializeTransaction(_ transaction: Transaction, jwsRepresentationIOS: String? = nil) -> [String: Any?] {
     let _ =
@@ -61,13 +64,16 @@ func serializeTransaction(_ transaction: Transaction, jwsRepresentationIOS: Stri
         "jsonRepresentationIOS": jwsReceipt, // Store the JSON representation as string
     ]
 
-    if (jwsRepresentationIOS != nil) {
-        logDebug("serializeTransaction adding jwsRepresentationIOS with length: \(jwsRepresentationIOS!.count)")
-        purchaseMap["jwsRepresentationIOS"] = jwsRepresentationIOS
-        purchaseMap["purchaseToken"] = jwsRepresentationIOS
+    let unifiedToken = jwsRepresentationIOS ?? String(transaction.id)
+
+    if let jws = jwsRepresentationIOS {
+        logDebug("serializeTransaction adding jwsRepresentationIOS with length: \(jws.count)")
+        purchaseMap["jwsRepresentationIOS"] = jws
     } else {
-        logDebug("serializeTransaction jwsRepresentationIOS is nil")
+        logDebug("serializeTransaction jwsRepresentationIOS is nil; falling back to transaction.id")
     }
+
+    purchaseMap["purchaseToken"] = unifiedToken
     
     if #available(iOS 15.4, *) {
         // Add offer type if available

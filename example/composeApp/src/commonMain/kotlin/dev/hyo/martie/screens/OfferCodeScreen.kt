@@ -19,7 +19,7 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.types.IAPPlatform
+import io.github.hyochan.kmpiap.types.IapPlatform
 import io.github.hyochan.kmpiap.types.getCurrentPlatform
 import kotlinx.coroutines.launch
 
@@ -97,7 +97,7 @@ fun OfferCodeScreen(navController: NavController) {
             
             // Platform-specific content
             when (platform) {
-                IAPPlatform.IOS -> {
+                IapPlatform.IOS -> {
                     Text(
                         text = "iOS Offer Code Redemption",
                         fontSize = 20.sp,
@@ -154,7 +154,7 @@ fun OfferCodeScreen(navController: NavController) {
                     }
                 }
                 
-                IAPPlatform.ANDROID -> {
+                IapPlatform.ANDROID -> {
                     Text(
                         text = "Android Promo Code Redemption",
                         fontSize = 20.sp,
@@ -243,7 +243,7 @@ fun OfferCodeScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     when (platform) {
-                        IAPPlatform.IOS -> {
+                        IapPlatform.IOS -> {
                             Text(
                                 text = "1. Create promo codes in App Store Connect\n" +
                                       "2. Go to My Apps → Your App → Features → Promo Codes\n" +
@@ -253,7 +253,7 @@ fun OfferCodeScreen(navController: NavController) {
                                 color = AppColors.Secondary
                             )
                         }
-                        IAPPlatform.ANDROID -> {
+                        IapPlatform.ANDROID -> {
                             Text(
                                 text = "1. Create promo codes in Play Console\n" +
                                       "2. Go to Your App → Monetize → Promotions\n" +
