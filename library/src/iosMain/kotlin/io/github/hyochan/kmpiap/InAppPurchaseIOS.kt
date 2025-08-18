@@ -147,7 +147,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     // Private properties
     private val productCache = mutableMapOf<String, SKProduct>()
-    private val transactionCache = mutableMapOf<String, SKPaymentTransaction>()
+    // NOTE: Removed transactionCache to avoid bugs with stale transaction references
     private val productRequests = mutableMapOf<SKProductsRequest, (List<SKProduct>, Set<*>) -> Unit>()
     private val restoredPurchases = mutableListOf<Purchase>()
     private var restoreCompletion: (() -> Unit)? = null
@@ -291,10 +291,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase {
         ensureConnection()
-        val sku = request.sku ?: request.skus?.firstOrNull() ?: throw PurchaseError(
-            code = ErrorCode.E_DEVELOPER_ERROR.name,
-            message = "No SKU provided in request"
-        )
+        val sku = request.sku ?: request.skus?.firstOrNull()
+        if (sku == null) {
+            val error = PurchaseError(
+                code = ErrorCode.E_DEVELOPER_ERROR.name,
+                message = "No SKU provided in request"
+            )
+            _purchaseErrorListener.tryEmit(error)
+            throw error
+        }
         
         val quantity = request.quantity ?: 1
         val appAccountToken = request.appAccountToken
@@ -306,16 +311,25 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             // Only fetch if not in cache
             val products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
             if (products.isEmpty()) {
-                throw PurchaseError(
+                val error = PurchaseError(
                     code = ErrorCode.E_ITEM_UNAVAILABLE.name,
-                    message = "Product not found: $sku"
+                    message = "Product not found: $sku",
+                    productId = sku
                 )
+                _purchaseErrorListener.tryEmit(error)
+                throw error
             }
             
-            skProduct = productCache[sku] ?: throw PurchaseError(
-                code = ErrorCode.E_PRODUCT_NOT_AVAILABLE.name,
-                message = "Product not in cache after fetch: $sku"
-            )
+            skProduct = productCache[sku]
+            if (skProduct == null) {
+                val error = PurchaseError(
+                    code = ErrorCode.E_PRODUCT_NOT_AVAILABLE.name,
+                    message = "Product not in cache after fetch: $sku",
+                    productId = sku
+                )
+                _purchaseErrorListener.tryEmit(error)
+                throw error
+            }
         }
         
         try {
@@ -339,16 +353,20 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
             }
             return Purchase(
+                id = sku,  // Use SKU as temporary ID for immediate return
                 productId = sku,
                 transactionDate = Clock.System.now().epochSeconds.toDouble(),
                 transactionReceipt = "",
                 platform = IAPPlatform.IOS
             )
         } catch (e: Exception) {
-            throw PurchaseError(
+            val error = PurchaseError(
                 code = ErrorCode.E_UNKNOWN.name,
-                message = "Failed to create payment: ${e.message}"
+                message = "Failed to create payment: ${e.message}",
+                productId = sku
             )
+            _purchaseErrorListener.tryEmit(error)
+            throw error
         }
     }
     
@@ -362,7 +380,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             restoreCompletion = {
                 isRestoring = false
                 if (continuation.isActive) {
-                    continuation.resume(restoredPurchases.toList())
+                    // Deduplicate purchases by product ID, keeping only the most recent one
+                    val deduplicatedPurchases = restoredPurchases
+                        .groupBy { it.productId }
+                        .mapValues { (_, purchases) ->
+                            // Keep the purchase with the latest transaction date
+                            purchases.maxByOrNull { it.transactionDate ?: 0.0 } ?: purchases.first()
+                        }
+                        .values
+                        .toList()
+                    
+                    continuation.resume(deduplicatedPurchases)
                 }
                 restoreCompletion = null
             }
@@ -384,11 +412,27 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
         ensureConnection()
-        val transactionId = purchase.transactionId ?: return false
-        val transaction = transactionCache[transactionId] ?: return false
+        val transactionId = purchase.id ?: return false
         
-        SKPaymentQueue.defaultQueue().finishTransaction(transaction)
-        transactionCache.remove(transactionId)
+        // Find the transaction from the queue instead of using cache
+        val queue = SKPaymentQueue.defaultQueue()
+        val transactions = queue.transactions() ?: emptyList<Any>()
+        
+        val transaction = transactions.firstOrNull { trans ->
+            val skTransaction = trans as? SKPaymentTransaction
+            skTransaction?.transactionIdentifier == transactionId || 
+            (skTransaction?.transactionIdentifier == null && skTransaction?.payment?.productIdentifier == transactionId)
+        } as? SKPaymentTransaction
+        
+        if (transaction == null) {
+            // Transaction not found in queue - it's likely already finished
+            // For restored purchases, this is normal and should be considered success
+            println("[KMP-IAP] Transaction not found in queue (likely already finished): $transactionId")
+            return true
+        }
+        
+        queue.finishTransaction(transaction)
+        println("[KMP-IAP] Transaction finished: $transactionId")
         return true
     }
     
@@ -451,9 +495,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     override suspend fun finishTransactionIOS(transactionId: String) {
         ensureConnection()
-        val transaction = transactionCache[transactionId] ?: return
-        SKPaymentQueue.defaultQueue().finishTransaction(transaction)
-        transactionCache.remove(transactionId)
+        
+        // Find the transaction from the queue instead of using cache
+        val queue = SKPaymentQueue.defaultQueue()
+        val transactions = queue.transactions() ?: return
+        
+        val transaction = transactions.firstOrNull { trans ->
+            val skTransaction = trans as? SKPaymentTransaction
+            skTransaction?.transactionIdentifier == transactionId
+        } as? SKPaymentTransaction ?: return
+        
+        queue.finishTransaction(transaction)
     }
     
     override suspend fun clearTransactionIOS() {
@@ -462,7 +514,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         queue.transactions?.forEach { transaction ->
             queue.finishTransaction(transaction as SKPaymentTransaction)
         }
-        transactionCache.clear()
+        // No cache to clear anymore
     }
     
     override suspend fun clearProductsIOS() {
@@ -488,6 +540,105 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) {
         // No-op on iOS
+    }
+    
+    @OptIn(ExperimentalForeignApi::class)
+    override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> {
+        return suspendCancellableCoroutine { continuation ->
+            dispatch_async(dispatch_get_main_queue()) {
+                val transactions = SKPaymentQueue.defaultQueue().transactions()
+                val now = NSDate().timeIntervalSince1970
+                
+                // Use a map to keep only the most recent transaction per product ID
+                val latestTransactionsByProduct = mutableMapOf<String, SKPaymentTransaction>()
+                
+                for (transaction in transactions) {
+                    val skTransaction = transaction as SKPaymentTransaction
+                    val productId = skTransaction.payment.productIdentifier
+                    
+                    // Filter by subscriptionIds if provided
+                    if (subscriptionIds != null && !subscriptionIds.contains(productId)) {
+                        continue
+                    }
+                    
+                    // Only include purchased transactions
+                    if (skTransaction.transactionState != SKPaymentTransactionState.SKPaymentTransactionStatePurchased) {
+                        continue
+                    }
+                    
+                    // Keep only the most recent transaction for each product ID
+                    val existingTransaction = latestTransactionsByProduct[productId]
+                    if (existingTransaction == null || 
+                        (skTransaction.transactionDate?.timeIntervalSince1970 ?: 0.0) > 
+                        (existingTransaction.transactionDate?.timeIntervalSince1970 ?: 0.0)) {
+                        latestTransactionsByProduct[productId] = skTransaction
+                    }
+                }
+                
+                val activeSubscriptions = mutableListOf<ActiveSubscription>()
+                
+                // Process only the latest transaction for each unique product
+                for ((productId, skTransaction) in latestTransactionsByProduct) {
+                    // Get product details from cached products
+                    val product = productCache[productId]
+                    
+                    // Calculate expiration info (simplified - actual implementation would need receipt validation)
+                    val expirationDate = skTransaction.transactionDate?.let { purchaseDate ->
+                        // For subscriptions, we'd need to parse the receipt to get actual expiration
+                        // This is a simplified implementation
+                        val purchaseTime = purchaseDate.timeIntervalSince1970
+                        
+                        // Estimate based on subscription period if available
+                        val period = product?.subscriptionPeriod
+                        if (period != null) {
+                            val daysToAdd = when (period.unit) {
+                                SKProductPeriodUnit.SKProductPeriodUnitDay -> period.numberOfUnits.toLong()
+                                SKProductPeriodUnit.SKProductPeriodUnitWeek -> period.numberOfUnits.toLong() * 7
+                                SKProductPeriodUnit.SKProductPeriodUnitMonth -> period.numberOfUnits.toLong() * 30
+                                SKProductPeriodUnit.SKProductPeriodUnitYear -> period.numberOfUnits.toLong() * 365
+                                else -> 0
+                            }
+                            ((purchaseTime + (daysToAdd * 24 * 60 * 60)) * 1000).toLong() // Convert to milliseconds
+                        } else {
+                            null
+                        }
+                    }
+                    
+                    val daysUntilExpiration = expirationDate?.let { exp ->
+                        ((exp / 1000.0 - now) / (24 * 60 * 60)).toInt()
+                    }
+                    
+                    val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
+                    
+                    // Determine environment
+                    val receiptURL = NSBundle.mainBundle.appStoreReceiptURL
+                    val environment = if (receiptURL?.absoluteString?.contains("sandboxReceipt") == true) {
+                        "Sandbox"
+                    } else {
+                        "Production"
+                    }
+                    
+                    activeSubscriptions.add(
+                        ActiveSubscription(
+                            productId = productId,
+                            isActive = true,
+                            expirationDateIOS = expirationDate,
+                            autoRenewingAndroid = null, // Android only
+                            environmentIOS = environment,
+                            willExpireSoon = willExpireSoon,
+                            daysUntilExpirationIOS = daysUntilExpiration
+                        )
+                    )
+                }
+                
+                continuation.resume(activeSubscriptions)
+            }
+        }
+    }
+    
+    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean {
+        val activeSubscriptions = getActiveSubscriptions(subscriptionIds)
+        return activeSubscriptions.isNotEmpty()
     }
     
     
@@ -588,7 +739,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             request.cancel()
         }
         productRequests.clear()
-        transactionCache.clear()
+        // No transaction cache to clear anymore
         restoredPurchases.clear()
         restoreCompletion = null
         hasRestoredOnce = false
@@ -606,7 +757,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private fun handlePurchasedTransaction(transaction: SKPaymentTransaction) {
         if (!isRestoring) {
             val purchase = transaction.toPurchase()
-            transactionCache[transaction.transactionIdentifier ?: ""] = transaction
+            // Don't cache transactions - they should be handled immediately
             _purchaseUpdatedListener.tryEmit(purchase)
         }
     }
@@ -635,7 +786,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private fun handleRestoredTransaction(transaction: SKPaymentTransaction) {
         val purchase = transaction.toPurchase()
         restoredPurchases.add(purchase)
-        transactionCache[transaction.transactionIdentifier ?: ""] = transaction
+        // Don't cache transactions - finish them immediately
         
         // Also finish restored transactions to prevent them from being reported again
         SKPaymentQueue.defaultQueue().finishTransaction(transaction)
@@ -737,12 +888,15 @@ private fun SKProductPeriodUnit.toUnitString(): String {
 
 private fun SKPaymentTransaction.toPurchase(): Purchase {
     return Purchase(
-        productId = payment.productIdentifier,
+        id = transactionIdentifier ?: payment.productIdentifier,  // Primary identifier
+        productId = payment.productIdentifier,  // Product ID for the purchased item
+        purchaseToken = transactionIdentifier,  // Unified purchase token (iOS uses transaction ID for StoreKit 1)
         transactionDate = transactionDate?.timeIntervalSince1970 ?: 0.0,
         transactionReceipt = NSBundle.mainBundle.appStoreReceiptURL?.path?.let { path ->
             NSData.dataWithContentsOfFile(path)?.base64EncodedStringWithOptions(0u)
         } ?: "",
-        transactionId = transactionIdentifier,
+        transactionId = transactionIdentifier,  // @deprecated - use id instead
+        jwsRepresentationIOS = null,  // StoreKit 1 doesn't provide JWS, only available in StoreKit 2
         originalTransactionDateIOS = originalTransaction?.transactionDate?.timeIntervalSince1970,
         originalTransactionIdIOS = originalTransaction?.transactionIdentifier,
         transactionState = when (transactionState) {
