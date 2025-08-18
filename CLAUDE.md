@@ -40,7 +40,7 @@ enum class DiscountTypeIOS        // ✅ Correct - Platform suffix
 
 // Variable and field names
 val kmpIAP = KmpIAP()             // ✅ Correct
-val kmpIapInstance: KmpIAP        // ✅ Correct
+val kmpIapInstance: KmpIapInstance // ✅ Correct
 val quantityIOS: Int              // ✅ Correct - Field with iOS suffix
 val environmentIOS: String        // ✅ Correct - Field with iOS suffix
 ```
