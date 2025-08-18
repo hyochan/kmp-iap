@@ -62,3 +62,17 @@ enum class AndroidProrationMode(val value: Int) {
     DEFERRED(4),
     IMMEDIATE_AND_CHARGE_FULL_PRICE(5)
 }
+
+/**
+ * Active subscription information
+ * Contains platform-specific subscription details
+ */
+data class ActiveSubscription(
+    val productId: String,
+    val isActive: Boolean,
+    val expirationDateIOS: Long? = null,        // iOS only - expiration timestamp
+    val autoRenewingAndroid: Boolean? = null,   // Android only  
+    val environmentIOS: String? = null,         // iOS only: "Sandbox" | "Production"
+    val willExpireSoon: Boolean? = null,        // True if expiring within 7 days
+    val daysUntilExpirationIOS: Int? = null     // iOS only
+)
