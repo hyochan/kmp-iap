@@ -1,6 +1,6 @@
 package io.github.hyochan.kmpiap.utils
 
-import io.github.hyochan.kmpiap.types.IAPPlatform
+import io.github.hyochan.kmpiap.types.IapPlatform
 
 /**
  * Error codes matching OpenIAP specification
@@ -95,9 +95,9 @@ object ErrorCodeUtils {
      * iOS: Maps StoreKit error codes (Int) to OpenIAP error codes
      * Android: Maps Google Play Billing response codes (String) to OpenIAP error codes
      */
-    fun fromPlatformCode(platformCode: Any, platform: IAPPlatform): ErrorCode {
+    fun fromPlatformCode(platformCode: Any, platform: IapPlatform): ErrorCode {
         return when (platform) {
-            IAPPlatform.IOS -> {
+            IapPlatform.IOS -> {
                 when (val code = platformCode as? Int) {
                     0 -> ErrorCode.E_UNKNOWN
                     1 -> ErrorCode.E_USER_CANCELLED
@@ -109,7 +109,7 @@ object ErrorCodeUtils {
                     else -> ErrorCode.E_UNKNOWN
                 }
             }
-            IAPPlatform.ANDROID -> {
+            IapPlatform.ANDROID -> {
                 val code = platformCode as? String ?: return ErrorCode.E_UNKNOWN
                 try {
                     ErrorCode.valueOf(code)
@@ -120,20 +120,20 @@ object ErrorCodeUtils {
         }
     }
 
-    fun toPlatformCode(errorCode: ErrorCode, platform: IAPPlatform): Any {
+    fun toPlatformCode(errorCode: ErrorCode, platform: IapPlatform): Any {
         return when (platform) {
-            IAPPlatform.IOS -> iosErrorMapping[errorCode] ?: 0
-            IAPPlatform.ANDROID -> errorCode.name
+            IapPlatform.IOS -> iosErrorMapping[errorCode] ?: 0
+            IapPlatform.ANDROID -> errorCode.name
         }
     }
 
     /**
      * Check if an error code is valid for a specific platform
      */
-    fun isValidForPlatform(errorCode: ErrorCode, platform: IAPPlatform): Boolean {
+    fun isValidForPlatform(errorCode: ErrorCode, platform: IapPlatform): Boolean {
         return when (platform) {
-            IAPPlatform.IOS -> iosErrorMapping.containsKey(errorCode)
-            IAPPlatform.ANDROID -> true // All error codes are valid for Android since we use the enum name directly
+            IapPlatform.IOS -> iosErrorMapping.containsKey(errorCode)
+            IapPlatform.ANDROID -> true // All error codes are valid for Android since we use the enum name directly
         }
     }
     
