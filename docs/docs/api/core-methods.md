@@ -380,6 +380,107 @@ kmpIapInstance.deepLinkToSubscriptions(
 )
 ```
 
+## Subscription Management
+
+### getActiveSubscriptions()
+
+Gets all active subscriptions with detailed information.
+
+```kotlin
+suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>
+```
+
+**Parameters**:
+- `subscriptionIds` - Optional list of subscription IDs to check. If null, returns all active subscriptions
+
+**Returns**: List of active subscriptions with platform-specific details
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+// Get all active subscriptions
+val allActiveSubscriptions = kmpIapInstance.getActiveSubscriptions()
+
+// Get specific subscriptions
+val premiumSubscriptions = kmpIapInstance.getActiveSubscriptions(
+    listOf("premium_monthly", "premium_yearly")
+)
+
+premiumSubscriptions.forEach { subscription ->
+    println("Product: ${subscription.productId}")
+    println("Active: ${subscription.isActive}")
+    
+    // iOS-specific information
+    subscription.expirationDateIOS?.let { expDate ->
+        println("Expires: ${Instant.fromEpochMilliseconds(expDate)}")
+    }
+    subscription.environmentIOS?.let { env ->
+        println("Environment: $env") // "Sandbox" or "Production"
+    }
+    subscription.daysUntilExpirationIOS?.let { days ->
+        println("Days until expiration: $days")
+    }
+    
+    // Android-specific information
+    subscription.autoRenewingAndroid?.let { autoRenew ->
+        println("Auto-renewing: $autoRenew")
+    }
+    
+    // Cross-platform
+    if (subscription.willExpireSoon == true) {
+        println("⚠️ Subscription expires soon!")
+    }
+}
+```
+
+**Platform Differences**:
+- **iOS**: Provides `expirationDateIOS`, `environmentIOS`, `daysUntilExpirationIOS`
+- **Android**: Provides `autoRenewingAndroid` status
+- **Cross-platform**: `willExpireSoon` (true if expiring within 7 days)
+
+---
+
+### hasActiveSubscriptions()
+
+Checks if the user has any active subscriptions.
+
+```kotlin
+suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean
+```
+
+**Parameters**:
+- `subscriptionIds` - Optional list of subscription IDs to check. If null, checks all subscriptions
+
+**Returns**: `true` if the user has at least one active subscription, `false` otherwise
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+// Check if user has any active subscriptions
+val hasAnySubscription = kmpIapInstance.hasActiveSubscriptions()
+if (hasAnySubscription) {
+    println("User has active subscriptions")
+    showPremiumFeatures()
+} else {
+    showSubscriptionOffer()
+}
+
+// Check specific subscription types
+val hasPremium = kmpIapInstance.hasActiveSubscriptions(
+    listOf("premium_monthly", "premium_yearly")
+)
+if (hasPremium) {
+    enablePremiumFeatures()
+}
+```
+
+**Use Cases**:
+- Feature gating based on subscription status
+- Showing/hiding subscription offers
+- Quick subscription status checks without detailed information
+
 ## Validation
 
 ### validateReceipt()

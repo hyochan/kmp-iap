@@ -62,13 +62,15 @@ Represents a completed or pending purchase transaction.
 
 ```kotlin
 data class Purchase(
-    // Core fields
-    val productId: String,
+    // Core fields (OpenIAP spec)
+    val id: String,                    // Primary identifier (transaction ID)
+    val productId: String,             // Product ID for the purchased item
+    val ids: List<String>? = null,     // Android: Product IDs array
     val transactionDate: Double,
     val transactionReceipt: String,
     
     // iOS-specific fields
-    val transactionId: String? = null,
+    val transactionId: String? = null,  // @deprecated - use id instead
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdIOS: String? = null,
     val transactionState: TransactionState? = null,
@@ -88,10 +90,51 @@ data class Purchase(
 )
 ```
 
+**OpenIAP Specification Changes**:
+- `id`: Primary identifier (iOS: transaction ID, Android: purchase token)
+- `productId`: Product identifier for the purchased item
+- `ids`: Array of product IDs (Android only, for multi-product purchases)
+- `transactionId`: @deprecated - use `id` instead for consistency
+
 **Important Android Fields**:
+- `purchaseToken`: Unified purchase token (Android: purchase token, iOS: transaction ID/JWS)
 - `acknowledgedAndroid`: Indicates if the purchase has been acknowledged. Subscriptions must be acknowledged within 3 days.
-- `purchaseTokenAndroid`: Token required for acknowledgment or consumption
+- `purchaseTokenAndroid`: ⚠️ **Deprecated** - Use `purchaseToken` instead
+- `jwsRepresentationIOS`: ⚠️ **Deprecated** - Use `purchaseToken` instead
 - `signatureAndroid`: Signature for verification
+
+### ActiveSubscription
+
+Represents an active subscription with platform-specific details.
+
+```kotlin
+data class ActiveSubscription(
+    val productId: String,                    // Product identifier
+    val isActive: Boolean,                    // Always true for active subscriptions
+    
+    // iOS-specific fields
+    val expirationDateIOS: Long? = null,      // Expiration timestamp (iOS only)
+    val environmentIOS: String? = null,       // "Sandbox" | "Production" (iOS only)
+    val daysUntilExpirationIOS: Int? = null,  // Days remaining until expiration (iOS only)
+    
+    // Android-specific fields
+    val autoRenewingAndroid: Boolean? = null, // Auto-renewal status (Android only)
+    
+    // Cross-platform fields
+    val willExpireSoon: Boolean? = null       // True if expiring within 7 days
+)
+```
+
+**Platform-Specific Behavior**:
+- **iOS**: Provides exact expiration dates, environment info, and calculated days until expiration
+- **Android**: Provides auto-renewal status. When `false`, the subscription will not renew
+- **Cross-platform**: `willExpireSoon` warns if subscription expires within 7 days
+
+**Use Cases**:
+- Feature gating based on subscription status
+- Showing expiration warnings
+- Managing subscription renewals
+- Environment-specific testing (iOS Sandbox vs Production)
 
 ## Request Types
 
