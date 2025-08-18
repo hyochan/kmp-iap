@@ -411,7 +411,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             productId = sku,
             transactionDate = Clock.System.now().epochSeconds.toDouble(),
             transactionReceipt = "",
-            platform = IAPPlatform.ANDROID
+            platform = IapPlatform.ANDROID
         )
     }
     
@@ -690,7 +690,7 @@ private fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         acknowledgedAndroid = isAcknowledged,
         orderIdAndroid = orderId,
         packageNameAndroid = packageName,
-        platform = IAPPlatform.ANDROID
+        platform = IapPlatform.ANDROID
     )
 }
 
@@ -706,7 +706,7 @@ private fun ProductDetails.toProduct(): Product {
             price = oneTimePurchaseOfferDetails.formattedPrice,
             priceAmount = oneTimePurchaseOfferDetails.priceAmountMicros.toDouble() / 1000000,
             currency = oneTimePurchaseOfferDetails.priceCurrencyCode,
-            platform = IAPPlatform.ANDROID
+            platform = IapPlatform.ANDROID
         )
     } else {
         val offer = subscriptionOfferDetails?.firstOrNull()
@@ -719,7 +719,7 @@ private fun ProductDetails.toProduct(): Product {
             priceAmount = (phase?.priceAmountMicros?.toDouble() ?: 0.0) / 1000000,
             currency = phase?.priceCurrencyCode ?: "USD",
             subscriptionOfferDetails = subscriptionOfferDetails?.map { it.toOfferDetail() },
-            platform = IAPPlatform.ANDROID
+            platform = IapPlatform.ANDROID
         )
     }
 }
