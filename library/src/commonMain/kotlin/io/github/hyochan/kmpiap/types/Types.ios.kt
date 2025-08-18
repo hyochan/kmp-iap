@@ -9,7 +9,7 @@ import kotlinx.datetime.Instant
 /**
  * iOS transaction state
  */
-enum class IosTransactionState(val value: Int) {
+enum class TransactionStateIOS(val value: Int) {
     PURCHASING(0),
     PURCHASED(1),
     FAILED(2),
@@ -38,7 +38,7 @@ data class AppTransaction(
 /**
  * iOS subscription period unit
  */
-enum class IosSubscriptionPeriodUnit {
+enum class SubscriptionPeriodUnitIOS {
     DAY,
     WEEK,
     MONTH,
@@ -48,7 +48,7 @@ enum class IosSubscriptionPeriodUnit {
 /**
  * iOS discount payment mode
  */
-enum class IosDiscountPaymentMode {
+enum class DiscountPaymentModeIOS {
     PAY_AS_YOU_GO,
     PAY_UP_FRONT,
     FREE_TRIAL
@@ -57,7 +57,7 @@ enum class IosDiscountPaymentMode {
 /**
  * iOS discount type
  */
-enum class IosDiscountType {
+enum class DiscountTypeIOS {
     INTRODUCTORY,
     SUBSCRIPTION
 }
