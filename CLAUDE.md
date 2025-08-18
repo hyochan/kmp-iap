@@ -19,14 +19,13 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
 
 3. **Platform-specific**:
 
-   - iOS: Use `IOS` as suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`, `TransactionStateIOS`)
-   - Android: Use `Android` as suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`, `AndroidPurchaseState`)
-   - **Important**: Platform identifier should always be a suffix, not a prefix
+   - iOS: Use `IOS` as a suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`, `TransactionStateIOS`)
+   - Android: Use `Android` as a suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`, `AndroidPurchaseState`)
+   - **Important**: The platform identifier should always be a suffix, not a prefix
      - ✅ Correct: `TransactionStateIOS`, `DiscountPaymentModeIOS`
      - ❌ Incorrect: `IosTransactionState`, `IosDiscountPaymentMode`
-
 4. **Field names with platform suffix**:
-   - When platform acronym appears at the end of a field name, use uppercase
+   - When the platform acronym appears at the end of a field name, use uppercase
    - Examples: `quantityIOS`, `appBundleIdIOS`, `environmentIOS`
 
 ### Examples
