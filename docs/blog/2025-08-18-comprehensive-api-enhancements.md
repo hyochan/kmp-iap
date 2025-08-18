@@ -1,5 +1,5 @@
 ---
-title: Comprehensive API Enhancements in KMP-IAP v1.0.0-beta.14
+title: Comprehensive API Enhancements in KMP-IAP v1.0.0-beta.13
 description: Complete platform parity with enhanced Android/iOS fields, improved naming conventions, and expanded Purchase types
 slug: comprehensive-api-enhancements
 authors:
@@ -21,9 +21,9 @@ hide_table_of_contents: false
 date: 2025-08-18
 ---
 
-# Comprehensive API Enhancements in KMP-IAP v1.0.0-beta.14
+# Comprehensive API Enhancements in KMP-IAP v1.0.0-beta.13
 
-We're excited to announce the most comprehensive update to KMP-IAP yet! Version 1.0.0-beta.14 brings complete platform parity, improved naming conventions, and extensive field additions for both Android and iOS platforms.
+We're excited to announce the most comprehensive update to KMP-IAP yet! Version 1.0.0-beta.13 brings complete platform parity, improved naming conventions, and extensive field additions for both Android and iOS platforms.
 
 <!--truncate-->
 
@@ -385,10 +385,10 @@ class PurchaseError(
 
 ## 🚀 Get Started
 
-Update to KMP-IAP v1.0.0-beta.14 today:
+Update to KMP-IAP v1.0.0-beta.13 today:
 
 ```kotlin
-implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
+implementation("io.github.hyochan:kmp-iap:1.0.0-beta.13")
 ```
 
 ### Documentation Links
