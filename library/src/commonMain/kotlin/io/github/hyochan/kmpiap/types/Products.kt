@@ -30,7 +30,7 @@ interface ProductIOS {
     val discounts: List<Discount>?
     val subscription: SubscriptionInfo?
     val introductoryPriceNumberOfPeriodsIOS: String?
-    val introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod?
+    val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
 }
 
 /**
@@ -42,6 +42,10 @@ interface ProductAndroid {
     val freeTrialPeriod: String?
     val iconUrl: String?
     val subscriptionOfferDetails: List<OfferDetail>?
+    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails?
+    val typeAndroid: String?
+    val nameAndroid: String?
+    val displayPriceAndroid: String?
 }
 
 /**
@@ -63,7 +67,7 @@ data class Product(
     val discounts: List<Discount>? = null,
     val subscription: SubscriptionInfo? = null,
     val introductoryPriceNumberOfPeriodsIOS: String? = null,
-    val introductoryPriceSubscriptionPeriodIOS: SubscriptionIosPeriod? = null,
+    val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     
     // Android-specific fields (optional)
     val originalPrice: String? = null,
@@ -71,9 +75,13 @@ data class Product(
     val freeTrialPeriod: String? = null,
     val iconUrl: String? = null,
     val subscriptionOfferDetails: List<OfferDetail>? = null,
+    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails? = null,
+    val typeAndroid: String? = null,
+    val nameAndroid: String? = null,
+    val displayPriceAndroid: String? = null,
     
     // Platform indicator
-    val platform: IAPPlatform = getCurrentPlatform()
+    val platform: IapPlatform = getCurrentPlatform()
 ) : ProductBase
 
 /**
@@ -101,7 +109,7 @@ data class SubscriptionProduct(
     val offerDetails: List<OfferDetail>? = null,  // Android
     val subscriptionOfferAndroid: List<SubscriptionOffer>? = null,  // Android backward compat
     
-    val platform: IAPPlatform = getCurrentPlatform()
+    val platform: IapPlatform = getCurrentPlatform()
 ) : ProductBase
 
 /**
@@ -122,7 +130,7 @@ data class Discount(
  */
 data class SubscriptionInfo(
     val subscriptionGroupIdentifier: String,
-    val subscriptionPeriod: SubscriptionIosPeriod,
+    val subscriptionPeriod: SubscriptionPeriodIOS,
     val introductoryPrice: IntroductoryPrice? = null,
     val promotionalOffers: List<PromotionalOffer>? = null
 )
@@ -135,7 +143,7 @@ data class IntroductoryPrice(
     val priceAmount: Double,
     val paymentMode: String,
     val numberOfPeriods: Int,
-    val subscriptionPeriod: SubscriptionIosPeriod
+    val subscriptionPeriod: SubscriptionPeriodIOS
 )
 
 /**
@@ -147,7 +155,7 @@ data class PromotionalOffer(
     val priceAmount: Double,
     val paymentMode: String,
     val numberOfPeriods: Int,
-    val subscriptionPeriod: SubscriptionIosPeriod
+    val subscriptionPeriod: SubscriptionPeriodIOS
 )
 
 /**
@@ -159,6 +167,15 @@ data class PaymentDiscount(
     val nonce: String,
     val signature: String,
     val timestamp: Double
+)
+
+/**
+ * Android One-time purchase offer details
+ */
+data class OneTimePurchaseOfferDetails(
+    val priceCurrencyCode: String,
+    val formattedPrice: String,
+    val priceAmountMicros: String
 )
 
 /**

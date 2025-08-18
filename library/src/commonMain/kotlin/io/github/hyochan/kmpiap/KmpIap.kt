@@ -24,7 +24,7 @@ typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
 
 // Re-export enums
 typealias Store = io.github.hyochan.kmpiap.types.Store
-typealias IAPPlatform = io.github.hyochan.kmpiap.types.IAPPlatform
+typealias IapPlatform = io.github.hyochan.kmpiap.types.IapPlatform
 typealias PurchaseType = io.github.hyochan.kmpiap.types.PurchaseType
 typealias TransactionState = io.github.hyochan.kmpiap.types.TransactionState
 typealias PurchaseState = io.github.hyochan.kmpiap.types.PurchaseState
@@ -40,13 +40,13 @@ typealias SubscriptionOfferAndroid = io.github.hyochan.kmpiap.types.Subscription
 typealias AndroidBillingResponseCode = io.github.hyochan.kmpiap.types.AndroidBillingResponseCode
 
 // Re-export iOS types
-typealias IosTransactionState = io.github.hyochan.kmpiap.types.IosTransactionState
+typealias TransactionStateIOS = io.github.hyochan.kmpiap.types.TransactionStateIOS
 typealias PaymentDiscount = io.github.hyochan.kmpiap.types.PaymentDiscount
 typealias PromotionalOffer = io.github.hyochan.kmpiap.types.PromotionalOffer
 typealias AppTransaction = io.github.hyochan.kmpiap.types.AppTransaction
-typealias IosSubscriptionPeriodUnit = io.github.hyochan.kmpiap.types.IosSubscriptionPeriodUnit
-typealias IosDiscountPaymentMode = io.github.hyochan.kmpiap.types.IosDiscountPaymentMode
-typealias IosDiscountType = io.github.hyochan.kmpiap.types.IosDiscountType
+typealias SubscriptionPeriodUnitIOS = io.github.hyochan.kmpiap.types.SubscriptionPeriodUnitIOS
+typealias DiscountPaymentModeIOS = io.github.hyochan.kmpiap.types.DiscountPaymentModeIOS
+typealias DiscountTypeIOS = io.github.hyochan.kmpiap.types.DiscountTypeIOS
 
 /**
  * Re-export the main interface

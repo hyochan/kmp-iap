@@ -38,6 +38,9 @@ interface PurchaseAndroid {
     val packageNameAndroid: String?
     val developerPayloadAndroid: String?
     val acknowledgedAndroid: Boolean?
+    val dataAndroid: String?
+    val obfuscatedAccountIdAndroid: String?
+    val obfuscatedProfileIdAndroid: String?
 }
 
 /**
@@ -76,9 +79,12 @@ data class Purchase(
     override val packageNameAndroid: String? = null,
     override val developerPayloadAndroid: String? = null,
     override val acknowledgedAndroid: Boolean? = null,
+    override val dataAndroid: String? = null,  // Original JSON data
+    override val obfuscatedAccountIdAndroid: String? = null,  // Account identifier
+    override val obfuscatedProfileIdAndroid: String? = null,  // Profile identifier
     
     // Platform indicator
-    @Transient val platform: IAPPlatform = getCurrentPlatform(),
+    @Transient val platform: IapPlatform = getCurrentPlatform(),
     @Transient val originalJson: Map<String, Any>? = null
 ) : PurchaseBase, PurchaseIOS, PurchaseAndroid {
     // Backward compatibility properties
@@ -106,13 +112,15 @@ class PurchaseError(
     val productId: String? = null,
     val responseCode: Int? = null,
     val debugMessage: String? = null,
-    val platform: IAPPlatform? = null
+    val platform: IapPlatform? = null,
+    val subResponseCode: Int? = null,  // Android billing v8.0.0+ sub-response code
+    val subResponseMessage: String? = null  // Human-readable message for sub-response code
 ) : Exception(message) {
     
     companion object {
         fun fromPlatformError(
             errorData: Map<String, Any?>,
-            platform: IAPPlatform
+            platform: IapPlatform
         ): PurchaseError {
             val errorCode = errorData["code"]?.let { code ->
                 ErrorCodeUtils.fromPlatformCode(code, platform)
@@ -124,7 +132,9 @@ class PurchaseError(
                 productId = errorData["productId"]?.toString(),
                 responseCode = errorData["responseCode"] as? Int,
                 debugMessage = errorData["debugMessage"]?.toString(),
-                platform = platform
+                platform = platform,
+                subResponseCode = errorData["subResponseCode"] as? Int,
+                subResponseMessage = errorData["subResponseMessage"]?.toString()
             )
         }
     }

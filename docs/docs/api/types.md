@@ -22,15 +22,46 @@ data class Product(
     val priceAmount: Double,
     val currency: String,
     
-    // Subscription-specific fields
+    // iOS-specific fields
+    val displayName: String? = null,
+    val isFamilyShareable: Boolean = false,
+    val discounts: List<Discount>? = null,
     val subscription: SubscriptionInfo? = null,
+    
+    // Android-specific fields
+    val nameAndroid: String? = null,              // Product display name (different from title)
+    val typeAndroid: String? = null,              // Product type ("inapp" or "subs")
+    val displayPriceAndroid: String? = null,      // Formatted display price
+    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails? = null,  // One-time purchase pricing
     val subscriptionOfferDetails: List<OfferDetail>? = null,
     
     // Platform indicator
-    val platform: IapPlatform,
-    val originalJson: Map<String, Any>? = null
+    val platform: IapPlatform
 )
 ```
+
+**Android Product Field Mapping**:
+The Android-specific fields map directly from Google Play Billing's `ProductDetails`:
+
+```kotlin
+// Native Android mapping
+mapOf(
+    "id" to productDetails.productId,               // -> id
+    "title" to productDetails.title,                // -> title  
+    "description" to productDetails.description,    // -> description
+    "type" to productDetails.productType,          // -> typeAndroid
+    "displayName" to productDetails.name,           // -> nameAndroid
+    "displayPrice" to displayPrice,                 // -> displayPriceAndroid
+    "oneTimePurchaseOfferDetails" to offerDetails,  // -> oneTimePurchaseOfferDetails
+    "subscriptionOfferDetails" to subscriptions     // -> subscriptionOfferDetails
+)
+```
+
+**Field Descriptions**:
+- `nameAndroid`: Product display name from `productDetails.name` (different from `title`)
+- `typeAndroid`: Product type - `"inapp"` for one-time purchases, `"subs"` for subscriptions
+- `displayPriceAndroid`: Formatted price string ready for display
+- `oneTimePurchaseOfferDetails`: Pricing details for one-time purchases (in-app products)
 
 ### SubscriptionProduct
 
@@ -48,7 +79,7 @@ data class SubscriptionProduct(
     
     // Subscription pricing
     val introductoryPrice: String? = null,
-    val introductoryPricePeriod: SubscriptionIosPeriod? = null,
+    val introductoryPricePeriod: SubscriptionPeriodIOS? = null,
     val introductoryPriceCycles: Int? = null,
     val subscriptionGroupIdentifier: String? = null,
     
@@ -84,6 +115,9 @@ data class Purchase(
     val orderIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
     val acknowledgedAndroid: Boolean? = null,
+    val dataAndroid: String? = null,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
     
     // Platform indicator
     val platform: IapPlatform
@@ -315,12 +349,12 @@ enum class PurchaseState {
 }
 ```
 
-### SubscriptionIosPeriod
+### SubscriptionPeriodIOS
 
 iOS subscription period units.
 
 ```kotlin
-enum class SubscriptionIosPeriod {
+enum class SubscriptionPeriodIOS {
     P1W,  // 1 week
     P1M,  // 1 month
     P2M,  // 2 months
@@ -367,8 +401,12 @@ Exception thrown for IAP errors.
 data class PurchaseError(
     val code: String,
     override val message: String,
+    val productId: String? = null,
     val responseCode: Int? = null,
-    val underlyingErrorMessage: String? = null
+    val debugMessage: String? = null,
+    val platform: IapPlatform? = null,
+    val subResponseCode: Int? = null,  // Android billing v8.0.0+
+    val subResponseMessage: String? = null
 ) : Exception(message)
 ```
 
@@ -461,7 +499,7 @@ data class PromotionalOffer(
     val priceAmount: Double,
     val period: SubscriptionPeriod,
     val numberOfPeriods: Int,
-    val type: IosDiscountType
+    val type: DiscountTypeIOS
 )
 ```
 
@@ -477,6 +515,23 @@ enum class VerificationResult {
 ```
 
 ### Android Types
+
+#### OneTimePurchaseOfferDetails
+
+Android one-time purchase pricing details from Google Play Billing's `ProductDetails.OneTimePurchaseOfferDetails`.
+
+```kotlin
+data class OneTimePurchaseOfferDetails(
+    val priceCurrencyCode: String,     // ISO 4217 currency code (e.g., "USD")
+    val formattedPrice: String,        // Formatted price string (e.g., "$0.99")
+    val priceAmountMicros: String      // Price in micros (e.g., "990000" for $0.99)
+)
+```
+
+**Field Descriptions**:
+- `priceCurrencyCode`: ISO 4217 currency code for the price
+- `formattedPrice`: Human-readable price string formatted for the user's locale
+- `priceAmountMicros`: Price in micros (divide by 1,000,000 to get actual price)
 
 #### SubscriptionUpdateParams
 

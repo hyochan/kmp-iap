@@ -13,7 +13,7 @@ enum class Store {
 /**
  * Platform detection enum
  */
-enum class IAPPlatform {
+enum class IapPlatform {
     IOS,
     ANDROID
 }
@@ -50,7 +50,7 @@ enum class PurchaseState {
 /**
  * iOS Subscription periods matching documentation spec
  */
-enum class SubscriptionIosPeriod {
+enum class SubscriptionPeriodIOS {
     P1W,  // 1 week
     P1M,  // 1 month
     P2M,  // 2 months
@@ -83,4 +83,4 @@ enum class ReplacementMode {
 /**
  * Get the current platform
  */
-expect fun getCurrentPlatform(): IAPPlatform
+expect fun getCurrentPlatform(): IapPlatform
