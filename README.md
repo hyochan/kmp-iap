@@ -23,7 +23,7 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.1")
 }
 ```
 
@@ -33,31 +33,31 @@ dependencies {
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.*
 
 // Use the global singleton instance
 kmpIapInstance.initConnection()
 
-// Get products
+// Get products - simplified API in v1.0.0-rc.1
 val products = kmpIapInstance.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
+    skus = listOf("product_id"),
+    type = ProductType.INAPP
+)
+
+// Request purchase - simplified API
+val purchase = kmpIapInstance.requestPurchase(
+    sku = "product_id",
+    ios = RequestPurchaseIosProps(
+        sku = "product_id",
+        quantity = 1
+    ),
+    android = RequestPurchaseAndroidProps(
+        skus = listOf("product_id")
     )
 )
 
-// Request purchase
-val purchase = kmpIapInstance.requestPurchase(
-    RequestPurchaseProps(
-        ios = RequestPurchaseIosProps(
-            sku = "product_id",
-            quantity = 1
-        ),
-        android = RequestPurchaseAndroidProps(
-            skus = listOf("product_id")
-        )
-    )
-)
+// Or even simpler - just the SKU
+val simplePurchase = kmpIapInstance.requestPurchase(sku = "product_id")
 
 // Finish transaction (after server-side validation)
 kmpIapInstance.finishTransaction(
@@ -70,7 +70,7 @@ kmpIapInstance.finishTransaction(
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.*
 
 // Create your own instance
 val kmpIAP = KmpIAP()
@@ -78,26 +78,26 @@ val kmpIAP = KmpIAP()
 // Initialize connection
 kmpIAP.initConnection()
 
-// Get products
+// Get products - simplified API in v1.0.0-rc.1
 val products = kmpIAP.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
+    skus = listOf("product_id"),
+    type = ProductType.INAPP
+)
+
+// Request purchase - simplified API
+val purchase = kmpIAP.requestPurchase(
+    sku = "product_id",
+    ios = RequestPurchaseIosProps(
+        sku = "product_id",
+        quantity = 1
+    ),
+    android = RequestPurchaseAndroidProps(
+        skus = listOf("product_id")
     )
 )
 
-// Request purchase
-val purchase = kmpIAP.requestPurchase(
-    RequestPurchaseProps(
-        ios = RequestPurchaseIosProps(
-            sku = "product_id",
-            quantity = 1
-        ),
-        android = RequestPurchaseAndroidProps(
-            skus = listOf("product_id")
-        )
-    )
-)
+// Or even simpler - just the SKU
+val simplePurchase = kmpIAP.requestPurchase(sku = "product_id")
 
 // Finish transaction (after server-side validation)
 kmpIAP.finishTransaction(
