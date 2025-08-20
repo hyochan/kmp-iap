@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # Core Methods
 
-Essential methods for implementing in-app purchases with kmp-iap v1.0.0-beta.13, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
+Essential methods for implementing in-app purchases with kmp-iap v1.0.0-beta.14, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
 
 ⚠️ **Platform Differences**: While the API is unified, there are important differences between iOS and Android implementations. Each method documents platform-specific behavior.
 

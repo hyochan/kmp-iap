@@ -1,5 +1,5 @@
 ---
-title: Comprehensive API Enhancements & OpenIAP Compliance in KMP-IAP v1.0.0-beta.13
+title: Comprehensive API Enhancements & OpenIAP Compliance in KMP-IAP v1.0.0-beta.14
 description: Complete platform parity with enhanced Android/iOS fields, OpenIAP specification compliance, unified API structure, and improved type safety
 slug: comprehensive-api-enhancements
 authors:
@@ -27,15 +27,15 @@ hide_table_of_contents: false
 date: 2025-08-18
 ---
 
-# Comprehensive API Enhancements & OpenIAP Compliance in KMP-IAP v1.0.0-beta.13
+# Comprehensive API Enhancements & OpenIAP Compliance in KMP-IAP v1.0.0-beta.14
 
-We're thrilled to announce the most comprehensive update to KMP-IAP yet! Version 1.0.0-beta.13 brings complete platform parity, **100% compliance with the OpenIAP specification**, improved naming conventions, and extensive field additions for both Android and iOS platforms.
+We're thrilled to announce the most comprehensive update to KMP-IAP yet! Version 1.0.0-beta.14 brings complete platform parity, **100% compliance with the OpenIAP specification**, improved naming conventions, and extensive field additions for both Android and iOS platforms.
 
 <!--truncate-->
 
 ## 📢 OpenIAP Specification: The New Standard
 
-KMP-IAP v1.0.0-beta.13 achieves **100% compliance** with the [OpenIAP specification](https://openiap.dev), providing a standardized approach to in-app purchases across different platforms and libraries. By adopting this specification, KMP-IAP now offers:
+KMP-IAP v1.0.0-beta.14 achieves **100% compliance** with the [OpenIAP specification](https://openiap.dev), providing a standardized approach to in-app purchases across different platforms and libraries. By adopting this specification, KMP-IAP now offers:
 
 - **Standardized Types**: Consistent data structures across platforms
 - **Unified API**: Common interface patterns for all IAP operations
@@ -558,10 +558,10 @@ class PurchaseError(
 
 ## 🚀 Get Started
 
-Update to KMP-IAP v1.0.0-beta.13 today:
+Update to KMP-IAP v1.0.0-beta.14 today:
 
 ```kotlin
-implementation("io.github.hyochan:kmp-iap:1.0.0-beta.13")
+implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
 ```
 
 ### Documentation Links
