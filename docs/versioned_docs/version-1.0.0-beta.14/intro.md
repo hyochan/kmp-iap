@@ -10,8 +10,8 @@ import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
 <AdFitTopFixed />
 
-:::info Version
-This documentation is for **kmp-iap v1.0.0-rc.1** with simplified API design.
+:::warning Legacy Version
+This documentation is for **kmp-iap v1.0.0-beta.14**. For the latest version with simplified API, see [v1.0.0-rc.1 documentation](/).
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.

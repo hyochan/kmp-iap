@@ -48,13 +48,17 @@ const config: Config = {
           // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/hyochan/kmp-iap/tree/main/docs/',
+          lastVersion: 'current',
           versions: {
             current: {
-              label: '1.0 (Current)',
+              label: '1.0.0-rc.1 (Current)',
               path: '',
             },
+            '1.0.0-beta.14': {
+              label: '1.0.0-beta.14',
+              path: '1.0.0-beta.14',
+            },
           },
-          lastVersion: 'current',
           // Import MDX components
           beforeDefaultRemarkPlugins: [],
           remarkPlugins: [],
