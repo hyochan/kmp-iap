@@ -188,12 +188,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         cleanupState()
     }
     
-    override suspend fun requestProducts(params: ProductRequest): List<Product> {
+    override suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product> {
         ensureConnection()
-        println("[KMP-IAP] Requesting products: ${params.skus} of type ${params.type}")
+        println("[KMP-IAP] Requesting products: $skus of type $type")
         
         // Try multiple product types if not specified or if products not found
-        val productTypes = when (params.type) {
+        val productTypes = when (type) {
             ProductType.INAPP -> listOf(BillingClient.ProductType.INAPP)
             ProductType.SUBS -> listOf(BillingClient.ProductType.SUBS)
             else -> listOf(BillingClient.ProductType.INAPP, BillingClient.ProductType.SUBS)
@@ -204,7 +204,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         for (productType in productTypes) {
             println("[KMP-IAP] Querying for product type: $productType")
             
-            val productList = params.skus.map { sku ->
+            val productList = skus.map { sku ->
                 QueryProductDetailsParams.Product.newBuilder()
                     .setProductId(sku)
                     .setProductType(productType)
@@ -296,13 +296,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         return allProducts
     }
     
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
+    override suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps?,
+        android: RequestPurchaseAndroidProps?
+    ): Purchase {
         ensureConnection()
-        
-        val sku = request.android?.skus?.firstOrNull() ?: throw PurchaseError(
-            code = ErrorCode.E_DEVELOPER_ERROR.name,
-            message = "No SKU provided"
-        )
         
         println("[KMP-IAP] Requesting purchase for SKU: $sku")
         println("[KMP-IAP] Current activity: ${currentActivity?.javaClass?.simpleName}")
@@ -347,10 +346,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         if (productDetails == null) {
             println("[KMP-IAP] Product details not in cache, querying...")
             // First try as INAPP, then as SUBS if not found
-            var products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
+            var products = requestProducts(listOf(sku), ProductType.INAPP)
             if (products.isEmpty()) {
                 println("[KMP-IAP] Not found as INAPP, trying as SUBS...")
-                products = requestProducts(ProductRequest(listOf(sku), ProductType.SUBS))
+                products = requestProducts(listOf(sku), ProductType.SUBS)
             }
             if (products.isEmpty()) {
                 throw PurchaseError(

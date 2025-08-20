@@ -63,9 +63,9 @@ data class ActiveSubscription(
 )
 
 /**
- * Product request parameters
+ * Product request parameters (internal use only)
  */
-data class ProductRequest(
+internal data class ProductRequest(
     val skus: List<String>,
     val type: ProductType  // "inapp" or "subs"
 )

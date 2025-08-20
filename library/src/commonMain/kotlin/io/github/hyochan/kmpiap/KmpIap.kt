@@ -50,9 +50,8 @@ typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 // Re-export request types
 typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
 typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
-typealias RequestPurchaseProps = io.github.hyochan.kmpiap.types.RequestPurchaseProps
-typealias RequestSubscriptionProps = io.github.hyochan.kmpiap.types.RequestSubscriptionProps
-typealias ProductRequest = io.github.hyochan.kmpiap.types.ProductRequest
+typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.types.RequestPurchaseIosProps
+typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.types.RequestPurchaseAndroidProps
 typealias PurchaseOptions = io.github.hyochan.kmpiap.types.PurchaseOptions
 typealias DeepLinkOptions = io.github.hyochan.kmpiap.types.DeepLinkOptions
 typealias ValidationOptions = io.github.hyochan.kmpiap.types.ValidationOptions
@@ -107,19 +106,26 @@ interface KmpInAppPurchase {
     
     /**
      * Retrieve products or subscriptions from the store
-     * @param params Product request with SKUs and type
+     * @param skus List of product SKUs to retrieve
+     * @param type Product type (INAPP or SUBS)
      * @return List of products matching the provided SKUs
      */
-    suspend fun requestProducts(params: ProductRequest): List<Product>
+    suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product>
 
     // ===== Purchase Operations =====
     
     /**
      * Request a purchase (one-time or subscription)
-     * @param request Purchase request configuration
+     * @param sku Product SKU to purchase
+     * @param ios iOS-specific purchase options (optional)
+     * @param android Android-specific purchase options (optional)
      * @return The successful purchase
      */
-    suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
+    suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps? = null,
+        android: RequestPurchaseAndroidProps? = null
+    ): Purchase
 
     /**
      * Get all available purchases for the current user
@@ -286,12 +292,15 @@ class KmpIAP : KmpInAppPurchase {
     override suspend fun endConnection() = delegate.endConnection()
     
     // Product Management
-    override suspend fun requestProducts(params: ProductRequest): List<Product> = 
-        delegate.requestProducts(params)
+    override suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product> = 
+        delegate.requestProducts(skus, type)
     
     // Purchase Operations
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase = 
-        delegate.requestPurchase(request)
+    override suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps?,
+        android: RequestPurchaseAndroidProps?
+    ): Purchase = delegate.requestPurchase(sku, ios, android)
     
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
         delegate.getAvailablePurchases(options)

@@ -175,23 +175,23 @@ data class RequestSubscriptionAndroidProps(
 )
 
 /**
- * Platform-specific request structures
+ * Platform-specific request structures (internal use only)
  */
-data class RequestPurchasePropsByPlatforms(
+internal data class RequestPurchasePropsByPlatforms(
     val ios: RequestPurchaseIosProps? = null,
     val android: RequestPurchaseAndroidProps? = null
 )
 
-data class RequestSubscriptionPropsByPlatforms(
+internal data class RequestSubscriptionPropsByPlatforms(
     val ios: RequestPurchaseIosProps? = null,
     val android: RequestSubscriptionAndroidProps? = null
 )
 
 /**
- * Modern request types (v2.7.0+)
+ * Internal type aliases for legacy compatibility
  */
-typealias RequestPurchaseProps = RequestPurchasePropsByPlatforms
-typealias RequestSubscriptionProps = RequestSubscriptionPropsByPlatforms
+internal typealias RequestPurchaseProps = RequestPurchasePropsByPlatforms
+internal typealias RequestSubscriptionProps = RequestSubscriptionPropsByPlatforms
 
 /**
  * Purchase error class following OpenIAP spec
