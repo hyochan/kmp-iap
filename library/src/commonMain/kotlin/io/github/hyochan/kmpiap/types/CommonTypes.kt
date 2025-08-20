@@ -1,5 +1,36 @@
 package io.github.hyochan.kmpiap.types
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+/**
+ * Common types matching OpenIAP specification
+ */
+
+/**
+ * Product type enum matching OpenIAP spec
+ */
+@Serializable
+enum class ProductType {
+    @SerialName("inapp")
+    INAPP,
+    @SerialName("subs")
+    SUBS
+}
+
+/**
+ * Platform identifier
+ */
+enum class IapPlatform {
+    IOS,
+    ANDROID
+}
+
+/**
+ * Get the current platform
+ */
+expect fun getCurrentPlatform(): IapPlatform
+
 /**
  * Connection result for IAP service connection
  */
@@ -18,52 +49,6 @@ data class AppStoreInfo(
 )
 
 /**
- * Legacy types for backward compatibility
- */
-@Deprecated("Use Product instead", ReplaceWith("Product"))
-typealias BaseProduct = Product
-
-@Deprecated("Use PurchaseError instead", ReplaceWith("PurchaseError"))
-data class PurchaseResult(
-    val responseCode: Int? = null,
-    val debugMessage: String? = null,
-    val code: String? = null,
-    val message: String? = null,
-    val purchaseTokenAndroid: String? = null
-)
-
-/**
- * Request parameters for fetching products
- */
-@Deprecated("Use ProductRequest instead", ReplaceWith("ProductRequest"))
-data class RequestProductsParams(
-    val skus: List<String>,
-    val type: PurchaseType = PurchaseType.INAPP
-)
-
-
-/**
- * Purchase type enum
- */
-enum class PurchaseType {
-    INAPP,
-    SUBS
-}
-
-/**
- * Android proration modes (backward compatibility)
- */
-@Deprecated("Use ReplacementMode instead", ReplaceWith("ReplacementMode"))
-enum class AndroidProrationMode(val value: Int) {
-    UNKNOWN_SUBSCRIPTION_UPGRADE_DOWNGRADE_POLICY(0),
-    IMMEDIATE_WITH_TIME_PRORATION(1),
-    IMMEDIATE_AND_CHARGE_PRORATED_PRICE(2),
-    IMMEDIATE_WITHOUT_PRORATION(3),
-    DEFERRED(4),
-    IMMEDIATE_AND_CHARGE_FULL_PRICE(5)
-}
-
-/**
  * Active subscription information
  * Contains platform-specific subscription details
  */
@@ -76,3 +61,97 @@ data class ActiveSubscription(
     val willExpireSoon: Boolean? = null,        // True if expiring within 7 days
     val daysUntilExpirationIOS: Int? = null     // iOS only
 )
+
+/**
+ * Product request parameters
+ */
+data class ProductRequest(
+    val skus: List<String>,
+    val type: ProductType  // "inapp" or "subs"
+)
+
+/**
+ * Purchase options for getAvailablePurchases and getPurchaseHistories
+ */
+data class PurchaseOptions(
+    val alsoPublishToEventListener: Boolean? = null,
+    val onlyIncludeActiveItems: Boolean? = null
+)
+
+/**
+ * Deep link options for subscription management
+ */
+data class DeepLinkOptions(
+    val skuAndroid: String? = null,
+    val packageNameAndroid: String? = null
+)
+
+/**
+ * iOS receipt body for validation
+ */
+data class IOSReceiptBody(
+    val receiptData: String,
+    val password: String? = null
+)
+
+/**
+ * Validation options following OpenIAP spec
+ */
+sealed class ValidationOptions {
+    data class IOSValidation(
+        val receiptBody: IOSReceiptBody
+    ) : ValidationOptions()
+    
+    data class AndroidValidation(
+        val packageName: String,
+        val productToken: String,
+        val accessToken: String,
+        val isSub: Boolean
+    ) : ValidationOptions()
+}
+
+/**
+ * Validation result following OpenIAP spec
+ */
+data class ValidationResult(
+    val isValid: Boolean,
+    val status: Int,
+    
+    // iOS response fields
+    val receipt: Map<String, Any>? = null,
+    val latestReceipt: String? = null,
+    val latestReceiptInfo: List<Map<String, Any>>? = null,
+    val pendingRenewalInfo: List<Map<String, Any>>? = null,
+    
+    // Android response fields
+    val purchaseState: Int? = null,
+    val consumptionState: Int? = null,
+    val acknowledgementState: Int? = null
+)
+
+/**
+ * Verification result for iOS StoreKit 2
+ */
+data class VerificationResult(
+    val isValid: Boolean,
+    val environment: String? = null,
+    val verificationError: String? = null
+)
+
+/**
+ * Event subscription for cleanup
+ */
+interface Subscription {
+    fun remove()
+}
+
+/**
+ * Implementation of event subscription
+ */
+class EventSubscription(
+    private val onRemove: () -> Unit
+) : Subscription {
+    override fun remove() {
+        onRemove()
+    }
+}

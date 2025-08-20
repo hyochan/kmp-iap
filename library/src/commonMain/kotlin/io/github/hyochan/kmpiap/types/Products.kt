@@ -1,218 +1,171 @@
 package io.github.hyochan.kmpiap.types
 
-/**
- * Product type enum matching documentation
- */
-enum class ProductType {
-    INAPP,
-    SUBS
-}
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
- * Base product interface following documentation spec
+ * Product types matching OpenIAP specification
  */
-interface ProductBase {
-    val id: String  // Changed from productId to id
+
+/**
+ * Base product common fields matching OpenIAP spec
+ */
+interface ProductCommon {
+    val id: String
     val title: String
     val description: String
-    val price: String
-    val priceAmount: Double  // Changed from Long to Double
+    val type: ProductType
+    val displayName: String?
+    val displayPrice: String
     val currency: String
+    val price: Double?
+    val debugDescription: String?
+    val platform: String?
 }
 
 /**
- * iOS-specific product fields
+ * iOS Product matching OpenIAP spec
  */
-interface ProductIOS {
-    val displayName: String
-    val isFamilyShareable: Boolean
-    val jsonRepresentation: String?
-    val discounts: List<Discount>?
-    val subscription: SubscriptionInfo?
-    val introductoryPriceNumberOfPeriodsIOS: String?
-    val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS?
-}
-
-/**
- * Android-specific product fields
- */
-interface ProductAndroid {
-    val originalPrice: String?
-    val originalPriceAmount: Double?
-    val freeTrialPeriod: String?
-    val iconUrl: String?
-    val subscriptionOfferDetails: List<OfferDetail>?
-    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails?
-    val typeAndroid: String?
-    val nameAndroid: String?
-    val displayPriceAndroid: String?
-}
-
-/**
- * Unified Product class combining base and platform-specific fields
- */
-data class Product(
-    // ProductBase fields
+@Serializable
+data class ProductIOS(
+    // ProductCommon fields
     override val id: String,
     override val title: String,
     override val description: String,
-    override val price: String,
-    override val priceAmount: Double,
+    override val type: ProductType,
+    override val displayName: String? = null,
+    override val displayPrice: String,
     override val currency: String,
+    override val price: Double? = null,
+    override val debugDescription: String? = null,
+    override val platform: String = "ios",
     
-    // iOS-specific fields (optional)
-    val displayName: String? = null,
-    val isFamilyShareable: Boolean = false,
+    // iOS-specific fields
+    val displayNameIOS: String,
+    val isFamilyShareableIOS: Boolean,
+    val jsonRepresentationIOS: String,
+    val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
+    
+    // Deprecated fields for backward compatibility
+    @Deprecated("Use displayNameIOS instead", ReplaceWith("displayNameIOS"))
+    val isFamilyShareable: Boolean? = null,
+    @Deprecated("Use jsonRepresentationIOS instead", ReplaceWith("jsonRepresentationIOS"))
     val jsonRepresentation: String? = null,
-    val discounts: List<Discount>? = null,
-    val subscription: SubscriptionInfo? = null,
+    @Deprecated("Use subscriptionInfoIOS instead", ReplaceWith("subscriptionInfoIOS"))
+    val subscription: SubscriptionInfoIOS? = null,
     val introductoryPriceNumberOfPeriodsIOS: String? = null,
-    val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
-    
-    // Android-specific fields (optional)
-    val originalPrice: String? = null,
-    val originalPriceAmount: Double? = null,
-    val freeTrialPeriod: String? = null,
-    val iconUrl: String? = null,
-    val subscriptionOfferDetails: List<OfferDetail>? = null,
-    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails? = null,
-    val typeAndroid: String? = null,
-    val nameAndroid: String? = null,
-    val displayPriceAndroid: String? = null,
-    
-    // Platform indicator
-    val platform: IapPlatform = getCurrentPlatform()
-) : ProductBase
+    val introductoryPriceSubscriptionPeriodIOS: String? = null
+) : ProductCommon
 
 /**
- * Subscription-specific product extensions
+ * iOS Product Subscription matching OpenIAP spec
  */
-data class SubscriptionProduct(
-    // ProductBase fields
+@Serializable
+data class ProductSubscriptionIOS(
+    // ProductCommon fields
     override val id: String,
     override val title: String,
     override val description: String,
-    override val price: String,
-    override val priceAmount: Double,
+    override val type: ProductType = ProductType.SUBS,
+    override val displayName: String? = null,
+    override val displayPrice: String,
     override val currency: String,
+    override val price: Double? = null,
+    override val debugDescription: String? = null,
+    override val platform: String = "ios",
     
-    // Subscription-specific fields
-    val subscriptionPeriod: String,
-    val introductoryPrice: String? = null,
-    val introductoryPricePaymentMode: String? = null,
-    val introductoryPriceNumberOfPeriods: Int? = null,
-    val introductoryPriceSubscriptionPeriod: String? = null,
+    // iOS-specific fields
+    val displayNameIOS: String,
+    val isFamilyShareableIOS: Boolean,
+    val jsonRepresentationIOS: String,
+    val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     
-    // Platform-specific subscription fields
-    val subscriptionGroupIdentifier: String? = null,  // iOS
-    val promotionalOffers: List<PromotionalOffer>? = null,  // iOS
-    val offerDetails: List<OfferDetail>? = null,  // Android
-    val subscriptionOfferAndroid: List<SubscriptionOffer>? = null,  // Android backward compat
+    // Subscription-specific iOS fields
+    val discountsIOS: List<DiscountIOS>? = null,
+    val introductoryPriceIOS: String? = null,
+    val introductoryPriceAsAmountIOS: String? = null,
+    val introductoryPricePaymentModeIOS: String? = null,
+    val introductoryPriceNumberOfPeriodsIOS: String? = null,
+    val introductoryPriceSubscriptionPeriodIOS: String? = null,
+    val subscriptionPeriodNumberIOS: String? = null,
+    val subscriptionPeriodUnitIOS: String? = null,
     
-    val platform: IapPlatform = getCurrentPlatform()
-) : ProductBase
+    // Deprecated fields
+    @Deprecated("Use discountsIOS instead", ReplaceWith("discountsIOS"))
+    val discounts: List<DiscountIOS>? = null,
+    @Deprecated("Use introductoryPriceIOS instead", ReplaceWith("introductoryPriceIOS"))
+    val introductoryPrice: String? = null
+) : ProductCommon
 
 /**
- * iOS Discount information
+ * Android Product matching OpenIAP spec
  */
-data class Discount(
-    val identifier: String,
-    val type: String,
-    val numberOfPeriods: Int,
-    val price: String,
-    val priceAmount: Double,
-    val paymentMode: String,
-    val subscriptionPeriod: String
-)
+@Serializable
+data class ProductAndroid(
+    // ProductCommon fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType,
+    override val displayName: String? = null,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double? = null,
+    override val debugDescription: String? = null,
+    override val platform: String = "android",
+    
+    // Android-specific fields
+    val nameAndroid: String,
+    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>? = null,
+    
+    // Deprecated fields
+    @Deprecated("Use nameAndroid instead", ReplaceWith("nameAndroid"))
+    val name: String? = null,
+    @Deprecated("Use oneTimePurchaseOfferDetailsAndroid instead", ReplaceWith("oneTimePurchaseOfferDetailsAndroid"))
+    val oneTimePurchaseOfferDetails: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    @Deprecated("Use subscriptionOfferDetailsAndroid instead", ReplaceWith("subscriptionOfferDetailsAndroid"))
+    val subscriptionOfferDetails: List<ProductSubscriptionAndroidOfferDetail>? = null
+) : ProductCommon
 
 /**
- * iOS Subscription info
+ * Android Product Subscription matching OpenIAP spec
  */
-data class SubscriptionInfo(
-    val subscriptionGroupIdentifier: String,
-    val subscriptionPeriod: SubscriptionPeriodIOS,
-    val introductoryPrice: IntroductoryPrice? = null,
-    val promotionalOffers: List<PromotionalOffer>? = null
-)
+@Serializable
+data class ProductSubscriptionAndroid(
+    // ProductCommon fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType = ProductType.SUBS,
+    override val displayName: String? = null,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double? = null,
+    override val debugDescription: String? = null,
+    override val platform: String = "android",
+    
+    // Android-specific fields
+    val nameAndroid: String,
+    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
+    
+    // Deprecated fields
+    @Deprecated("Use subscriptionOfferDetailsAndroid instead", ReplaceWith("subscriptionOfferDetailsAndroid"))
+    val subscriptionOfferDetails: List<ProductSubscriptionAndroidOfferDetails>? = null
+) : ProductCommon
 
 /**
- * iOS Introductory price
+ * Type aliases for legacy naming - backward compatibility
  */
-data class IntroductoryPrice(
-    val price: String,
-    val priceAmount: Double,
-    val paymentMode: String,
-    val numberOfPeriods: Int,
-    val subscriptionPeriod: SubscriptionPeriodIOS
-)
+@Deprecated("Use ProductSubscriptionIOS instead", ReplaceWith("ProductSubscriptionIOS"))
+typealias SubscriptionProductIOS = ProductSubscriptionIOS
+
+@Deprecated("Use ProductSubscriptionAndroid instead", ReplaceWith("ProductSubscriptionAndroid"))
+typealias SubscriptionProductAndroid = ProductSubscriptionAndroid
 
 /**
- * iOS Promotional offer
+ * Union type helpers for cross-platform usage
  */
-data class PromotionalOffer(
-    val identifier: String,
-    val price: String,
-    val priceAmount: Double,
-    val paymentMode: String,
-    val numberOfPeriods: Int,
-    val subscriptionPeriod: SubscriptionPeriodIOS
-)
-
-/**
- * iOS Payment discount for offers
- */
-data class PaymentDiscount(
-    val identifier: String,
-    val keyIdentifier: String,
-    val nonce: String,
-    val signature: String,
-    val timestamp: Double
-)
-
-/**
- * Android One-time purchase offer details
- */
-data class OneTimePurchaseOfferDetails(
-    val priceCurrencyCode: String,
-    val formattedPrice: String,
-    val priceAmountMicros: String
-)
-
-/**
- * Android Offer detail
- */
-data class OfferDetail(
-    val offerId: String,
-    val basePlanId: String,
-    val offerToken: String,
-    val pricingPhases: List<PricingPhase>,
-    val offerTags: List<String>? = null
-)
-
-/**
- * Android Pricing phase
- */
-data class PricingPhase(
-    val billingPeriod: String,
-    val formattedPrice: String,
-    val priceAmountMicros: String,
-    val priceCurrencyCode: String,
-    val billingCycleCount: Int? = null,
-    val recurrenceMode: RecurrenceMode? = null
-)
-
-/**
- * Android Subscription offer for purchase
- */
-data class SubscriptionOffer(
-    val sku: String,
-    val offerToken: String
-)
-
-/**
- * Product request parameters
- */
-data class ProductRequest(
-    val skus: List<String>,
-    val type: ProductType  // "inapp" or "subs"
-)
+typealias Product = ProductCommon
+typealias SubscriptionProduct = ProductCommon
