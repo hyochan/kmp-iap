@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -90,8 +90,8 @@ class BasicStoreViewModel : ViewModel() {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             
             try {
-                // Initialize connection using singleton
-                val connected = KmpIAP.instance.initConnection()
+                // Initialize connection using kmpIapInstance
+                val connected = kmpIapInstance.initConnection()
                 _state.update { it.copy(isConnected = connected) }
                 
                 if (connected) {
@@ -108,14 +108,14 @@ class BasicStoreViewModel : ViewModel() {
     private fun observeStates() {
         // Observe purchase updates
         viewModelScope.launch {
-            KmpIAP.instance.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseSuccess(purchase)
             }
         }
         
         // Observe purchase errors
         viewModelScope.launch {
-            KmpIAP.instance.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
@@ -125,17 +125,16 @@ class BasicStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, errorMessage = null) }
         
         try {
-            val products = KmpIAP.instance.requestProducts(
+            val products = kmpIapInstance.requestProducts(
                 ProductRequest(
                     skus = productIds,
                     type = ProductType.INAPP
                 )
             )
             _state.update { it.copy(products = products, isLoading = false) }
-            val products = KmpIAP.getProducts(productIds)
             
             products.forEach { product ->
-                println("Product: ${product.productId} - ${product.price}")
+                println("Product: ${product.id} - ${product.displayPrice}")
             }
             
         } catch (e: PurchaseError) {
@@ -165,7 +164,7 @@ class BasicStoreViewModel : ViewModel() {
                 deliverProduct(purchase.productId)
                 
                 // 3. Finish the transaction
-                KmpIAP.instance.finishTransaction(
+                kmpIapInstance.finishTransaction(
                     purchase = purchase,
                     isConsumable = isConsumableProduct(purchase.productId)
                 )
@@ -287,10 +286,15 @@ class BasicStoreViewModel : ViewModel() {
             }
             
             try {
-                KmpIAP.instance.requestPurchase(
-                    UnifiedPurchaseRequest(
-                        sku = productId,
-                        quantity = 1
+                kmpIapInstance.requestPurchase(
+                    RequestPurchaseProps(
+                        ios = RequestPurchaseIosProps(
+                            sku = productId,
+                            quantity = 1
+                        ),
+                        android = RequestPurchaseAndroidProps(
+                            skus = listOf(productId)
+                        )
                     )
                 )
                 
@@ -310,7 +314,7 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Get available purchases
-                val purchases = KmpIAP.instance.getAvailablePurchases()
+                val purchases = kmpIapInstance.getAvailablePurchases()
                 purchases.forEach { purchase ->
                     // Process non-consumable purchases
                     if (!isConsumableProduct(purchase.productId)) {
@@ -354,7 +358,10 @@ class BasicStoreViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        KmpIAP.dispose()
+        // Clean up connections
+        viewModelScope.launch {
+            kmpIapInstance.endConnection()
+        }
     }
 }
 
@@ -530,7 +537,7 @@ fun PurchaseInfo(purchase: Purchase) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Text(
-                "Transaction: ${purchase.transactionId ?: "N/A"}",
+                "Transaction: ${purchase.id}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
@@ -577,8 +584,8 @@ fun ProductsList(
         items(products) { product ->
             ProductCard(
                 product = product,
-                isProcessing = product.productId == processingProductId,
-                onPurchase = { onPurchase(product.productId) }
+                isProcessing = product.id == processingProductId,
+                onPurchase = { onPurchase(product.id) }
             )
         }
     }
@@ -605,7 +612,7 @@ fun ProductCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = getProductIcon(product.productId),
+                            imageVector = getProductIcon(product.id),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -635,7 +642,7 @@ fun ProductCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = product.price,
+                    text = product.displayPrice,
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -673,34 +680,49 @@ fun getProductIcon(productId: String): ImageVector {
 
 ### 1. Connection Management
 ```kotlin
-KmpIAP.initConnection()
+kmpIapInstance.initConnection()
 ```
-- Initializes connection to App Store or Google Play
+- Initializes connection to App Store or Google Play using OpenIAP-compliant API
 - Must be called before any other IAP operations
 - Connection state is monitored via `isConnected` StateFlow
 
-### 2. Product Loading
+### 2. Product Loading (OpenIAP-Compliant)
 ```kotlin
-val products = KmpIAP.getProducts(productIds)
-```
-- Fetches product information from the store
-- Returns localized pricing and descriptions
-- Product IDs must be configured in store console
-
-### 3. Purchase Flow
-```kotlin
-KmpIAP.requestPurchase(
-    sku = productId,
-    obfuscatedAccountIdAndroid = getUserId()
+val products = kmpIapInstance.requestProducts(
+    ProductRequest(
+        skus = productIds,
+        type = ProductType.INAPP
+    )
 )
 ```
-- Initiates purchase with platform-specific parameters
-- Purchase result comes through `currentPurchase` StateFlow
-- Errors are delivered via `currentError` StateFlow
+- Fetches products implementing `ProductCommon` interface
+- Returns OpenIAP-compliant product objects with unified fields
+- Product IDs must be configured in store console
+
+### 3. Purchase Flow (OpenIAP-Compliant)
+```kotlin
+kmpIapInstance.requestPurchase(
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = productId,
+            quantity = 1,
+            appAccountToken = getUserId()
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf(productId),
+            obfuscatedAccountIdAndroid = getUserId()
+        )
+    )
+)
+```
+- Uses OpenIAP-compliant `RequestPurchaseProps` structure
+- Platform-specific options in dedicated iOS/Android properties
+- Purchase result comes through `purchaseUpdatedListener` Flow
+- Errors are delivered via `purchaseErrorListener` Flow
 
 ### 4. Transaction Finishing
 ```kotlin
-val success = KmpIAP.finishTransaction(
+val success = kmpIapInstance.finishTransaction(
     purchase = purchase,
     isConsumable = true // or false for non-consumables
 )

@@ -17,36 +17,30 @@ typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProdu
 typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
 typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
 typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
-typealias Discount = io.github.hyochan.kmpiap.types.Discount
-typealias SubscriptionOffer = io.github.hyochan.kmpiap.types.SubscriptionOffer
-typealias PricingPhase = io.github.hyochan.kmpiap.types.PricingPhase
 typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
 
 // Re-export enums
 typealias Store = io.github.hyochan.kmpiap.types.Store
 typealias IapPlatform = io.github.hyochan.kmpiap.types.IapPlatform
-typealias PurchaseType = io.github.hyochan.kmpiap.types.PurchaseType
-typealias TransactionState = io.github.hyochan.kmpiap.types.TransactionState
-typealias PurchaseState = io.github.hyochan.kmpiap.types.PurchaseState
 
 // Re-export error codes
 typealias ErrorCode = io.github.hyochan.kmpiap.utils.ErrorCode
 typealias ErrorCodeUtils = io.github.hyochan.kmpiap.utils.ErrorCodeUtils
 
 // Re-export Android types
-typealias AndroidPurchaseState = io.github.hyochan.kmpiap.types.AndroidPurchaseState
-typealias AndroidProductType = io.github.hyochan.kmpiap.types.AndroidProductType
+typealias PurchaseAndroidState = io.github.hyochan.kmpiap.types.PurchaseAndroidState
 typealias SubscriptionOfferAndroid = io.github.hyochan.kmpiap.types.SubscriptionOfferAndroid
 typealias AndroidBillingResponseCode = io.github.hyochan.kmpiap.types.AndroidBillingResponseCode
+typealias PricingPhaseAndroid = io.github.hyochan.kmpiap.types.PricingPhaseAndroid
 
 // Re-export iOS types
 typealias TransactionStateIOS = io.github.hyochan.kmpiap.types.TransactionStateIOS
-typealias PaymentDiscount = io.github.hyochan.kmpiap.types.PaymentDiscount
-typealias PromotionalOffer = io.github.hyochan.kmpiap.types.PromotionalOffer
-typealias AppTransaction = io.github.hyochan.kmpiap.types.AppTransaction
-typealias SubscriptionPeriodUnitIOS = io.github.hyochan.kmpiap.types.SubscriptionPeriodUnitIOS
-typealias DiscountPaymentModeIOS = io.github.hyochan.kmpiap.types.DiscountPaymentModeIOS
-typealias DiscountTypeIOS = io.github.hyochan.kmpiap.types.DiscountTypeIOS
+typealias PaymentDiscountIOS = io.github.hyochan.kmpiap.types.PaymentDiscountIOS
+typealias DiscountIOS = io.github.hyochan.kmpiap.types.DiscountIOS
+typealias AppTransactionIOS = io.github.hyochan.kmpiap.types.AppTransactionIOS
+typealias PaymentModeIOS = io.github.hyochan.kmpiap.types.PaymentModeIOS
+typealias OfferTypeIOS = io.github.hyochan.kmpiap.types.OfferTypeIOS
+typealias EnvironmentIOS = io.github.hyochan.kmpiap.types.EnvironmentIOS
 
 /**
  * Re-export the main interface
@@ -56,6 +50,13 @@ typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 // Re-export request types
 typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
 typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
+typealias RequestPurchaseProps = io.github.hyochan.kmpiap.types.RequestPurchaseProps
+typealias RequestSubscriptionProps = io.github.hyochan.kmpiap.types.RequestSubscriptionProps
+typealias ProductRequest = io.github.hyochan.kmpiap.types.ProductRequest
+typealias PurchaseOptions = io.github.hyochan.kmpiap.types.PurchaseOptions
+typealias DeepLinkOptions = io.github.hyochan.kmpiap.types.DeepLinkOptions
+typealias ValidationOptions = io.github.hyochan.kmpiap.types.ValidationOptions
+typealias ValidationResult = io.github.hyochan.kmpiap.types.ValidationResult
 
 /**
  * Main interface for In-App Purchase operations across all platforms.
@@ -115,10 +116,10 @@ interface KmpInAppPurchase {
     
     /**
      * Request a purchase (one-time or subscription)
-     * @param request Unified purchase request configuration
+     * @param request Purchase request configuration
      * @return The successful purchase
      */
-    suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
+    suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
 
     /**
      * Get all available purchases for the current user
@@ -132,7 +133,7 @@ interface KmpInAppPurchase {
      * @param options Options for fetching purchase history
      * @return List of purchase history items
      */
-    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
+    suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<Purchase>
 
     /**
      * Complete a purchase transaction
@@ -289,13 +290,13 @@ class KmpIAP : KmpInAppPurchase {
         delegate.requestProducts(params)
     
     // Purchase Operations
-    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase = 
+    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase = 
         delegate.requestPurchase(request)
     
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
         delegate.getAvailablePurchases(options)
     
-    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> = 
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> = 
         delegate.getPurchaseHistories(options)
     
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean = 

@@ -6,115 +6,204 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 /**
- * Base purchase interface following OpenIAP spec
+ * Purchase types matching OpenIAP specification
  */
-interface PurchaseBase {
-    val id: String  // Primary identifier (transaction ID)
+
+/**
+ * Base purchase common fields matching OpenIAP spec
+ */
+interface PurchaseCommon {
+    val id: String  // Transaction identifier - used by finishTransaction
+    val productId: String  // Product identifier - which product was purchased
+    val ids: List<String>?  // Product identifiers for purchases that include multiple products
+    val transactionId: String?  // @deprecated - use id instead
     val transactionDate: Double
     val transactionReceipt: String
+    val purchaseToken: String?  // Unified purchase token (jwsRepresentation for iOS, purchaseToken for Android)
+    val platform: String?
 }
 
 /**
- * iOS-specific purchase fields
- */
-interface PurchaseIOS {
-    val transactionId: String?
-    val originalTransactionDateIOS: Double?
-    val originalTransactionIdIOS: String?
-    val transactionState: TransactionState?
-    val verificationResult: VerificationResult?
-    val jwsRepresentationIOS: String?  // iOS StoreKit 2 JWS representation
-}
-
-/**
- * Android-specific purchase fields
- */
-interface PurchaseAndroid {
-    val purchaseTokenAndroid: String?
-    val purchaseStateAndroid: Int?
-    val signatureAndroid: String?
-    val autoRenewingAndroid: Boolean?
-    val orderIdAndroid: String?
-    val packageNameAndroid: String?
-    val developerPayloadAndroid: String?
-    val acknowledgedAndroid: Boolean?
-    val dataAndroid: String?
-    val obfuscatedAccountIdAndroid: String?
-    val obfuscatedProfileIdAndroid: String?
-}
-
-/**
- * Unified Purchase class following OpenIAP spec
+ * iOS Purchase matching OpenIAP spec (ProductPurchaseIOS)
  */
 @Serializable
-data class Purchase(
-    // PurchaseBase fields
-    override val id: String,  // Primary identifier (transaction ID)
+data class PurchaseIOS(
+    // PurchaseCommon fields
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>? = null,
+    @Deprecated("Use 'id' instead", ReplaceWith("id"))
+    override val transactionId: String? = null,
     override val transactionDate: Double,
     override val transactionReceipt: String,
+    override val purchaseToken: String? = null,
+    override val platform: String = "ios",
     
-    // Product identification
-    val productId: String,  // Product ID for the purchased item
-    val ids: List<String>? = null,  // Android: Product IDs array
+    // iOS-specific fields matching OpenIAP spec
+    val quantityIOS: Int? = null,
+    val originalTransactionDateIOS: Double? = null,
+    val originalTransactionIdentifierIOS: String? = null,
+    val appAccountToken: String? = null,
     
-    // Unified purchase token field
-    val purchaseToken: String? = null,  // Android: purchase token, iOS: JWS representation
+    // iOS StoreKit 2 additional fields
+    val expirationDateIOS: Double? = null,
+    val webOrderLineItemIdIOS: Long? = null,
+    val environmentIOS: String? = null,
+    val storefrontCountryCodeIOS: String? = null,
+    val appBundleIdIOS: String? = null,
+    val productTypeIOS: String? = null,
+    val subscriptionGroupIdIOS: String? = null,
+    val isUpgradedIOS: Boolean? = null,
+    val ownershipTypeIOS: String? = null,
+    val reasonIOS: String? = null,
+    val reasonStringRepresentationIOS: String? = null,
+    val transactionReasonIOS: String? = null,  // 'PURCHASE' | 'RENEWAL' | string
+    val revocationDateIOS: Double? = null,
+    val revocationReasonIOS: String? = null,
+    val offerIOS: OfferIOS? = null,
     
-    // iOS-specific fields (optional)
-    override val transactionId: String? = null,  // @deprecated - use id instead
-    override val originalTransactionDateIOS: Double? = null,
-    override val originalTransactionIdIOS: String? = null,
-    override val transactionState: TransactionState? = null,
-    @Transient override val verificationResult: VerificationResult? = null,
+    // Price locale fields
+    val currencyCodeIOS: String? = null,
+    val currencySymbolIOS: String? = null,
+    val countryCodeIOS: String? = null,
+    
+    // Deprecated field
     @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
-    override val jwsRepresentationIOS: String? = null,  // @deprecated - use purchaseToken instead
+    val jwsRepresentationIOS: String? = null,
     
-    // Android-specific fields (optional)
-    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
-    override val purchaseTokenAndroid: String? = null,  // @deprecated - use purchaseToken instead
-    override val purchaseStateAndroid: Int? = null,
-    override val signatureAndroid: String? = null,
-    override val autoRenewingAndroid: Boolean? = null,
-    override val orderIdAndroid: String? = null,
-    override val packageNameAndroid: String? = null,
-    override val developerPayloadAndroid: String? = null,
-    override val acknowledgedAndroid: Boolean? = null,
-    override val dataAndroid: String? = null,  // Original JSON data
-    override val obfuscatedAccountIdAndroid: String? = null,  // Account identifier
-    override val obfuscatedProfileIdAndroid: String? = null,  // Profile identifier
-    
-    // Platform indicator
-    @Transient val platform: IapPlatform = getCurrentPlatform(),
-    @Transient val originalJson: Map<String, Any>? = null
-) : PurchaseBase, PurchaseIOS, PurchaseAndroid {
-    // Backward compatibility properties
-    @Deprecated("Use 'acknowledgedAndroid' instead", ReplaceWith("acknowledgedAndroid"))
-    val isAcknowledgedAndroid: Boolean get() = acknowledgedAndroid ?: false
-}
+    // Internal fields
+    @Transient val transactionState: TransactionStateIOS? = null,
+    @Transient val verificationResult: VerificationResult? = null
+) : PurchaseCommon
 
 /**
- * Product purchase with additional details
+ * iOS offer information in purchase
  */
-data class ProductPurchase(
-    val purchase: Purchase,
-    val isConsumedAndroid: Boolean? = null,
-    val isAcknowledgedAndroid: Boolean? = null,
-    val isFinishedIOS: Boolean? = null,
-    val purchaseState: PurchaseState? = null
+@Serializable
+data class OfferIOS(
+    val id: String,
+    val type: String,
+    val paymentMode: String
 )
 
 /**
- * Purchase error class following documentation spec
+ * Android Purchase matching OpenIAP spec (ProductPurchaseAndroid)
+ */
+@Serializable
+data class PurchaseAndroid(
+    // PurchaseCommon fields
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>? = null,
+    @Deprecated("Use 'id' instead", ReplaceWith("id"))
+    override val transactionId: String? = null,
+    override val transactionDate: Double,
+    override val transactionReceipt: String,
+    override val purchaseToken: String? = null,
+    override val platform: String = "android",
+    
+    // Android-specific fields matching OpenIAP spec
+    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
+    val purchaseTokenAndroid: String? = null,
+    val dataAndroid: String? = null,
+    val signatureAndroid: String? = null,
+    val autoRenewingAndroid: Boolean? = null,
+    val purchaseStateAndroid: PurchaseAndroidState? = null,
+    val isAcknowledgedAndroid: Boolean? = null,
+    val packageNameAndroid: String? = null,
+    val developerPayloadAndroid: String? = null,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null
+) : PurchaseCommon
+
+/**
+ * Type aliases matching OpenIAP spec
+ */
+typealias ProductPurchaseIOS = PurchaseIOS
+typealias ProductPurchaseAndroid = PurchaseAndroid
+
+// Legacy naming for backward compatibility
+@Deprecated("Use PurchaseIOS instead", ReplaceWith("PurchaseIOS"))
+typealias SubscriptionPurchaseIOS = PurchaseIOS
+
+@Deprecated("Use PurchaseAndroid instead", ReplaceWith("PurchaseAndroid"))
+typealias SubscriptionPurchaseAndroid = PurchaseAndroid
+
+/**
+ * Union type helpers
+ */
+typealias ProductPurchase = PurchaseCommon
+typealias SubscriptionPurchase = PurchaseCommon
+typealias Purchase = PurchaseCommon
+
+/**
+ * Request types matching OpenIAP spec
+ */
+
+/**
+ * iOS-specific purchase request parameters
+ */
+data class RequestPurchaseIosProps(
+    val sku: String,
+    val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
+    val appAccountToken: String? = null,
+    val quantity: Int? = null,
+    val withOffer: PaymentDiscountIOS? = null
+)
+
+/**
+ * Android-specific purchase request parameters
+ */
+data class RequestPurchaseAndroidProps(
+    val skus: List<String>,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null
+)
+
+/**
+ * Android-specific subscription request parameters
+ */
+data class RequestSubscriptionAndroidProps(
+    val skus: List<String>,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null,
+    val purchaseTokenAndroid: String? = null,
+    val replacementModeAndroid: Int? = null,
+    val subscriptionOffers: List<SubscriptionOfferAndroid>
+)
+
+/**
+ * Platform-specific request structures
+ */
+data class RequestPurchasePropsByPlatforms(
+    val ios: RequestPurchaseIosProps? = null,
+    val android: RequestPurchaseAndroidProps? = null
+)
+
+data class RequestSubscriptionPropsByPlatforms(
+    val ios: RequestPurchaseIosProps? = null,
+    val android: RequestSubscriptionAndroidProps? = null
+)
+
+/**
+ * Modern request types (v2.7.0+)
+ */
+typealias RequestPurchaseProps = RequestPurchasePropsByPlatforms
+typealias RequestSubscriptionProps = RequestSubscriptionPropsByPlatforms
+
+/**
+ * Purchase error class following OpenIAP spec
  */
 class PurchaseError(
     val code: String,
     override val message: String,
-    val productId: String? = null,
     val responseCode: Int? = null,
     val debugMessage: String? = null,
-    val platform: IapPlatform? = null,
-    val subResponseCode: Int? = null,  // Android billing v8.0.0+ sub-response code
-    val subResponseMessage: String? = null  // Human-readable message for sub-response code
+    val purchaseToken: String? = null,
+    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
+    val purchaseTokenAndroid: String? = null
 ) : Exception(message) {
     
     companion object {
@@ -129,156 +218,24 @@ class PurchaseError(
             return PurchaseError(
                 code = errorCode.name,
                 message = errorData["message"]?.toString() ?: "Unknown error occurred",
-                productId = errorData["productId"]?.toString(),
                 responseCode = errorData["responseCode"] as? Int,
                 debugMessage = errorData["debugMessage"]?.toString(),
-                platform = platform,
-                subResponseCode = errorData["subResponseCode"] as? Int,
-                subResponseMessage = errorData["subResponseMessage"]?.toString()
+                purchaseToken = errorData["purchaseToken"]?.toString(),
+                purchaseTokenAndroid = errorData["purchaseTokenAndroid"]?.toString()
             )
         }
     }
 }
 
 /**
- * Unified purchase request following documentation spec
+ * Purchase result type
  */
-data class UnifiedPurchaseRequest(
-    // Single SKU (convenience)
-    val sku: String? = null,
-    
-    // Multiple SKUs
-    val skus: List<String>? = null,
-    
-    // iOS options
-    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean? = null,
-    val appAccountToken: String? = null,
-    val quantity: Int? = null,
-    val withOffer: PaymentDiscount? = null,
-    
-    // Android options
-    val obfuscatedAccountIdAndroid: String? = null,
-    val obfuscatedProfileIdAndroid: String? = null,
-    val isOfferPersonalized: Boolean? = null,
-    val subscriptionOffers: List<SubscriptionOffer>? = null,
-    val purchaseTokenAndroid: String? = null,
-    val replacementModeAndroid: Int? = null
+data class PurchaseResult(
+    val responseCode: Int? = null,
+    val debugMessage: String? = null,
+    val code: String? = null,
+    val message: String? = null,
+    val purchaseToken: String? = null,
+    @Deprecated("Use 'purchaseToken' instead", ReplaceWith("purchaseToken"))
+    val purchaseTokenAndroid: String? = null
 )
-
-/**
- * Platform-specific purchase request
- */
-data class PlatformPurchaseRequest(
-    val ios: IOSPurchaseOptions? = null,
-    val android: AndroidPurchaseOptions? = null
-)
-
-/**
- * iOS purchase options
- */
-data class IOSPurchaseOptions(
-    val sku: String,
-    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean? = null,
-    val appAccountToken: String? = null,
-    val quantity: Int? = null,
-    val withOffer: PaymentDiscount? = null
-)
-
-/**
- * Android purchase options
- */
-data class AndroidPurchaseOptions(
-    val skus: List<String>,
-    val obfuscatedAccountIdAndroid: String? = null,
-    val obfuscatedProfileIdAndroid: String? = null,
-    val isOfferPersonalized: Boolean? = null,
-    val subscriptionOffers: List<SubscriptionOffer>? = null,
-    val purchaseTokenAndroid: String? = null,
-    val replacementModeAndroid: Int? = null
-)
-
-/**
- * Purchase options for getAvailablePurchases and getPurchaseHistories
- */
-data class PurchaseOptions(
-    val alsoPublishToEventListener: Boolean? = null,
-    val onlyIncludeActiveItems: Boolean? = null
-)
-
-/**
- * Validation options following documentation spec
- */
-sealed class ValidationOptions {
-    data class IOSValidation(
-        val receiptBody: IOSReceiptBody
-    ) : ValidationOptions()
-    
-    data class AndroidValidation(
-        val packageName: String,
-        val productToken: String,
-        val accessToken: String,
-        val isSub: Boolean
-    ) : ValidationOptions()
-}
-
-/**
- * iOS receipt body for validation
- */
-data class IOSReceiptBody(
-    val receiptData: String,
-    val password: String? = null
-)
-
-/**
- * Validation result following documentation spec
- */
-data class ValidationResult(
-    val isValid: Boolean,
-    val status: Int,
-    
-    // iOS response fields
-    val receipt: Map<String, Any>? = null,
-    val latestReceipt: String? = null,
-    val latestReceiptInfo: List<Map<String, Any>>? = null,
-    val pendingRenewalInfo: List<Map<String, Any>>? = null,
-    
-    // Android response fields
-    val purchaseState: Int? = null,
-    val consumptionState: Int? = null,
-    val acknowledgementState: Int? = null
-)
-
-/**
- * Verification result for iOS StoreKit 2
- */
-data class VerificationResult(
-    val isValid: Boolean,
-    val environment: String? = null,
-    val verificationError: String? = null
-)
-
-/**
- * Deep link options for subscription management
- */
-data class DeepLinkOptions(
-    val skuAndroid: String? = null,
-    val packageNameAndroid: String? = null
-)
-
-/**
- * Event subscription for cleanup
- */
-interface Subscription {
-    fun remove()
-}
-
-/**
- * Implementation of event subscription
- */
-class EventSubscription(
-    private val onRemove: () -> Unit
-) : Subscription {
-    override fun remove() {
-        onRemove()
-    }
-}

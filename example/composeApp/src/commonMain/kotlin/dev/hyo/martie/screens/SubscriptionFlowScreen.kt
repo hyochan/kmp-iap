@@ -1,6 +1,7 @@
 package dev.hyo.martie.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +46,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var initError by remember { mutableStateOf<String?>(null) }
     
     var connected by remember { mutableStateOf(false) }
-    var subscriptions by remember { mutableStateOf<List<SubscriptionProduct>>(emptyList()) }
+    var subscriptions by remember { mutableStateOf<List<Product>>(emptyList()) }
     var activeSubscriptions by remember { mutableStateOf<List<ActiveSubscription>>(emptyList()) }
     var hasActiveSubscription by remember { mutableStateOf(false) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
@@ -171,26 +172,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 hasActiveSubscription = results.second
                 val subscriptionProducts = results.third
                 
-                // Process subscription products
-                subscriptions = subscriptionProducts.filterIsInstance<SubscriptionProduct>()
-                if (subscriptions.isEmpty() && subscriptionProducts.isNotEmpty()) {
-                    // If we got products but they're not SubscriptionProduct type,
-                    // convert them to subscription format
-                    subscriptions = subscriptionProducts.map { product ->
-                        SubscriptionProduct(
-                            id = product.id,
-                            title = product.title,
-                            description = product.description,
-                            price = product.price,
-                            priceAmount = product.priceAmount,
-                            currency = product.currency,
-                            subscriptionPeriod = product.subscription?.subscriptionPeriod?.toReadableString() ?: "",
-                            introductoryPrice = product.subscription?.introductoryPrice?.price,
-                            subscriptionGroupIdentifier = product.subscription?.subscriptionGroupIdentifier,
-                            platform = product.platform
-                        )
-                    }
-                }
+                // Process subscription products - they are already of type Product
+                subscriptions = subscriptionProducts
                 
                 if (subscriptions.isEmpty()) {
                     purchaseResult = "No subscriptions found for IDs: ${SUBSCRIPTION_IDS.joinToString()}"
@@ -396,9 +379,14 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     purchaseResult = null
                                     try {
                                         kmpIAP.requestPurchase(
-                                            UnifiedPurchaseRequest(
-                                                sku = subscription.id,
-                                                quantity = 1
+                                            RequestPurchaseProps(
+                                                ios = RequestPurchaseIosProps(
+                                                    sku = subscription.id,
+                                                    quantity = 1
+                                                ),
+                                                android = RequestPurchaseAndroidProps(
+                                                    skus = listOf(subscription.id)
+                                                )
                                             )
                                         )
                                         // Purchase updates will be received through the purchaseUpdatedListener
@@ -460,14 +448,47 @@ fun SubscriptionFlowScreen(navController: NavController) {
 
 @Composable
 fun SubscriptionCard(
-    subscription: SubscriptionProduct,
+    subscription: Product,
     isSubscribed: Boolean,
     activeSubscription: ActiveSubscription? = null,
     onSubscribe: () -> Unit,
     isProcessing: Boolean
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                // Log subscription product details to console in JSON format
+                println("\n========== SUBSCRIPTION PRODUCT (JSON) ==========")
+                val json = Json { 
+                    prettyPrint = true
+                    encodeDefaults = true
+                }
+                
+                // Serialize based on concrete type since Product is an interface
+                val jsonString = when (subscription) {
+                    is ProductSubscriptionAndroid -> json.encodeToString(subscription)
+                    is ProductSubscriptionIOS -> json.encodeToString(subscription)
+                    is ProductAndroid -> json.encodeToString(subscription)
+                    is ProductIOS -> json.encodeToString(subscription)
+                    else -> {
+                        // Fallback to manual JSON if unknown type
+                        """
+                        {
+                          "id": "${subscription.id}",
+                          "title": "${subscription.title}",
+                          "description": "${subscription.description}",
+                          "displayPrice": "${subscription.displayPrice}",
+                          "type": "${subscription.type}",
+                          "platform": "${subscription.platform}"
+                        }
+                        """.trimIndent()
+                    }
+                }
+                println(jsonString)
+                println("Is Subscribed: $isSubscribed")
+                println("====================================\n")
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -498,24 +519,15 @@ fun SubscriptionCard(
                         color = AppColors.Secondary
                     )
                     
-                    if (subscription.subscriptionPeriod.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Period: ${subscription.subscriptionPeriod}",
-                            fontSize = 12.sp,
-                            color = AppColors.Secondary
-                        )
-                    }
-                    
-                    subscription.introductoryPrice?.let { introPrice ->
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Introductory price: $introPrice",
-                            fontSize = 12.sp,
-                            color = AppColors.Primary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    // Show subscription period if available (would need to be extracted from platform-specific data)
+                    // For now, just show that it's a subscription
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Type: Subscription",
+                        fontSize = 12.sp,
+                        color = AppColors.Primary,
+                        fontWeight = FontWeight.Medium
+                    )
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
@@ -531,7 +543,7 @@ fun SubscriptionCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = subscription.price,
+                        text = subscription.displayPrice,
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = AppColors.Primary
@@ -588,14 +600,3 @@ fun SubscriptionCard(
     }
 }
 
-// Extension function for iOS subscription period
-private fun SubscriptionIosPeriod.toReadableString(): String {
-    return when (this) {
-        SubscriptionIosPeriod.P1W -> "1 week"
-        SubscriptionIosPeriod.P1M -> "1 month"
-        SubscriptionIosPeriod.P2M -> "2 months"
-        SubscriptionIosPeriod.P3M -> "3 months"
-        SubscriptionIosPeriod.P6M -> "6 months"
-        SubscriptionIosPeriod.P1Y -> "1 year"
-    }
-}

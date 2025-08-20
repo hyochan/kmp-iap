@@ -5,172 +5,251 @@ sidebar_position: 2
 
 # Types
 
-Comprehensive type definitions for kmp-iap v1.0.0. All types are fully documented with Kotlin data classes for complete type safety.
+Comprehensive type definitions for kmp-iap v1.0.0-beta.13 following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
 
-## Core Types
+## OpenIAP Base Interfaces
 
-### Product
+### ProductCommon (OpenIAP Base)
 
-Represents a product available for purchase with full pricing and metadata.
+Base interface following OpenIAP specification for all product types.
 
 ```kotlin
-data class Product(
-    val id: String,
-    val title: String,
-    val description: String,
-    val price: String,
-    val priceAmount: Double,
-    val currency: String,
-    
+interface ProductCommon {
+    val id: String              // Unified product identifier
+    val title: String           // Product title
+    val description: String     // Product description
+    val type: ProductType       // "inapp" or "subs"
+    val displayName: String?    // Optional display name
+    val displayPrice: String    // Formatted price for display
+    val currency: String        // ISO currency code
+    val price: Double?          // Numeric price value
+    val debugDescription: String?
+    val platform: String?      // Platform identifier
+}
+```
+
+### PurchaseCommon (OpenIAP Base)
+
+Base interface following OpenIAP specification for all purchase types.
+
+```kotlin
+interface PurchaseCommon {
+    val id: String              // Transaction identifier
+    val productId: String       // Product that was purchased
+    val ids: List<String>?      // Multiple product IDs (Android)
+    val transactionId: String?  // @deprecated - use id instead
+    val transactionDate: Double // Unix timestamp
+    val transactionReceipt: String
+    val purchaseToken: String?  // Unified token field
+    val platform: String?
+}
+```
+
+## Platform-Specific Implementations
+
+### ProductIOS
+
+iOS product implementation with platform-specific fields.
+
+```kotlin
+data class ProductIOS(
+    // ProductCommon fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double?,
+    override val debugDescription: String?,
+    override val displayName: String?,
+    override val platform: String = "ios",
+
     // iOS-specific fields
-    val displayName: String? = null,
-    val isFamilyShareable: Boolean = false,
-    val discounts: List<Discount>? = null,
-    val subscription: SubscriptionInfo? = null,
-    
+    val displayNameIOS: String,
+    val isFamilyShareableIOS: Boolean,
+    val jsonRepresentationIOS: String,
+    val subscriptionInfoIOS: SubscriptionInfoIOS? = null
+) : ProductCommon
+```
+
+### ProductAndroid
+
+Android product implementation with Google Play Billing fields.
+
+```kotlin
+data class ProductAndroid(
+    // ProductCommon fields
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double?,
+    override val debugDescription: String?,
+    override val displayName: String?,
+    override val platform: String = "android",
+
     // Android-specific fields
-    val nameAndroid: String? = null,              // Product display name (different from title)
-    val typeAndroid: String? = null,              // Product type ("inapp" or "subs")
-    val displayPriceAndroid: String? = null,      // Formatted display price
-    val oneTimePurchaseOfferDetails: OneTimePurchaseOfferDetails? = null,  // One-time purchase pricing
-    val subscriptionOfferDetails: List<OfferDetail>? = null,
-    
-    // Platform indicator
-    val platform: IapPlatform
-)
+    val nameAndroid: String,
+    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>? = null
+) : ProductCommon
 ```
 
-**Android Product Field Mapping**:
-The Android-specific fields map directly from Google Play Billing's `ProductDetails`:
+### PurchaseIOS
+
+iOS purchase implementation with StoreKit fields.
 
 ```kotlin
-// Native Android mapping
-mapOf(
-    "id" to productDetails.productId,               // -> id
-    "title" to productDetails.title,                // -> title  
-    "description" to productDetails.description,    // -> description
-    "type" to productDetails.productType,          // -> typeAndroid
-    "displayName" to productDetails.name,           // -> nameAndroid
-    "displayPrice" to displayPrice,                 // -> displayPriceAndroid
-    "oneTimePurchaseOfferDetails" to offerDetails,  // -> oneTimePurchaseOfferDetails
-    "subscriptionOfferDetails" to subscriptions     // -> subscriptionOfferDetails
-)
-```
+data class PurchaseIOS(
+    // PurchaseCommon fields
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>? = null,
+    override val transactionId: String? = null,  // @deprecated
+    override val transactionDate: Double,
+    override val transactionReceipt: String,
+    override val purchaseToken: String? = null,
+    override val platform: String = "ios",
 
-**Field Descriptions**:
-- `nameAndroid`: Product display name from `productDetails.name` (different from `title`)
-- `typeAndroid`: Product type - `"inapp"` for one-time purchases, `"subs"` for subscriptions
-- `displayPriceAndroid`: Formatted price string ready for display
-- `oneTimePurchaseOfferDetails`: Pricing details for one-time purchases (in-app products)
-
-### SubscriptionProduct
-
-Specialized product type for subscriptions.
-
-```kotlin
-data class SubscriptionProduct(
-    val id: String,
-    val title: String,
-    val description: String,
-    val price: String,
-    val priceAmount: Double,
-    val currency: String,
-    val subscriptionPeriod: String,
-    
-    // Subscription pricing
-    val introductoryPrice: String? = null,
-    val introductoryPricePeriod: SubscriptionPeriodIOS? = null,
-    val introductoryPriceCycles: Int? = null,
-    val subscriptionGroupIdentifier: String? = null,
-    
-    val platform: IapPlatform
-)
-```
-
-### Purchase
-
-Represents a completed or pending purchase transaction.
-
-```kotlin
-data class Purchase(
-    // Core fields (OpenIAP spec)
-    val id: String,                    // Primary identifier (transaction ID)
-    val productId: String,             // Product ID for the purchased item
-    val ids: List<String>? = null,     // Android: Product IDs array
-    val transactionDate: Double,
-    val transactionReceipt: String,
-    
     // iOS-specific fields
-    val transactionId: String? = null,  // @deprecated - use id instead
+    val jwsRepresentationIOS: String? = null,
     val originalTransactionDateIOS: Double? = null,
-    val originalTransactionIdIOS: String? = null,
-    val transactionState: TransactionState? = null,
-    val verificationResult: VerificationResult? = null,
-    
+    val originalTransactionIdentifierIOS: String? = null,
+    val transactionState: TransactionStateIOS? = null
+) : PurchaseCommon
+```
+
+### PurchaseAndroid
+
+Android purchase implementation with Google Play Billing fields.
+
+```kotlin
+data class PurchaseAndroid(
+    // PurchaseCommon fields
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>? = null,
+    override val transactionId: String? = null,  // @deprecated
+    override val transactionDate: Double,
+    override val transactionReceipt: String,
+    override val purchaseToken: String? = null,
+    override val platform: String = "android",
+
     // Android-specific fields
-    val purchaseTokenAndroid: String? = null,
-    val purchaseStateAndroid: Int? = null,
-    val signatureAndroid: String? = null,
-    val autoRenewingAndroid: Boolean? = null,
-    val orderIdAndroid: String? = null,
-    val packageNameAndroid: String? = null,
+    val purchaseStateAndroid: AndroidPurchaseState? = null,
     val acknowledgedAndroid: Boolean? = null,
-    val dataAndroid: String? = null,
+    val autoRenewingAndroid: Boolean? = null,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
-    
-    // Platform indicator
-    val platform: IapPlatform
+    val orderIdAndroid: String? = null,
+    val packageNameAndroid: String? = null,
+    val purchaseTimeAndroid: Double? = null,
+    val purchaseTokenAndroid: String? = null,  // @deprecated
+    val signatureAndroid: String? = null
+) : PurchaseCommon
+```
+
+## Type Aliases for Convenience
+
+OpenIAP-compliant type aliases for backward compatibility and ease of use.
+
+```kotlin
+// Union types
+typealias Product = ProductCommon
+typealias Purchase = PurchaseCommon
+typealias SubscriptionProduct = ProductCommon
+typealias ProductPurchase = PurchaseCommon
+typealias SubscriptionPurchase = PurchaseCommon
+```
+
+## Request Types (OpenIAP-Compliant)
+
+### RequestPurchaseProps
+
+OpenIAP-compliant purchase request structure with platform-specific options.
+
+```kotlin
+data class RequestPurchaseProps(
+    val ios: RequestPurchaseIosProps? = null,
+    val android: RequestPurchaseAndroidProps? = null
 )
 ```
 
-**OpenIAP Specification Changes**:
-- `id`: Primary identifier (iOS: transaction ID, Android: purchase token)
-- `productId`: Product identifier for the purchased item
-- `ids`: Array of product IDs (Android only, for multi-product purchases)
-- `transactionId`: @deprecated - use `id` instead for consistency
+### RequestPurchaseIosProps
 
-**Important Android Fields**:
-- `purchaseToken`: Unified purchase token (Android: purchase token, iOS: transaction ID/JWS)
-- `acknowledgedAndroid`: Indicates if the purchase has been acknowledged. Subscriptions must be acknowledged within 3 days.
-- `purchaseTokenAndroid`: ⚠️ **Deprecated** - Use `purchaseToken` instead
-- `jwsRepresentationIOS`: ⚠️ **Deprecated** - Use `purchaseToken` instead
-- `signatureAndroid`: Signature for verification
+iOS-specific purchase request parameters.
+
+```kotlin
+data class RequestPurchaseIosProps(
+    val sku: String,
+    val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
+    val appAccountToken: String? = null,
+    val quantity: Int? = null,
+    val withOffer: PaymentDiscountIOS? = null
+)
+```
+
+### RequestPurchaseAndroidProps
+
+Android-specific purchase request parameters.
+
+```kotlin
+data class RequestPurchaseAndroidProps(
+    val skus: List<String>,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null
+)
+```
+
+### RequestSubscriptionProps
+
+OpenIAP-compliant subscription request structure.
+
+```kotlin
+data class RequestSubscriptionProps(
+    val ios: RequestPurchaseIosProps? = null,
+    val android: RequestSubscriptionAndroidProps? = null
+)
+```
 
 ### ActiveSubscription
 
-Represents an active subscription with platform-specific details.
+Represents an active subscription with platform-specific details following OpenIAP specification.
 
 ```kotlin
 data class ActiveSubscription(
     val productId: String,                    // Product identifier
     val isActive: Boolean,                    // Always true for active subscriptions
-    
+
     // iOS-specific fields
     val expirationDateIOS: Long? = null,      // Expiration timestamp (iOS only)
     val environmentIOS: String? = null,       // "Sandbox" | "Production" (iOS only)
     val daysUntilExpirationIOS: Int? = null,  // Days remaining until expiration (iOS only)
-    
+
     // Android-specific fields
     val autoRenewingAndroid: Boolean? = null, // Auto-renewal status (Android only)
-    
+
     // Cross-platform fields
     val willExpireSoon: Boolean? = null       // True if expiring within 7 days
 )
 ```
 
 **Platform-Specific Behavior**:
+
 - **iOS**: Provides exact expiration dates, environment info, and calculated days until expiration
 - **Android**: Provides auto-renewal status. When `false`, the subscription will not renew
 - **Cross-platform**: `willExpireSoon` warns if subscription expires within 7 days
 
 **Use Cases**:
+
 - Feature gating based on subscription status
 - Showing expiration warnings
 - Managing subscription renewals
 - Environment-specific testing (iOS Sandbox vs Production)
-
-## Request Types
 
 ### ProductRequest
 
@@ -183,106 +262,128 @@ data class ProductRequest(
 )
 ```
 
-### UnifiedPurchaseRequest
+## iOS-Specific Types
 
-Cross-platform purchase request.
+### SubscriptionInfoIOS
+
+iOS subscription information from StoreKit.
 
 ```kotlin
-data class UnifiedPurchaseRequest(
-    val sku: String? = null,
-    val skus: List<String>? = null,
-    val quantity: Int? = null,
-    
-    // iOS options
-    val appAccountTokenIOS: String? = null,
-    val promotionalOfferIOS: PromotionalOffer? = null,
-    
-    // Android options
-    val obfuscatedAccountIdAndroid: String? = null,
-    val obfuscatedProfileIdAndroid: String? = null,
-    val subscriptionUpdateParamsAndroid: SubscriptionUpdateParams? = null
+data class SubscriptionInfoIOS(
+    val subscriptionGroupId: String,
+    val subscriptionPeriod: SubscriptionOfferPeriod
 )
 ```
 
-### RequestPurchaseIOS
+### SubscriptionOfferPeriod
 
-iOS-specific purchase request.
+iOS subscription period definition.
 
 ```kotlin
-data class RequestPurchaseIOS(
-    val sku: String,
-    val andDangerouslyFinishTransactionAutomaticallyIOS: Boolean = false,
-    val appAccountToken: String? = null,
-    val quantity: Int? = null,
-    val withOffer: PaymentDiscount? = null
+data class SubscriptionOfferPeriod(
+    val unit: String,        // "DAY", "WEEK", "MONTH", "YEAR"
+    val value: Int           // Number of units
 )
 ```
 
-### RequestPurchaseAndroid
+### PaymentDiscountIOS
 
-Android-specific purchase request.
+iOS promotional offer payment discount.
 
 ```kotlin
-data class RequestPurchaseAndroid(
-    val skus: List<String>,
-    val obfuscatedAccountId: String? = null,
-    val obfuscatedProfileId: String? = null,
-    val isOfferPersonalized: Boolean = false
+data class PaymentDiscountIOS(
+    val identifier: String,
+    val keyIdentifier: String,
+    val nonce: String,
+    val signature: String,
+    val timestamp: Double
 )
 ```
 
-## Subscription Types
+### DiscountIOS
 
-### SubscriptionInfo
-
-General subscription information.
+iOS product discount information.
 
 ```kotlin
-data class SubscriptionInfo(
-    val subscriptionGroupIdentifier: String? = null,
-    val subscriptionPeriod: SubscriptionPeriod? = null,
-    val introductoryPrice: IntroductoryPrice? = null,
-    val promotionalOffers: List<PromotionalOffer>? = null
+data class DiscountIOS(
+    val identifier: String,
+    val type: String,
+    val numberOfPeriods: String,
+    val price: String,
+    val localizedPrice: String,
+    val paymentMode: String,
+    val subscriptionPeriod: String
 )
 ```
 
-### SubscriptionPeriod
+## Android-Specific Types
 
-Subscription duration information.
+### ProductAndroidOneTimePurchaseOfferDetail
+
+Android one-time purchase offer details from Google Play Billing.
 
 ```kotlin
-data class SubscriptionPeriod(
-    val numberOfUnits: Int,
-    val unit: SubscriptionIosPeriod
+data class ProductAndroidOneTimePurchaseOfferDetail(
+    val formattedPrice: String,
+    val priceAmountMicros: String,
+    val priceCurrencyCode: String
 )
 ```
 
-### OfferDetail
+### ProductSubscriptionAndroidOfferDetail
 
 Android subscription offer details.
 
 ```kotlin
-data class OfferDetail(
-    val offerId: String,
+data class ProductSubscriptionAndroidOfferDetail(
     val basePlanId: String,
+    val offerId: String?,
     val offerToken: String,
-    val pricingPhases: List<PricingPhase>,
-    val offerTags: List<String>? = null
+    val pricingPhases: List<PricingPhaseAndroid>,
+    val offerTags: List<String>
 )
 ```
 
-### PricingPhase
+### PricingPhaseAndroid
 
 Android subscription pricing phase.
 
 ```kotlin
-data class PricingPhase(
-    val billingPeriod: String,
+data class PricingPhaseAndroid(
     val formattedPrice: String,
-    val priceAmountMicros: String,
     val priceCurrencyCode: String,
+    val billingPeriod: String,
     val billingCycleCount: Int,
-    val recurrenceMode: RecurrenceMode? = null
+    val priceAmountMicros: String,
+    val recurrenceMode: Int
+)
+```
+
+### SubscriptionOfferAndroid
+
+Android subscription offer for purchase requests.
+
+```kotlin
+data class SubscriptionOfferAndroid(
+    val basePlanId: String,
+    val offerId: String?,
+    val offerToken: String
+)
+```
+
+### RequestSubscriptionAndroidProps
+
+Android-specific subscription request parameters.
+
+```kotlin
+data class RequestSubscriptionAndroidProps(
+    val skus: List<String>,
+    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedProfileIdAndroid: String? = null,
+    val isOfferPersonalized: Boolean? = null,
+    val purchaseTokenAndroid: String? = null,
+    val replacementModeAndroid: Int? = null,
+    val subscriptionOffers: List<SubscriptionOfferAndroid>
 )
 ```
 
@@ -290,7 +391,7 @@ data class PricingPhase(
 
 ### IapPlatform
 
-Platform identifier.
+Platform identifier for cross-platform compatibility.
 
 ```kotlin
 enum class IapPlatform {
@@ -323,12 +424,12 @@ enum class ProductType {
 }
 ```
 
-### TransactionState
+### TransactionStateIOS
 
-iOS transaction states.
+iOS transaction states from StoreKit.
 
 ```kotlin
-enum class TransactionState {
+enum class TransactionStateIOS {
     PURCHASING,
     PURCHASED,
     FAILED,
@@ -337,109 +438,101 @@ enum class TransactionState {
 }
 ```
 
-### PurchaseState
+### AndroidPurchaseState
 
-Android purchase states.
+Android purchase states from Google Play Billing.
 
 ```kotlin
-enum class PurchaseState {
-    UNSPECIFIED,  // 0 - Unspecified state
-    PURCHASED,    // 1 - Purchase completed
-    PENDING       // 2 - Purchase pending
+enum class AndroidPurchaseState {
+    UNSPECIFIED_STATE,  // 0 - Unspecified state
+    PURCHASED,          // 1 - Purchase completed
+    PENDING             // 2 - Purchase pending
 }
 ```
 
-### SubscriptionPeriodIOS
+### SubscriptionPeriodUnitIOS
 
-iOS subscription period units.
+iOS subscription period units from StoreKit.
 
 ```kotlin
-enum class SubscriptionPeriodIOS {
-    P1W,  // 1 week
-    P1M,  // 1 month
-    P2M,  // 2 months
-    P3M,  // 3 months
-    P6M,  // 6 months
-    P1Y   // 1 year
+enum class SubscriptionPeriodUnitIOS {
+    DAY,
+    WEEK,
+    MONTH,
+    YEAR
 }
 ```
 
-### RecurrenceMode
+### DiscountPaymentModeIOS
 
-Android subscription recurrence modes.
+iOS discount payment modes.
 
 ```kotlin
-enum class RecurrenceMode {
-    INFINITE_RECURRING,       // Charges recur forever
-    FINITE_RECURRING,         // Charges recur for a fixed number of cycles
-    NON_RECURRING            // Charges occur once
+enum class DiscountPaymentModeIOS {
+    PAYASYOUGO,
+    PAYUPFRONT,
+    FREETRIAL
 }
 ```
 
-### ReplacementMode
+### DiscountTypeIOS
 
-Android subscription replacement modes (proration).
+iOS discount types.
 
 ```kotlin
-enum class ReplacementMode {
-    UNKNOWN_REPLACEMENT_MODE,
-    IMMEDIATE_WITH_TIME_PRORATION,
-    IMMEDIATE_AND_CHARGE_PRORATED_PRICE,
-    IMMEDIATE_WITHOUT_PRORATION,
-    DEFERRED,
-    IMMEDIATE_AND_CHARGE_FULL_PRICE
+enum class DiscountTypeIOS {
+    INTRODUCTORY,
+    SUBSCRIPTION
 }
 ```
 
-## Error Types
+## Error Types (OpenIAP-Compliant)
 
 ### PurchaseError
 
-Exception thrown for IAP errors.
+Exception thrown for IAP errors following OpenIAP specification.
 
 ```kotlin
-data class PurchaseError(
-    val code: String,
+class PurchaseError(
+    val code: String,           // ErrorCode enum value
     override val message: String,
-    val productId: String? = null,
     val responseCode: Int? = null,
     val debugMessage: String? = null,
-    val platform: IapPlatform? = null,
-    val subResponseCode: Int? = null,  // Android billing v8.0.0+
-    val subResponseMessage: String? = null
+    val purchaseToken: String? = null
 ) : Exception(message)
 ```
 
 ### ErrorCode
 
-Error code enumeration.
+OpenIAP-compliant error code enumeration.
 
 ```kotlin
 enum class ErrorCode {
     E_UNKNOWN,
     E_USER_CANCELLED,
-    E_NOT_INITIALIZED,
-    E_STORE_NOT_AVAILABLE,
-    E_PRODUCTS_NOT_FETCHED,
-    E_PURCHASE_NOT_ALLOWED,
+    E_USER_ERROR,
     E_ITEM_UNAVAILABLE,
-    E_DEVELOPER_ERROR,
-    E_PRODUCT_ALREADY_PURCHASED,
-    E_PRODUCT_NOT_PURCHASED,
-    E_PRODUCT_LOAD_FAILED,
-    E_UNABLE_TO_BUY,
-    E_PENDING,
-    E_UNFINISHED_TRANSACTION,
-    E_RECEIPT_REQUEST_FAILED,
-    E_RECEIPT_LOAD_FAILED,
-    E_BILLING_UNAVAILABLE,
-    E_SERVICE_ERROR,
-    E_SERVICE_TIMEOUT,
-    E_SERVICE_DISCONNECTED,
-    E_ALREADY_OWNED,
-    E_INTERRUPTED,
+    E_REMOTE_ERROR,
     E_NETWORK_ERROR,
-    E_ACTIVITY_UNAVAILABLE
+    E_SERVICE_ERROR,
+    E_RECEIPT_FAILED,
+    E_RECEIPT_FINISHED_FAILED,
+    E_NOT_PREPARED,
+    E_NOT_ENDED,
+    E_ALREADY_OWNED,
+    E_DEVELOPER_ERROR,
+    E_BILLING_RESPONSE_JSON_PARSE_ERROR,
+    E_DEFERRED_PAYMENT,
+    E_INTERRUPTED,
+    E_IAP_NOT_AVAILABLE,
+    E_PURCHASE_ERROR,
+    E_SYNC_ERROR,
+    E_TRANSACTION_VALIDATION_FAILED,
+    E_ACTIVITY_UNAVAILABLE,
+    E_ALREADY_PREPARED,
+    E_PENDING,
+    E_CONNECTION_CLOSED,
+    E_PRODUCT_NOT_AVAILABLE
 }
 ```
 
@@ -447,13 +540,32 @@ enum class ErrorCode {
 
 ### ValidationOptions
 
-Options for receipt validation.
+Union type for platform-specific validation options.
 
 ```kotlin
-data class ValidationOptions(
-    val receiptIOS: String? = null,
-    val signatureAndroid: String? = null,
-    val purchaseTokenAndroid: String? = null
+sealed class ValidationOptions {
+    data class IOSValidation(
+        val receiptBody: IOSReceiptBody
+    ) : ValidationOptions()
+
+    data class AndroidValidation(
+        val packageName: String,
+        val productId: String,
+        val productToken: String,
+        val accessToken: String,
+        val isSub: Boolean = false
+    ) : ValidationOptions()
+}
+```
+
+### IOSReceiptBody
+
+iOS receipt validation parameters.
+
+```kotlin
+data class IOSReceiptBody(
+    val receiptData: String,
+    val password: String? = null
 )
 ```
 
@@ -465,86 +577,13 @@ Receipt validation result.
 data class ValidationResult(
     val isValid: Boolean,
     val status: Int,
-    val latestReceiptInfo: List<Map<String, Any>>? = null,
-    val pendingRenewalInfo: List<Map<String, Any>>? = null
+    val receipt: Map<String, Any>? = null
 )
 ```
 
-## Platform-Specific Types
+## Utility Types
 
-### iOS Types
-
-#### PaymentDiscount
-
-iOS promotional offer information.
-
-```kotlin
-data class PaymentDiscount(
-    val identifier: String,
-    val keyIdentifier: String,
-    val nonce: String,
-    val signature: String,
-    val timestamp: Long
-)
-```
-
-#### PromotionalOffer
-
-iOS promotional offer details.
-
-```kotlin
-data class PromotionalOffer(
-    val offerId: String,
-    val price: String,
-    val priceAmount: Double,
-    val period: SubscriptionPeriod,
-    val numberOfPeriods: Int,
-    val type: DiscountTypeIOS
-)
-```
-
-#### VerificationResult
-
-iOS transaction verification result.
-
-```kotlin
-enum class VerificationResult {
-    VERIFIED,
-    UNVERIFIED
-}
-```
-
-### Android Types
-
-#### OneTimePurchaseOfferDetails
-
-Android one-time purchase pricing details from Google Play Billing's `ProductDetails.OneTimePurchaseOfferDetails`.
-
-```kotlin
-data class OneTimePurchaseOfferDetails(
-    val priceCurrencyCode: String,     // ISO 4217 currency code (e.g., "USD")
-    val formattedPrice: String,        // Formatted price string (e.g., "$0.99")
-    val priceAmountMicros: String      // Price in micros (e.g., "990000" for $0.99)
-)
-```
-
-**Field Descriptions**:
-- `priceCurrencyCode`: ISO 4217 currency code for the price
-- `formattedPrice`: Human-readable price string formatted for the user's locale
-- `priceAmountMicros`: Price in micros (divide by 1,000,000 to get actual price)
-
-#### SubscriptionUpdateParams
-
-Android subscription upgrade/downgrade parameters.
-
-```kotlin
-data class SubscriptionUpdateParams(
-    val oldPurchaseToken: String,
-    val replacementMode: ReplacementMode
-)
-```
-
-#### DeepLinkOptions
+### DeepLinkOptions
 
 Options for deep linking to subscription management.
 
@@ -554,8 +593,6 @@ data class DeepLinkOptions(
     val skuIOS: String? = null
 )
 ```
-
-## Utility Types
 
 ### PurchaseOptions
 
@@ -589,31 +626,130 @@ interface Subscription {
 }
 ```
 
-## Type Conversion
+## Usage Examples
 
-### Extension Functions
+### Cross-Platform Product Handling
 
 ```kotlin
-// Convert Android Purchase to unified Purchase
-fun com.android.billingclient.api.Purchase.toPurchase(): Purchase
+// OpenIAP-compliant product handling
+fun displayProduct(product: ProductCommon) {
+    // Use standardized fields
+    println("Product: ${product.title}")
+    println("Price: ${product.displayPrice}")
+    println("Type: ${product.type}")
 
-// Convert ProductDetails to unified Product
-fun ProductDetails.toProduct(): Product
+    // Platform-specific enhancements
+    when (product.platform) {
+        "ios" -> {
+            val iosProduct = product as ProductIOS
+            if (iosProduct.isFamilyShareableIOS) {
+                println("Available for family sharing")
+            }
+        }
+        "android" -> {
+            val androidProduct = product as ProductAndroid
+            androidProduct.oneTimePurchaseOfferDetailsAndroid?.let { offer ->
+                println("Detailed pricing: ${offer.formattedPrice}")
+            }
+        }
+    }
+}
+```
 
-// Convert iOS Transaction to unified Purchase
-fun Transaction.toPurchase(): Purchase
+### Standardized Purchase Processing
+
+```kotlin
+// OpenIAP-compliant purchase flow
+kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+    // Use unified fields
+    val receiptData = PurchaseReceiptData(
+        transactionId = purchase.id,
+        productId = purchase.productId,
+        purchaseToken = purchase.purchaseToken,
+        transactionDate = purchase.transactionDate,
+        platform = purchase.platform
+    )
+
+    // Validate with your backend
+    val isValid = validateReceiptOnServer(receiptData)
+
+    if (isValid) {
+        // Grant entitlement
+        grantEntitlement(purchase.productId)
+
+        // Finish transaction
+        kmpIapInstance.finishTransaction(
+            purchase = purchase,
+            isConsumable = determineIfConsumable(purchase.productId)
+        )
+    }
+}
+```
+
+### Making Purchases with OpenIAP Request Structure
+
+```kotlin
+// OpenIAP-compliant purchase request
+val purchase = kmpIapInstance.requestPurchase(
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = "premium",
+            quantity = 1
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf("premium")
+        )
+    )
+)
 ```
 
 ## Best Practices
 
-1. **Always check nullable fields**: Many fields are platform-specific and may be null
-2. **Use platform checks**: Check `getCurrentPlatform()` before accessing platform-specific fields
-3. **Handle acknowledgment**: Check `acknowledgedAndroid` before re-acknowledging
-4. **Validate types**: Use proper `ProductType` when querying products
-5. **Error handling**: Always catch `PurchaseError` and check error codes
+1. **Use OpenIAP interfaces**: Always work with `ProductCommon` and `PurchaseCommon` for maximum compatibility
+2. **Platform-specific casting**: Cast to platform-specific types only when needed for specific features
+3. **Unified fields first**: Use unified fields like `purchaseToken` instead of platform-specific deprecated fields
+4. **Error handling**: Always catch `PurchaseError` and check OpenIAP-compliant error codes
+5. **Backward compatibility**: Existing deprecated fields are still available for migration
+
+## Migration from Legacy Types
+
+### Type Aliases for Compatibility
+
+```kotlin
+// These work automatically with existing code
+val products: List<Product> = kmpIapInstance.requestProducts(...)
+val purchase: Purchase = kmpIapInstance.requestPurchase(...)
+
+// But you can now access OpenIAP-compliant fields
+products.forEach { product ->
+    val displayPrice = product.displayPrice  // ✅ New unified field
+    val productType = product.type           // ✅ New unified field
+}
+```
+
+### Deprecated Field Migration
+
+```kotlin
+// ❌ OLD: Platform-specific deprecated fields
+val tokenOld = (purchase as? PurchaseAndroid)?.purchaseTokenAndroid
+    ?: (purchase as? PurchaseIOS)?.jwsRepresentationIOS
+
+// ✅ NEW: Unified purchaseToken field
+val tokenNew = purchase.purchaseToken
+
+// ❌ OLD: UnifiedPurchaseRequest (deprecated)
+val oldRequest = UnifiedPurchaseRequest(sku = "premium")
+
+// ✅ NEW: OpenIAP-compliant RequestPurchaseProps
+val newRequest = RequestPurchaseProps(
+    ios = RequestPurchaseIosProps(sku = "premium"),
+    android = RequestPurchaseAndroidProps(skus = listOf("premium"))
+)
+```
 
 ## See Also
 
-- [Core Methods](./core-methods.md) - How to use these types
-- [Error Codes](./error-codes.md) - Complete error code reference
-- [Platform Differences](../guides/platform-differences.md) - Platform-specific considerations
+- [Core Methods](./core-methods.md) - How to use these OpenIAP-compliant types
+- [Error Codes](./error-codes.md) - Complete OpenIAP error code reference
+- [Migration Guide](../guides/migration.md) - Detailed migration instructions
+- [OpenIAP Specification](https://openiap.dev) - Official OpenIAP standard

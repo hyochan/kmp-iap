@@ -1,8 +1,15 @@
 package io.github.hyochan.kmpiap.types
 
+import kotlinx.serialization.Serializable
+
 /**
- * Store types matching documentation spec
+ * Enums matching OpenIAP specification
  */
+
+/**
+ * Store types
+ */
+@Serializable
 enum class Store {
     NONE,
     PLAY_STORE,
@@ -11,16 +18,9 @@ enum class Store {
 }
 
 /**
- * Platform detection enum
+ * IAP Event types
  */
-enum class IapPlatform {
-    IOS,
-    ANDROID
-}
-
-/**
- * IAP Event types matching documentation spec
- */
+@Serializable
 enum class IapEvent {
     PURCHASE_UPDATED,
     PURCHASE_ERROR,
@@ -28,59 +28,32 @@ enum class IapEvent {
 }
 
 /**
- * Transaction states (iOS)
+ * Error codes matching OpenIAP spec
  */
-enum class TransactionState {
-    PURCHASING,
-    PURCHASED,
-    FAILED,
-    RESTORED,
-    DEFERRED
+@Serializable
+enum class ErrorCode {
+    E_UNKNOWN,
+    E_USER_CANCELLED,
+    E_USER_ERROR,
+    E_ITEM_UNAVAILABLE,
+    E_REMOTE_ERROR,
+    E_NETWORK_ERROR,
+    E_SERVICE_ERROR,
+    E_RECEIPT_FAILED,
+    E_RECEIPT_FINISHED_FAILED,
+    E_NOT_PREPARED,
+    E_NOT_ENDED,
+    E_ALREADY_OWNED,
+    E_DEVELOPER_ERROR,
+    E_BILLING_RESPONSE_JSON_PARSE_ERROR,
+    E_DEFERRED_PAYMENT,
+    E_INTERRUPTED,
+    E_IAP_NOT_AVAILABLE,
+    E_PURCHASE_ERROR,
+    E_SYNC_ERROR,
+    E_TRANSACTION_VALIDATION_FAILED,
+    E_ACTIVITY_UNAVAILABLE,
+    E_ALREADY_PREPARED,
+    E_PENDING,
+    E_CONNECTION_CLOSED
 }
-
-/**
- * Purchase states (Android)
- */
-enum class PurchaseState {
-    UNSPECIFIED,  // 0 - Unspecified state
-    PURCHASED,    // 1 - Purchase completed
-    PENDING       // 2 - Purchase pending
-}
-
-/**
- * iOS Subscription periods matching documentation spec
- */
-enum class SubscriptionPeriodIOS {
-    P1W,  // 1 week
-    P1M,  // 1 month
-    P2M,  // 2 months
-    P3M,  // 3 months
-    P6M,  // 6 months
-    P1Y   // 1 year
-}
-
-/**
- * Android Recurrence modes
- */
-enum class RecurrenceMode {
-    INFINITE_RECURRING,       // Charges recur forever
-    FINITE_RECURRING,         // Charges recur for a fixed number of cycles
-    NON_RECURRING            // Charges occur once
-}
-
-/**
- * Android Replacement modes (proration modes)
- */
-enum class ReplacementMode {
-    UNKNOWN_REPLACEMENT_MODE,
-    IMMEDIATE_WITH_TIME_PRORATION,
-    IMMEDIATE_AND_CHARGE_PRORATED_PRICE,
-    IMMEDIATE_WITHOUT_PRORATION,
-    DEFERRED,
-    IMMEDIATE_AND_CHARGE_FULL_PRICE
-}
-
-/**
- * Get the current platform
- */
-expect fun getCurrentPlatform(): IapPlatform

@@ -246,6 +246,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                                 // Store product details for later use
                                 productDetailsList.forEach { productDetails ->
                                     println("[KMP-IAP] Product found: ${productDetails.productId} - ${productDetails.title}")
+                                    // Store in map for purchase flow
                                     productDetailsMap[productDetails.productId] = productDetails
                                 }
                                 
@@ -295,10 +296,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         return allProducts
     }
     
-    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase {
+    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
         ensureConnection()
         
-        val sku = request.sku ?: request.skus?.firstOrNull() ?: throw PurchaseError(
+        val sku = request.android?.skus?.firstOrNull() ?: throw PurchaseError(
             code = ErrorCode.E_DEVELOPER_ERROR.name,
             message = "No SKU provided"
         )
@@ -393,25 +394,23 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 PurchaseError(
                     code = errorCode.name,
                     message = billingResult?.debugMessage ?: "Failed to launch billing flow",
-                    productId = sku,
                     responseCode = billingResult?.responseCode
                 )
             )
             throw PurchaseError(
                 code = errorCode.name,
                 message = billingResult?.debugMessage ?: "Failed to launch billing flow",
-                productId = sku,
                 responseCode = billingResult?.responseCode
             )
         }
         
         // Return a pending purchase - actual purchase will be handled by the listener
-        return Purchase(
+        return PurchaseAndroid(
             id = sku,  // Use SKU as temporary ID for immediate return
             productId = sku,
             transactionDate = Clock.System.now().epochSeconds.toDouble(),
             transactionReceipt = "",
-            platform = IapPlatform.ANDROID
+            platform = "android"
         )
     }
     
@@ -462,14 +461,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         return allPurchases
     }
     
-    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> {
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> {
         // Android doesn't provide purchase history in v6+
         return emptyList()
     }
     
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
         return try {
-            val token = purchase.purchaseToken ?: purchase.purchaseTokenAndroid  // Try unified field first, fallback to deprecated
+            val token = purchase.purchaseToken ?: (purchase as? PurchaseAndroid)?.purchaseTokenAndroid  // Try unified field first, fallback to deprecated
             if (isConsumable == true) {
                 token?.let {
                     consumePurchaseAndroid(it)
@@ -614,7 +613,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
     
     override suspend fun isPurchaseValid(purchase: Purchase): Boolean {
-        val token = purchase.purchaseToken ?: purchase.purchaseTokenAndroid  // Try unified field first
+        val token = purchase.purchaseToken ?: (purchase as? PurchaseAndroid)?.purchaseTokenAndroid  // Try unified field first
         return token?.isNotEmpty() == true
     }
     
@@ -647,12 +646,10 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         } else {
             val errorCode = mapBillingResponseCode(billingResult.responseCode)
             // Try to get productId from purchases if available, or from the last requested SKU
-            val productId = purchases?.firstOrNull()?.products?.firstOrNull()
             _purchaseErrorListener.tryEmit(
                 PurchaseError(
                     code = errorCode.name,
                     message = billingResult.debugMessage ?: "Purchase failed",
-                    productId = productId,
                     responseCode = billingResult.responseCode
                 )
             )
@@ -676,21 +673,21 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
 // Extension functions
 private fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
-    return Purchase(
+    return PurchaseAndroid(
         id = orderId ?: purchaseToken,  // Primary identifier (Android uses orderId, fallback to purchaseToken)
-        productId = products.firstOrNull() ?: "",  // Product ID for the purchased item
         ids = products,  // Android: Product IDs array
         purchaseToken = purchaseToken,  // Unified purchase token
         transactionDate = purchaseTime.toDouble() / 1000, // Convert millis to seconds
         transactionReceipt = originalJson,
         transactionId = orderId,  // @deprecated - use id instead
         purchaseTokenAndroid = purchaseToken,  // @deprecated - use purchaseToken instead
-        purchaseStateAndroid = purchaseState,
+        productId = products.firstOrNull() ?: "",
+        purchaseStateAndroid = PurchaseAndroidState.values().find { it.value == purchaseState },
         signatureAndroid = signature,
-        acknowledgedAndroid = isAcknowledged,
-        orderIdAndroid = orderId,
+        isAcknowledgedAndroid = isAcknowledged,
+        dataAndroid = originalJson,
         packageNameAndroid = packageName,
-        platform = IapPlatform.ANDROID
+        platform = "android"
     )
 }
 
@@ -699,51 +696,57 @@ private fun ProductDetails.toProduct(): Product {
     val subscriptionOfferDetails = subscriptionOfferDetails
     
     return if (oneTimePurchaseOfferDetails != null) {
-        Product(
+        ProductAndroid(
             id = productId,
             title = title,
             description = description,
-            price = oneTimePurchaseOfferDetails.formattedPrice,
-            priceAmount = oneTimePurchaseOfferDetails.priceAmountMicros.toDouble() / 1000000,
+            type = ProductType.INAPP,
+            displayPrice = oneTimePurchaseOfferDetails.formattedPrice,
+            price = oneTimePurchaseOfferDetails.priceAmountMicros.toDouble() / 1000000,
             currency = oneTimePurchaseOfferDetails.priceCurrencyCode,
-            platform = IapPlatform.ANDROID
+            nameAndroid = name,
+            oneTimePurchaseOfferDetailsAndroid = ProductAndroidOneTimePurchaseOfferDetail(
+                priceCurrencyCode = oneTimePurchaseOfferDetails.priceCurrencyCode,
+                formattedPrice = oneTimePurchaseOfferDetails.formattedPrice,
+                priceAmountMicros = oneTimePurchaseOfferDetails.priceAmountMicros.toString()
+            ),
+            platform = "android"
         )
     } else {
         val offer = subscriptionOfferDetails?.firstOrNull()
         val phase = offer?.pricingPhases?.pricingPhaseList?.firstOrNull()
-        Product(
+        ProductSubscriptionAndroid(
             id = productId,
             title = title,
             description = description,
-            price = phase?.formattedPrice ?: "",
-            priceAmount = (phase?.priceAmountMicros?.toDouble() ?: 0.0) / 1000000,
+            type = ProductType.SUBS,
+            displayPrice = phase?.formattedPrice ?: "",
+            price = (phase?.priceAmountMicros?.toDouble() ?: 0.0) / 1000000,
             currency = phase?.priceCurrencyCode ?: "USD",
-            subscriptionOfferDetails = subscriptionOfferDetails?.map { it.toOfferDetail() },
-            platform = IapPlatform.ANDROID
+            nameAndroid = name,
+            subscriptionOfferDetailsAndroid = subscriptionOfferDetails?.map { it.toOfferDetail() } ?: emptyList(),
+            platform = "android"
         )
     }
 }
 
-private fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): OfferDetail {
-    return OfferDetail(
-        offerId = offerId ?: "",
+private fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): ProductSubscriptionAndroidOfferDetails {
+    return ProductSubscriptionAndroidOfferDetails(
+        offerId = offerId,
         basePlanId = basePlanId,
         offerToken = offerToken,
-        pricingPhases = pricingPhases.pricingPhaseList.map { phase ->
-            PricingPhase(
-                billingPeriod = phase.billingPeriod,
-                formattedPrice = phase.formattedPrice,
-                priceAmountMicros = phase.priceAmountMicros.toString(),
-                priceCurrencyCode = phase.priceCurrencyCode,
-                billingCycleCount = phase.billingCycleCount,
-                recurrenceMode = when (phase.recurrenceMode) {
-                    1 -> RecurrenceMode.FINITE_RECURRING
-                    2 -> RecurrenceMode.INFINITE_RECURRING
-                    3 -> RecurrenceMode.NON_RECURRING
-                    else -> null
-                }
-            )
-        },
+        pricingPhases = PricingPhasesAndroid(
+            pricingPhaseList = pricingPhases.pricingPhaseList.map { phase ->
+                PricingPhaseAndroid(
+                    formattedPrice = phase.formattedPrice,
+                    priceCurrencyCode = phase.priceCurrencyCode,
+                    billingPeriod = phase.billingPeriod,
+                    billingCycleCount = phase.billingCycleCount,
+                    priceAmountMicros = phase.priceAmountMicros.toString(),
+                    recurrenceMode = phase.recurrenceMode
+                )
+            }
+        ),
         offerTags = offerTags
     )
 }

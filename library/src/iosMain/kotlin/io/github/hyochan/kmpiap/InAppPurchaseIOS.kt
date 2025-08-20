@@ -146,8 +146,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override val promotedProductListener: Flow<String?> = _promotedProductListener.asSharedFlow()
     
     // Private properties
-    private val productCache = mutableMapOf<String, SKProduct>()
-    // NOTE: Removed transactionCache to avoid bugs with stale transaction references
     private val productRequests = mutableMapOf<SKProductsRequest, (List<SKProduct>, Set<*>) -> Unit>()
     private val restoredPurchases = mutableListOf<Purchase>()
     private var restoreCompletion: (() -> Unit)? = null
@@ -177,7 +175,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 PurchaseError(
                     code = ErrorCode.E_PENDING.name,
                     message = "Purchase is deferred and waiting for approval",
-                    productId = transaction.payment.productIdentifier
                 )
             )
         }
@@ -200,15 +197,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         
         paymentObserver.promotedProductHandler = { productId, product ->
             _promotedProductListener.tryEmit(productId)
-            productCache[productId] = product
         }
         
         paymentObserver.productsResponseHandler = { request, products, invalidIds ->
-            // Cache products
-            products.forEach { product ->
-                productCache[product.productIdentifier] = product
-            }
-            
             productRequests[request]?.invoke(products, invalidIds)
             productRequests.remove(request)
         }
@@ -251,8 +242,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         ensureConnection()
         return suspendCancellableCoroutine { continuation ->
             try {
-                val productIds = params.skus.toSet()
-                val request = SKProductsRequest(productIdentifiers = productIds)
+                val request = SKProductsRequest(productIdentifiers = params.skus.toSet())
                 
                 productRequests[request] = { products, invalidIds ->
                     productRequests.remove(request)
@@ -289,9 +279,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
     
-    override suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase {
+    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
         ensureConnection()
-        val sku = request.sku ?: request.skus?.firstOrNull()
+        val sku = request.ios?.sku
         if (sku == null) {
             val error = PurchaseError(
                 code = ErrorCode.E_DEVELOPER_ERROR.name,
@@ -301,41 +291,46 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             throw error
         }
         
-        val quantity = request.quantity ?: 1
-        val appAccountToken = request.appAccountToken
+        val quantity = request.ios?.quantity ?: 1
+        val appAccountToken = request.ios?.appAccountToken
         
-        // Check if product is already in cache first
-        var skProduct = productCache[sku]
+        // Fetch product details
+        val products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
+        if (products.isEmpty()) {
+            val error = PurchaseError(
+                code = ErrorCode.E_ITEM_UNAVAILABLE.name,
+                message = "Product not found: $sku",
+            )
+            _purchaseErrorListener.tryEmit(error)
+            throw error
+        }
         
+        // Get SKProduct from fetched products
+        val productList = suspendCancellableCoroutine<List<SKProduct>> { continuation ->
+            val request = SKProductsRequest(productIdentifiers = setOf(sku))
+            productRequests[request] = { skProducts, _ ->
+                if (continuation.isActive) {
+                    continuation.resume(skProducts)
+                }
+            }
+            request.delegate = paymentObserver
+            request.start()
+        }
+        
+        val skProduct = productList.firstOrNull()
         if (skProduct == null) {
-            // Only fetch if not in cache
-            val products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
-            if (products.isEmpty()) {
-                val error = PurchaseError(
-                    code = ErrorCode.E_ITEM_UNAVAILABLE.name,
-                    message = "Product not found: $sku",
-                    productId = sku
-                )
-                _purchaseErrorListener.tryEmit(error)
-                throw error
-            }
-            
-            skProduct = productCache[sku]
-            if (skProduct == null) {
-                val error = PurchaseError(
-                    code = ErrorCode.E_PRODUCT_NOT_AVAILABLE.name,
-                    message = "Product not in cache after fetch: $sku",
-                    productId = sku
-                )
-                _purchaseErrorListener.tryEmit(error)
-                throw error
-            }
+            val error = PurchaseError(
+                code = ErrorCode.E_ITEM_UNAVAILABLE.name,
+                message = "Failed to fetch product: $sku",
+            )
+            _purchaseErrorListener.tryEmit(error)
+            throw error
         }
         
         try {
             val payment = SKMutablePayment.paymentWithProduct(skProduct)
             
-            payment.setQuantity(quantity?.toLong() ?: 1)
+            payment.setQuantity(quantity.toLong())
             
             appAccountToken?.let { token ->
                 payment.setApplicationUsername(token)
@@ -352,18 +347,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     // Silent fail - will be handled by transaction observer
                 }
             }
-            return Purchase(
+            return PurchaseIOS(
                 id = sku,  // Use SKU as temporary ID for immediate return
                 productId = sku,
                 transactionDate = Clock.System.now().epochSeconds.toDouble(),
                 transactionReceipt = "",
-                platform = IapPlatform.IOS
+                platform = "ios"
             )
         } catch (e: Exception) {
             val error = PurchaseError(
                 code = ErrorCode.E_UNKNOWN.name,
                 message = "Failed to create payment: ${e.message}",
-                productId = sku
             )
             _purchaseErrorListener.tryEmit(error)
             throw error
@@ -397,17 +391,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
     
-    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<ProductPurchase> {
+    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> {
         // iOS doesn't have a separate purchase history API
-        // Return available purchases as ProductPurchase
-        val purchases = getAvailablePurchases(options)
-        return purchases.map { purchase ->
-            ProductPurchase(
-                purchase = purchase,
-                isFinishedIOS = true,
-                purchaseState = PurchaseState.PURCHASED
-            )
-        }
+        // Return available purchases directly
+        return getAvailablePurchases(options)
     }
     
     override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
@@ -420,8 +407,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         
         val transaction = transactions.firstOrNull { trans ->
             val skTransaction = trans as? SKPaymentTransaction
-            skTransaction?.transactionIdentifier == transactionId || 
-            (skTransaction?.transactionIdentifier == null && skTransaction?.payment?.productIdentifier == transactionId)
+            skTransaction?.transactionIdentifier == transactionId
         } as? SKPaymentTransaction
         
         if (transaction == null) {
@@ -518,7 +504,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
     
     override suspend fun clearProductsIOS() {
-        productCache.clear()
+        // No cache to clear anymore
     }
     
     override suspend fun getPromotedProductIOS(): String? {
@@ -554,7 +540,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 
                 for (transaction in transactions) {
                     val skTransaction = transaction as SKPaymentTransaction
-                    val productId = skTransaction.payment.productIdentifier
+                    
+                    // Get product ID from the payment
+                    val productId = skTransaction.payment?.productIdentifier ?: continue
                     
                     // Filter by subscriptionIds if provided
                     if (subscriptionIds != null && !subscriptionIds.contains(productId)) {
@@ -579,8 +567,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 
                 // Process only the latest transaction for each unique product
                 for ((productId, skTransaction) in latestTransactionsByProduct) {
-                    // Get product details from cached products
-                    val product = productCache[productId]
+                    // Product details not available without fetching
+                    val product: SKProduct? = null
                     
                     // Calculate expiration info (simplified - actual implementation would need receipt validation)
                     val expirationDate = skTransaction.transactionDate?.let { purchaseDate ->
@@ -776,7 +764,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             PurchaseError(
                 code = errorCode.name,
                 message = error?.localizedDescription ?: "Purchase failed",
-                productId = transaction.payment.productIdentifier
             )
         )
         
@@ -795,36 +782,60 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
 // Extension functions
 private fun SKProduct.toProduct(): Product {
-    return Product(
+    return ProductIOS(
         id = productIdentifier,
         title = try { localizedTitle } catch (e: Exception) { productIdentifier },
         description = try { localizedDescription } catch (e: Exception) { "" },
-        price = try { localizedPrice() } catch (e: Exception) { price.toString() },
-        priceAmount = price.doubleValue,
+        type = ProductType.INAPP,
+        displayPrice = try { localizedPrice() } catch (e: Exception) { price.toString() },
+        price = price.doubleValue,
         currency = try { priceLocale.currencyCode } catch (e: Exception) { null } ?: "USD",
-        displayName = try { localizedTitle } catch (e: Exception) { productIdentifier },
-        isFamilyShareable = try { isFamilyShareable } catch (e: Exception) { false },
-        discounts = try { 
-            discounts?.map { discount -> (discount as SKProductDiscount).toDiscount() }
+        displayNameIOS = try { localizedTitle } catch (e: Exception) { productIdentifier },
+        isFamilyShareableIOS = try { isFamilyShareable } catch (e: Exception) { false },
+        jsonRepresentationIOS = "", // Would need actual JSON representation
+        subscriptionInfoIOS = try { 
+            subscriptionPeriod?.let { 
+                SubscriptionInfoIOS(
+                    subscriptionGroupId = subscriptionGroupIdentifier ?: "",
+                    subscriptionPeriod = SubscriptionOfferPeriod(
+                        unit = it.unit.toUnitString().uppercase(),
+                        value = it.numberOfUnits.toInt()
+                    )
+                )
+            }
         } catch (e: Exception) { null },
-        platform = IapPlatform.IOS
+        platform = "ios"
     )
 }
 
-private fun SKProduct.toSubscription(): SubscriptionProduct {
-    return SubscriptionProduct(
+private fun SKProduct.toSubscription(): Product {
+    return ProductSubscriptionIOS(
         id = productIdentifier,
         title = try { localizedTitle } catch (e: Exception) { productIdentifier },
         description = try { localizedDescription } catch (e: Exception) { "" },
-        price = try { localizedPrice() } catch (e: Exception) { price.toString() },
-        priceAmount = price.doubleValue,
+        type = ProductType.SUBS,
+        displayPrice = try { localizedPrice() } catch (e: Exception) { price.toString() },
+        price = price.doubleValue,
         currency = try { priceLocale.currencyCode } catch (e: Exception) { null } ?: "USD",
-        subscriptionPeriod = try { subscriptionPeriod?.toReadableString() } catch (e: Exception) { "" } ?: "",
-        introductoryPrice = try { introductoryPrice?.localizedPrice() } catch (e: Exception) { null },
-        introductoryPriceNumberOfPeriods = try { introductoryPrice?.numberOfPeriods?.toInt() } catch (e: Exception) { null },
-        introductoryPriceSubscriptionPeriod = try { introductoryPrice?.subscriptionPeriod?.toReadableString() } catch (e: Exception) { null },
-        subscriptionGroupIdentifier = try { subscriptionGroupIdentifier } catch (e: Exception) { null },
-        platform = IapPlatform.IOS
+        displayNameIOS = try { localizedTitle } catch (e: Exception) { productIdentifier },
+        isFamilyShareableIOS = try { isFamilyShareable } catch (e: Exception) { false },
+        jsonRepresentationIOS = "", // Would need actual JSON representation
+        subscriptionInfoIOS = try { 
+            subscriptionPeriod?.let { 
+                SubscriptionInfoIOS(
+                    subscriptionGroupId = subscriptionGroupIdentifier ?: "",
+                    subscriptionPeriod = SubscriptionOfferPeriod(
+                        unit = it.unit.toUnitString().uppercase(),
+                        value = it.numberOfUnits.toInt()
+                    )
+                )
+            }
+        } catch (e: Exception) { null },
+        introductoryPriceIOS = try { introductoryPrice?.localizedPrice() } catch (e: Exception) { null },
+        introductoryPriceNumberOfPeriodsIOS = try { introductoryPrice?.numberOfPeriods?.toString() } catch (e: Exception) { null },
+        subscriptionPeriodUnitIOS = try { subscriptionPeriod?.unit?.toUnitString()?.uppercase() } catch (e: Exception) { null },
+        subscriptionPeriodNumberIOS = try { subscriptionPeriod?.numberOfUnits?.toString() } catch (e: Exception) { null },
+        platform = "ios"
     )
 }
 
@@ -839,22 +850,22 @@ private fun SKProduct.localizedPrice(): String {
     }
 }
 
-private fun SKProductDiscount.toDiscount(): Discount {
-    return Discount(
+private fun SKProductDiscount.toDiscount(): DiscountIOS {
+    return DiscountIOS(
         identifier = identifier ?: "",
         type = when ((type as NSNumber).longValue) {
             0L -> "introductory"
             1L -> "subscription"
             else -> "unknown"
         },
-        numberOfPeriods = numberOfPeriods.toInt(),
+        numberOfPeriods = numberOfPeriods.toString(),
         price = localizedPrice(),
-        priceAmount = price.doubleValue,
+        localizedPrice = localizedPrice(),
         paymentMode = when ((paymentMode as NSNumber).longValue) {
-            0L -> "payAsYouGo"
-            1L -> "payUpFront"
-            2L -> "freeTrial"
-            else -> "unknown"
+            0L -> "PAYASYOUGO"
+            1L -> "PAYUPFRONT"
+            2L -> "FREETRIAL"
+            else -> ""
         },
         subscriptionPeriod = subscriptionPeriod.toReadableString()
     )
@@ -887,9 +898,8 @@ private fun SKProductPeriodUnit.toUnitString(): String {
 }
 
 private fun SKPaymentTransaction.toPurchase(): Purchase {
-    return Purchase(
+    return PurchaseIOS(
         id = transactionIdentifier ?: payment.productIdentifier,  // Primary identifier
-        productId = payment.productIdentifier,  // Product ID for the purchased item
         purchaseToken = transactionIdentifier,  // Unified purchase token (iOS uses transaction ID for StoreKit 1)
         transactionDate = transactionDate?.timeIntervalSince1970 ?: 0.0,
         transactionReceipt = NSBundle.mainBundle.appStoreReceiptURL?.path?.let { path ->
@@ -898,15 +908,16 @@ private fun SKPaymentTransaction.toPurchase(): Purchase {
         transactionId = transactionIdentifier,  // @deprecated - use id instead
         jwsRepresentationIOS = null,  // StoreKit 1 doesn't provide JWS, only available in StoreKit 2
         originalTransactionDateIOS = originalTransaction?.transactionDate?.timeIntervalSince1970,
-        originalTransactionIdIOS = originalTransaction?.transactionIdentifier,
+        originalTransactionIdentifierIOS = originalTransaction?.transactionIdentifier,
         transactionState = when (transactionState) {
-            SKPaymentTransactionState.SKPaymentTransactionStatePurchasing -> TransactionState.PURCHASING
-            SKPaymentTransactionState.SKPaymentTransactionStatePurchased -> TransactionState.PURCHASED
-            SKPaymentTransactionState.SKPaymentTransactionStateFailed -> TransactionState.FAILED
-            SKPaymentTransactionState.SKPaymentTransactionStateRestored -> TransactionState.RESTORED
-            SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> TransactionState.DEFERRED
+            SKPaymentTransactionState.SKPaymentTransactionStatePurchasing -> TransactionStateIOS.PURCHASING
+            SKPaymentTransactionState.SKPaymentTransactionStatePurchased -> TransactionStateIOS.PURCHASED
+            SKPaymentTransactionState.SKPaymentTransactionStateFailed -> TransactionStateIOS.FAILED
+            SKPaymentTransactionState.SKPaymentTransactionStateRestored -> TransactionStateIOS.RESTORED
+            SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> TransactionStateIOS.DEFERRED
             else -> null
         },
-        platform = IapPlatform.IOS
+        productId = payment?.productIdentifier ?: "",
+        platform = "ios"
     )
 }
