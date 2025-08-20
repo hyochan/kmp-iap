@@ -147,10 +147,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 val subscriptionProductsDeferred = async {
                     try {
                         kmpIAP.requestProducts(
-                            ProductRequest(
-                                skus = SUBSCRIPTION_IDS,
-                                type = ProductType.SUBS
-                            )
+                            skus = SUBSCRIPTION_IDS,
+                            type = ProductType.SUBS
                         )
                     } catch (e: Exception) {
                         println("Failed to load subscription products: ${e.message}")
@@ -379,14 +377,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     purchaseResult = null
                                     try {
                                         kmpIAP.requestPurchase(
-                                            RequestPurchaseProps(
-                                                ios = RequestPurchaseIosProps(
-                                                    sku = subscription.id,
-                                                    quantity = 1
-                                                ),
-                                                android = RequestPurchaseAndroidProps(
-                                                    skus = listOf(subscription.id)
-                                                )
+                                            sku = subscription.id,
+                                            ios = RequestPurchaseIosProps(
+                                                sku = subscription.id,
+                                                quantity = 1
+                                            ),
+                                            android = RequestPurchaseAndroidProps(
+                                                skus = listOf(subscription.id)
                                             )
                                         )
                                         // Purchase updates will be received through the purchaseUpdatedListener

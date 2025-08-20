@@ -150,10 +150,8 @@ fun PurchaseFlowScreen(navController: NavController) {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
                         val result = kmpIapInstance.requestProducts(
-                            ProductRequest(
-                                skus = PRODUCT_IDS,
-                                type = ProductType.INAPP
-                            )
+                            skus = PRODUCT_IDS,
+                            type = ProductType.INAPP
                         )
                         println("[KMP-IAP Example] Products loaded: ${result.size} products")
                         result
@@ -333,14 +331,13 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 purchaseResult = null
                                 try {
                                     val purchase = kmpIapInstance.requestPurchase(
-                                        RequestPurchaseProps(
-                                            ios = RequestPurchaseIosProps(
-                                                sku = product.id,
-                                                quantity = 1
-                                            ),
-                                            android = RequestPurchaseAndroidProps(
-                                                skus = listOf(product.id)
-                                            )
+                                        sku = product.id,
+                                        ios = RequestPurchaseIosProps(
+                                            sku = product.id,
+                                            quantity = 1
+                                        ),
+                                        android = RequestPurchaseAndroidProps(
+                                            skus = listOf(product.id)
                                         )
                                     )
                                     // Purchase updates will be received through the Flow
