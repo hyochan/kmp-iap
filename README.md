@@ -48,9 +48,14 @@ val products = kmpIapInstance.requestProducts(
 
 // Request purchase
 val purchase = kmpIapInstance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
-        quantity = 1
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = "product_id",
+            quantity = 1
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf("product_id")
+        )
     )
 )
 
@@ -83,9 +88,14 @@ val products = kmpIAP.requestProducts(
 
 // Request purchase
 val purchase = kmpIAP.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
-        quantity = 1
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = "product_id",
+            quantity = 1
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf("product_id")
+        )
     )
 )
 

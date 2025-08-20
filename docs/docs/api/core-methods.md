@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # Core Methods
 
-Essential methods for implementing in-app purchases with kmp-iap v1.0.0. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
+Essential methods for implementing in-app purchases with kmp-iap v1.0.0-beta.13, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
 
 ⚠️ **Platform Differences**: While the API is unified, there are important differences between iOS and Android implementations. Each method documents platform-specific behavior.
 
@@ -120,37 +120,48 @@ products.forEach { product ->
 
 ### requestPurchase()
 
-Initiates a purchase using a unified request format.
+Initiates a purchase using OpenIAP-compliant request structure.
 
 ```kotlin
-suspend fun requestPurchase(request: UnifiedPurchaseRequest): Purchase
+suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
 ```
 
 **Parameters**:
-- `request` - Unified purchase request with cross-platform support
+- `request` - OpenIAP-compliant purchase request with platform-specific options
 
-**Returns**: Purchase object representing the transaction
+**Returns**: Purchase object implementing `PurchaseCommon` interface following OpenIAP specification
 
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 
-// Simple purchase
+// OpenIAP-compliant purchase request
 val purchase = kmpIapInstance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "premium_upgrade",
-        quantity = 1
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = "premium_upgrade",
+            quantity = 1
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf("premium_upgrade")
+        )
     )
 )
 
 // With platform-specific options
 val purchase = kmpIapInstance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "coins_100",
-        quantity = 5,
-        obfuscatedAccountIdAndroid = "user_123",  // Android
-        appAccountTokenIOS = "token_456"          // iOS
+    RequestPurchaseProps(
+        ios = RequestPurchaseIosProps(
+            sku = "coins_100",
+            quantity = 5,
+            appAccountToken = "token_456"
+        ),
+        android = RequestPurchaseAndroidProps(
+            skus = listOf("coins_100"),
+            obfuscatedAccountIdAndroid = "user_123",
+            obfuscatedProfileIdAndroid = "profile_456"
+        )
     )
 )
 ```
