@@ -1,6 +1,7 @@
 package dev.hyo.martie.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +55,32 @@ fun PurchaseFlowScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
+                
+                // Log purchase data as JSON
+                println("\n========== PURCHASE SUCCESS (JSON) ==========")
+                val json = Json { 
+                    prettyPrint = true
+                    encodeDefaults = true
+                    ignoreUnknownKeys = true
+                }
+                
+                val jsonString = when (purchase) {
+                    is PurchaseAndroid -> json.encodeToString(purchase)
+                    is PurchaseIOS -> json.encodeToString(purchase)
+                    else -> {
+                        // Fallback if unknown type
+                        """
+                        {
+                          "id": "${purchase.id}",
+                          "productId": "${purchase.productId}",
+                          "transactionDate": ${purchase.transactionDate},
+                          "platform": "${purchase.platform}"
+                        }
+                        """.trimIndent()
+                    }
+                }
+                println(jsonString)
+                println("=============================================\n")
                 
                 // Handle successful purchase
                 purchaseResult = """
@@ -306,9 +333,14 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 purchaseResult = null
                                 try {
                                     val purchase = kmpIapInstance.requestPurchase(
-                                        UnifiedPurchaseRequest(
-                                            sku = product.id,
-                                            quantity = 1
+                                        RequestPurchaseProps(
+                                            ios = RequestPurchaseIosProps(
+                                                sku = product.id,
+                                                quantity = 1
+                                            ),
+                                            android = RequestPurchaseAndroidProps(
+                                                skus = listOf(product.id)
+                                            )
                                         )
                                     )
                                     // Purchase updates will be received through the Flow
@@ -373,7 +405,39 @@ fun ProductCard(
     isProcessing: Boolean
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                // Log product details to console in JSON format
+                println("\n========== PRODUCT DETAILS (JSON) ==========")
+                val json = Json { 
+                    prettyPrint = true
+                    encodeDefaults = true
+                }
+                
+                // Serialize based on concrete type since Product is an interface
+                val jsonString = when (product) {
+                    is ProductAndroid -> json.encodeToString(product)
+                    is ProductIOS -> json.encodeToString(product)
+                    else -> {
+                        // Fallback to manual JSON if unknown type
+                        """
+                        {
+                          "id": "${product.id}",
+                          "title": "${product.title}",
+                          "description": "${product.description}",
+                          "displayPrice": "${product.displayPrice}",
+                          "price": ${product.price},
+                          "currency": "${product.currency}",
+                          "type": "${product.type}",
+                          "platform": "${product.platform}"
+                        }
+                        """.trimIndent()
+                    }
+                }
+                println(jsonString)
+                println("====================================\n")
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -418,7 +482,7 @@ fun ProductCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = product.price,
+                        text = product.displayPrice,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = AppColors.Primary
