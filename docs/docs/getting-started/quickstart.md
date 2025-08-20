@@ -6,14 +6,20 @@ sidebar_position: 2
 
 Get up and running with KMP IAP in just a few minutes!
 
+:::info Version
+This guide covers **v1.0.0-rc.1** with simplified API. For v1.0.0-rc.1, see the [migration guide](/blog/2025/08/20/rc1-simplified-api).
+:::
+
 ## Choose Your Approach
 
 KMP IAP supports two usage patterns:
 
 ### Option 1: Global Instance (Simple)
+
 Use the pre-created `kmpIapInstance` for convenience and simplicity.
 
 ### Option 2: Create Your Own Instance (Recommended for Testing)
+
 Create your own `KmpIAP()` instances for better control, testing, or dependency injection.
 
 ## Basic Implementation
@@ -29,19 +35,19 @@ import kotlinx.coroutines.*
 
 class IAPManager {
     private val scope = CoroutineScope(Dispatchers.Main)
-    
+
     suspend fun initialize() {
         try {
             // Initialize connection using global instance
             kmpIapInstance.initConnection()
-            
+
             // Listen to purchase updates
             scope.launch {
                 kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
-            
+
             // Listen to errors
             scope.launch {
                 kmpIapInstance.purchaseErrorListener.collect { error ->
@@ -52,43 +58,38 @@ class IAPManager {
             println("Initialization failed: ${e.message}")
         }
     }
-    
+
     suspend fun loadProducts() {
         try {
+            // v1.0.0-rc.1 - simplified API
             val products = kmpIapInstance.requestProducts(
-                ProductRequest(
-                    skus = listOf("product_1", "product_2"),
-                    type = ProductType.INAPP
-                )
+                skus = listOf("product_1", "product_2"),
+                type = ProductType.INAPP
             )
             println("Loaded ${products.size} products")
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
         }
     }
-    
+
     suspend fun purchaseProduct(productId: String) {
         try {
-            val purchase = kmpIapInstance.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = productId,
-                    quantity = 1
-                )
-            )
+            // v1.0.0-rc.1 - simplified API (just SKU)
+            val purchase = kmpIapInstance.requestPurchase(sku = productId)
             println("Purchase initiated for: ${purchase.productId}")
         } catch (e: Exception) {
             println("Purchase failed: ${e.message}")
         }
     }
-    
+
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
         // Verify purchase with your backend
         val isValid = verifyPurchaseWithBackend(purchase)
-        
+
         if (isValid) {
             // Grant the purchased content
             grantPurchase(purchase)
-            
+
             // Finish the transaction
             kmpIapInstance.finishTransaction(
                 purchase = purchase,
@@ -111,19 +112,19 @@ import kotlinx.coroutines.*
 class IAPManager {
     private val kmpIAP = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
-    
+
     suspend fun initialize() {
         try {
             // Initialize connection using instance
             kmpIAP.initConnection()
-            
+
             // Listen to purchase updates
             scope.launch {
                 kmpIAP.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
-            
+
             // Listen to errors
             scope.launch {
                 kmpIAP.purchaseErrorListener.collect { error ->
@@ -134,17 +135,15 @@ class IAPManager {
             println("Initialization failed: ${e.message}")
         }
     }
-    
+
     suspend fun loadProducts() {
         try {
-            // Load in-app products
+            // Load in-app products - v1.0.0-rc.1 simplified API
             val products = kmpIAP.requestProducts(
-                ProductRequest(
-                    skus = listOf("remove_ads", "premium_upgrade"),
-                    type = ProductType.INAPP
-                )
+                skus = listOf("remove_ads", "premium_upgrade"),
+                type = ProductType.INAPP
             )
-            
+
             products.forEach { product ->
                 println("Product: ${product.id} - ${product.price}")
             }
@@ -152,33 +151,28 @@ class IAPManager {
             println("Failed to load products: ${e.message}")
         }
     }
-    
+
     suspend fun purchaseProduct(productId: String) {
         try {
-            // Request purchase with unified API
-            val purchase = kmpIAP.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = productId,
-                    quantity = 1
-                )
-            )
+            // Request purchase - v1.0.0-rc.1 simplified API
+            val purchase = kmpIAP.requestPurchase(sku = productId)
             // Purchase will be handled in purchaseUpdatedListener
         } catch (e: Exception) {
             println("Purchase request failed: ${e.message}")
         }
     }
-    
+
     private suspend fun handlePurchaseUpdate(purchase: Purchase) {
         // IMPORTANT: Server-side receipt validation should be performed here
         // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
-        
+
         // For this example, we'll assume validation passed
         val isValid = true
-        
+
         if (isValid) {
             // Deliver the product
             deliverProduct(purchase.productId)
-            
+
             // Finish the transaction
             kmpIAP.finishTransaction(
                 purchase = purchase,
@@ -186,7 +180,7 @@ class IAPManager {
             )
         }
     }
-    
+
     private fun handlePurchaseError(error: PurchaseError) {
         when (error.code) {
             ErrorCode.E_USER_CANCELLED.name -> {
@@ -200,12 +194,12 @@ class IAPManager {
             }
         }
     }
-    
+
     private fun deliverProduct(productId: String) {
         // Implement your product delivery logic
         println("Product delivered: $productId")
     }
-    
+
     fun disconnect() {
         kmpIAP.endConnection()
         scope.cancel()
@@ -222,11 +216,11 @@ import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.types.*
 
 class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
-    
+
     suspend fun initialize() {
         // Initialize with your own instance
         kmpIAP.initConnection()
-        
+
         // Set up listeners
         launch {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
@@ -234,15 +228,11 @@ class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
             }
         }
     }
-    
+
     suspend fun purchaseItem(productId: String) {
-        val purchase = kmpIAP.requestPurchase(
-            UnifiedPurchaseRequest(
-                sku = productId,
-                quantity = 1
-            )
-        )
-        
+        // v1.0.0-rc.1 - simplified API
+        val purchase = kmpIAP.requestPurchase(sku = productId)
+
         // Validate and finish transaction
         kmpIAP.finishTransaction(purchase, isConsumable = true)
     }
@@ -263,27 +253,26 @@ import io.github.hyochan.kmpiap.types.*
 fun StoreScreen() {
     // Create instance for this screen
     val kmpIAP = remember { KmpIAP() }
-    
+
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         // Initialize connection
         kmpIAP.initConnection()
-        
+
         // Load products
         isLoading = true
         try {
+            // v1.0.0-rc.1 - simplified API
             products = kmpIAP.requestProducts(
-                ProductRequest(
-                    skus = listOf("product_1", "product_2"),
-                    type = ProductType.INAPP
-                )
+                skus = listOf("product_1", "product_2"),
+                type = ProductType.INAPP
             )
         } finally {
             isLoading = false
         }
-        
+
         // Listen for purchases
         launch {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
@@ -292,19 +281,15 @@ fun StoreScreen() {
             }
         }
     }
-    
+
     Column {
         products.forEach { product ->
             Card(
                 onClick = {
                     // Purchase product
                     scope.launch {
-                        kmpIAP.requestPurchase(
-                            UnifiedPurchaseRequest(
-                                sku = product.id,
-                                quantity = 1
-                            )
-                        )
+                        // v1.0.0-rc.1 - simplified API
+                        kmpIAP.requestPurchase(sku = product.id)
                     }
                 }
             ) {
@@ -318,11 +303,13 @@ fun StoreScreen() {
 ## Platform-Specific Notes
 
 ### Android
+
 - Make sure your app is signed with the release key when testing
 - Upload your app to Google Play Console (at least to internal testing)
 - Add test accounts in Google Play Console
 
 ### iOS
+
 - Test with sandbox accounts during development
 - Use StoreKit configuration files for local testing
 - Remember to handle promotional offers if needed

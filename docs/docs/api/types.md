@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # Types
 
-Comprehensive type definitions for kmp-iap v1.0.0-beta.14 following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
+Comprehensive type definitions for kmp-iap v1.0.0-rc.1 following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
 
 ## OpenIAP Base Interfaces
 
@@ -751,5 +751,4 @@ val newRequest = RequestPurchaseProps(
 
 - [Core Methods](./core-methods.md) - How to use these OpenIAP-compliant types
 - [Error Codes](./error-codes.md) - Complete OpenIAP error code reference
-- [Migration Guide](../guides/migration.md) - Detailed migration instructions
 - [OpenIAP Specification](https://openiap.dev) - Official OpenIAP standard

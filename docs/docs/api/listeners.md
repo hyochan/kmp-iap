@@ -30,9 +30,9 @@ class PurchaseManager {
     init {
         scope.launch {
             kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
-                println("Purchase updated: ${purchase.productId}")
-                println("Transaction ID: ${purchase.transactionId}")
-                println("State: ${purchase.purchaseState}")
+                println("Purchase updated: \${purchase.productId}")
+                println("Transaction ID: \${purchase.transactionId}")
+                println("State: \${purchase.purchaseState}")
                 
                 // Handle purchase based on state
                 when (purchase.purchaseState) {
@@ -83,8 +83,8 @@ import io.github.hyochan.kmpiap.kmpIapInstance
 
 scope.launch {
     kmpIapInstance.purchaseErrorListener.collectLatest { error ->
-        println("Purchase error: ${error.message}")
-        println("Error code: ${error.code}")
+        println("Purchase error: \${error.message}")
+        println("Error code: \${error.code}")
         
         when (error.code) {
             ErrorCode.USER_CANCELLED -> {
@@ -102,7 +102,7 @@ scope.launch {
                 refreshOwnedPurchases()
             }
             else -> {
-                showError("Purchase failed: ${error.message}")
+                showError("Purchase failed: \${error.message}")
             }
         }
     }
@@ -155,7 +155,7 @@ class ConnectionManager(private val iap: InAppPurchase) {
                     try {
                         kmpIapInstance.initConnection()
                     } catch (e: Exception) {
-                        println("Retry failed: ${e.message}")
+                        println("Retry failed: \${e.message}")
                     }
                 } else if (connected) {
                     retryCount = 0
@@ -490,7 +490,6 @@ fun testPurchaseListener() = runTest {
 
 ## See Also
 
-- [Use IAP Hook](./use-iap.md) - StateFlow properties and state management
 - [Core Methods](./core-methods.md) - Methods that trigger events
 - [Error Codes](./error-codes.md) - Complete error code reference
 - [Examples](../examples/complete-implementation.md) - Full listener implementation

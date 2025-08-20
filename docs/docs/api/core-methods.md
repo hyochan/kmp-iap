@@ -5,7 +5,15 @@ sidebar_position: 3
 
 # Core Methods
 
-Essential methods for implementing in-app purchases with kmp-iap v1.0.0-beta.14, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
+Essential methods for implementing in-app purchases with kmp-iap, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
+
+## Version Information
+
+:::info Version Differences
+This documentation covers both:
+- **v1.0.0-rc.1** (Current) - Simplified API without wrapper classes
+- **v1.0.0-beta.14** - Previous API with wrapper classes
+:::
 
 ⚠️ **Platform Differences**: While the API is unified, there are important differences between iOS and Android implementations. Each method documents platform-specific behavior.
 
@@ -75,41 +83,53 @@ override fun onCleared() {
 
 Loads product information from the store.
 
+#### v1.0.0-rc.1 (Current)
+
 ```kotlin
-suspend fun requestProducts(params: ProductRequest): List<Product>
+suspend fun requestProducts(
+    skus: List<String>,
+    type: ProductType
+): List<Product>
 ```
 
 **Parameters**:
-- `params` - Product request parameters containing SKUs and product type
+- `skus` - List of product SKUs to load
+- `type` - Product type (INAPP or SUBS)
 
 **Returns**: List of products with pricing and metadata
 
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.ProductType
 
 // Load in-app products
 val products = kmpIapInstance.requestProducts(
-    ProductRequest(
-        skus = listOf("coins_100", "coins_500", "remove_ads"),
-        type = ProductType.INAPP
-    )
+    skus = listOf("coins_100", "coins_500", "remove_ads"),
+    type = ProductType.INAPP
 )
 
 // Load subscriptions
-val subscriptions = kmpIAP.requestProducts(
+val subscriptions = kmpIapInstance.requestProducts(
+    skus = listOf("premium_monthly", "premium_yearly"),
+    type = ProductType.SUBS
+)
+```
+
+#### v1.0.0-beta.14
+
+```kotlin
+suspend fun requestProducts(params: ProductRequest): List<Product>
+```
+
+**Example**:
+```kotlin
+val products = kmpIapInstance.requestProducts(
     ProductRequest(
-        skus = listOf("premium_monthly", "premium_yearly"),
-        type = ProductType.SUBS
+        skus = listOf("coins_100", "coins_500"),
+        type = ProductType.INAPP
     )
 )
-
-products.forEach { product ->
-    println("Product: ${product.id}")
-    println("Price: ${product.price}")
-    println("Title: ${product.title}")
-}
 ```
 
 **Platform Differences**:
@@ -122,21 +142,55 @@ products.forEach { product ->
 
 Initiates a purchase using OpenIAP-compliant request structure.
 
+#### v1.0.0-rc.1 (Current)
+
 ```kotlin
-suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
+suspend fun requestPurchase(
+    sku: String,
+    ios: RequestPurchaseIosProps? = null,
+    android: RequestPurchaseAndroidProps? = null
+): Purchase
 ```
 
 **Parameters**:
-- `request` - OpenIAP-compliant purchase request with platform-specific options
+- `sku` - Product SKU to purchase
+- `ios` - iOS-specific purchase options (optional)
+- `android` - Android-specific purchase options (optional)
 
 **Returns**: Purchase object implementing `PurchaseCommon` interface following OpenIAP specification
 
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.*
 
-// OpenIAP-compliant purchase request
+// Simple purchase - just SKU
+val purchase = kmpIapInstance.requestPurchase(sku = "premium_upgrade")
+
+// With platform-specific options
+val purchase = kmpIapInstance.requestPurchase(
+    sku = "coins_100",
+    ios = RequestPurchaseIosProps(
+        sku = "coins_100",
+        quantity = 5,
+        appAccountToken = "token_456"
+    ),
+    android = RequestPurchaseAndroidProps(
+        skus = listOf("coins_100"),
+        obfuscatedAccountIdAndroid = "user_123",
+        obfuscatedProfileIdAndroid = "profile_456"
+    )
+)
+```
+
+#### v1.0.0-beta.14
+
+```kotlin
+suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
+```
+
+**Example**:
+```kotlin
 val purchase = kmpIapInstance.requestPurchase(
     RequestPurchaseProps(
         ios = RequestPurchaseIosProps(
@@ -145,22 +199,6 @@ val purchase = kmpIapInstance.requestPurchase(
         ),
         android = RequestPurchaseAndroidProps(
             skus = listOf("premium_upgrade")
-        )
-    )
-)
-
-// With platform-specific options
-val purchase = kmpIapInstance.requestPurchase(
-    RequestPurchaseProps(
-        ios = RequestPurchaseIosProps(
-            sku = "coins_100",
-            quantity = 5,
-            appAccountToken = "token_456"
-        ),
-        android = RequestPurchaseAndroidProps(
-            skus = listOf("coins_100"),
-            obfuscatedAccountIdAndroid = "user_123",
-            obfuscatedProfileIdAndroid = "profile_456"
         )
     )
 )
@@ -232,8 +270,8 @@ import io.github.hyochan.kmpiap.kmpIapInstance
 
 val purchases = kmpIapInstance.getAvailablePurchases()
 purchases.forEach { purchase ->
-    println("Product: ${purchase.productId}")
-    println("Date: ${purchase.transactionDate}")
+    println("Product: \${purchase.productId}")
+    println("Date: \${purchase.transactionDate}")
     
     // Check acknowledgment status (Android)
     if (purchase.acknowledgedAndroid == true) {
@@ -285,7 +323,7 @@ import kotlinx.coroutines.flow.collectLatest
 // Listen for purchase updates
 scope.launch {
     kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
-        println("Purchase completed: ${purchase.productId}")
+        println("Purchase completed: \${purchase.productId}")
         // Deliver content to user
         deliverContent(purchase.productId)
         // Finish transaction
@@ -301,7 +339,7 @@ scope.launch {
                 println("User cancelled purchase")
             }
             else -> {
-                println("Purchase error: ${error.message}")
+                println("Purchase error: \${error.message}")
             }
         }
     }
@@ -419,12 +457,12 @@ val premiumSubscriptions = kmpIapInstance.getActiveSubscriptions(
 )
 
 premiumSubscriptions.forEach { subscription ->
-    println("Product: ${subscription.productId}")
-    println("Active: ${subscription.isActive}")
+    println("Product: \${subscription.productId}")
+    println("Active: \${subscription.isActive}")
     
     // iOS-specific information
     subscription.expirationDateIOS?.let { expDate ->
-        println("Expires: ${Instant.fromEpochMilliseconds(expDate)}")
+        println("Expires: \${Instant.fromEpochMilliseconds(expDate)}")
     }
     subscription.environmentIOS?.let { env ->
         println("Environment: $env") // "Sandbox" or "Production"

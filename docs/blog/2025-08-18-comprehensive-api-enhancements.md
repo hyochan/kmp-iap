@@ -568,8 +568,6 @@ implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
 
 - **[OpenIAP Specification](https://openiap.dev)** - Learn about the standard
 - **[Complete API Documentation](https://kmp-iap.hyo.dev)** - Complete API reference
-- **[Migration Guide](../MIGRATION.md)** - Detailed migration instructions
-- **[Naming Conventions](../CLAUDE.md)** - Our coding standards
 
 ## 🎉 What's Next
 
