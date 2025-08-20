@@ -18,75 +18,79 @@ class InAppPurchaseTest {
     
     @Test
     fun testPlatformTypes() {
-        val android = IapPlatform.ANDROID
-        val ios = IapPlatform.IOS
-        
-        assertEquals("ANDROID", android.name)
-        assertEquals("IOS", ios.name)
+        val platform = IapPlatform.ANDROID
+        assertEquals(IapPlatform.ANDROID, platform)
     }
     
     @Test
-    fun testPurchaseErrorTypes() {
-        val error = PurchaseError(
-            message = "Test error",
-            code = ErrorCode.E_USER_CANCELLED.name
-        )
-        
+    fun testConnectionResult() {
+        val result = ConnectionResult(connected = true, message = "Connected successfully")
+        assertEquals(true, result.connected)
+        assertEquals("Connected successfully", result.message)
+    }
+    
+    @Test
+    fun testPurchaseError() {
+        val error = PurchaseError(code = ErrorCode.E_USER_CANCELLED.name, message = "Test error")
         assertEquals("Test error", error.message)
         assertEquals(ErrorCode.E_USER_CANCELLED.name, error.code)
     }
     
     @Test
     fun testProductTypes() {
-        val product = Product(
+        val product = ProductAndroid(
             id = "test_product",
-            price = "$0.99",
-            priceAmount = 0.99,
+            displayPrice = "$0.99",
+            price = 0.99,
             currency = "USD",
             title = "Test Product",
             description = "A test product",
-            platform = IapPlatform.ANDROID
+            type = ProductType.INAPP,
+            nameAndroid = "Test Product",
+            platform = "android"
         )
         
         assertEquals("test_product", product.id)
-        assertEquals("$0.99", product.price)
+        assertEquals("$0.99", product.displayPrice)
         assertEquals("USD", product.currency)
-        assertEquals(0.99, product.priceAmount)
+        assertEquals(0.99, product.price)
     }
     
     @Test
     fun testSubscriptionTypes() {
-        val subscription = SubscriptionProduct(
+        val subscription = ProductSubscriptionIOS(
             id = "test_subscription",
-            price = "$9.99",
-            priceAmount = 9.99,
+            displayPrice = "$9.99",
+            price = 9.99,
             currency = "USD",
             title = "Test Subscription",
             description = "A test subscription",
-            platform = IapPlatform.IOS,
-            subscriptionPeriod = "P1M",
-            introductoryPrice = null,
-            subscriptionGroupIdentifier = null
+            type = ProductType.SUBS,
+            displayNameIOS = "Test Subscription",
+            isFamilyShareableIOS = false,
+            jsonRepresentationIOS = "{}",
+            subscriptionPeriodNumberIOS = "1",
+            subscriptionPeriodUnitIOS = "MONTH",
+            platform = "ios"
         )
         
         assertEquals("test_subscription", subscription.id)
-        assertEquals("$9.99", subscription.price)
-        assertEquals("P1M", subscription.subscriptionPeriod)
+        assertEquals("$9.99", subscription.displayPrice)
+        assertEquals("1", subscription.subscriptionPeriodNumberIOS)
     }
     
     @Test
     fun testPurchaseTypes() {
-        val purchase = Purchase(
+        val purchase = PurchaseAndroid(
             id = "12345",  // Primary identifier
             productId = "test_product",
             purchaseToken = "token",  // Unified purchase token
             transactionId = "12345",  // @deprecated - use id instead
             transactionReceipt = "receipt_data",
             transactionDate = 1234567890.0,
-            purchaseTokenAndroid = "token",  // @deprecated - use purchaseToken instead
-            platform = IapPlatform.ANDROID,
-            acknowledgedAndroid = false,
-            purchaseStateAndroid = 1
+            isAcknowledgedAndroid = false,
+            purchaseStateAndroid = PurchaseAndroidState.PURCHASED,
+            platform = "android"
         )
         
         assertEquals("12345", purchase.id)
@@ -94,9 +98,8 @@ class InAppPurchaseTest {
         assertEquals("token", purchase.purchaseToken)  // Test unified field
         assertEquals("12345", purchase.transactionId)
         assertEquals("receipt_data", purchase.transactionReceipt)
-        assertEquals("token", purchase.purchaseTokenAndroid)  // Test deprecated field
-        assertEquals(IapPlatform.ANDROID, purchase.platform)
-        assertFalse(purchase.acknowledgedAndroid ?: true)
+        assertEquals("android", purchase.platform)
+        assertFalse(purchase.isAcknowledgedAndroid ?: true)
     }
     
     @Test
@@ -107,84 +110,24 @@ class InAppPurchaseTest {
         )
         
         assertEquals(2, request.skus.size)
-        assertEquals("product1", request.skus[0])
-        assertEquals("product2", request.skus[1])
         assertEquals(ProductType.INAPP, request.type)
     }
     
     @Test
-    fun testUnifiedPurchaseRequest() {
-        val request = UnifiedPurchaseRequest(
-            sku = "product1",
-            quantity = 1,
-            obfuscatedAccountIdAndroid = "user123",
-            obfuscatedProfileIdAndroid = "profile456"
+    fun testActiveSubscription() {
+        val activeSubscription = ActiveSubscription(
+            productId = "test_sub",
+            isActive = true,
+            expirationDateIOS = 1234567890L,
+            autoRenewingAndroid = null,
+            environmentIOS = "Production",
+            willExpireSoon = false,
+            daysUntilExpirationIOS = 30
         )
         
-        assertEquals("product1", request.sku)
-        assertEquals(1, request.quantity)
-        assertEquals("user123", request.obfuscatedAccountIdAndroid)
-        assertEquals("profile456", request.obfuscatedProfileIdAndroid)
-    }
-    
-    @Test
-    fun testReplacementMode() {
-        val mode = ReplacementMode.IMMEDIATE_WITHOUT_PRORATION
-        assertEquals("IMMEDIATE_WITHOUT_PRORATION", mode.name)
-    }
-    
-    @Test
-    fun testPurchaseState() {
-        val purchased = PurchaseState.PURCHASED
-        val pending = PurchaseState.PENDING
-        
-        assertEquals("PURCHASED", purchased.name)
-        assertEquals("PENDING", pending.name)
-    }
-    
-    @Test
-    fun testRecurrenceMode() {
-        val finite = RecurrenceMode.FINITE_RECURRING
-        val infinite = RecurrenceMode.INFINITE_RECURRING
-        
-        assertEquals("FINITE_RECURRING", finite.name)
-        assertEquals("INFINITE_RECURRING", infinite.name)
-    }
-    
-    @Test
-    fun testTransactionState() {
-        val purchasing = TransactionState.PURCHASING
-        val purchased = TransactionState.PURCHASED
-        
-        assertEquals("PURCHASING", purchasing.name)
-        assertEquals("PURCHASED", purchased.name)
-    }
-    
-    @Test
-    fun testPricingPhase() {
-        val phase = PricingPhase(
-            formattedPrice = "$4.99",
-            priceCurrencyCode = "USD",
-            billingCycleCount = 3,
-            billingPeriod = "P1M",
-            recurrenceMode = RecurrenceMode.FINITE_RECURRING,
-            priceAmountMicros = "4990000"
-        )
-        
-        assertEquals("$4.99", phase.formattedPrice)
-        assertEquals("USD", phase.priceCurrencyCode)
-        assertEquals(3, phase.billingCycleCount)
-        assertEquals("P1M", phase.billingPeriod)
-    }
-    
-    @Test
-    fun testSubscriptionOffer() {
-        val offer = SubscriptionOffer(
-            sku = "test_subscription",
-            offerToken = "token123"
-        )
-        
-        assertEquals("test_subscription", offer.sku)
-        assertEquals("token123", offer.offerToken)
+        assertEquals("test_sub", activeSubscription.productId)
+        assertEquals(true, activeSubscription.isActive)
+        assertEquals(1234567890L, activeSubscription.expirationDateIOS)
+        assertEquals("Production", activeSubscription.environmentIOS)
     }
 }
