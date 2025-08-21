@@ -38,26 +38,29 @@ import io.github.hyochan.kmpiap.*
 // Use the global singleton instance
 kmpIapInstance.initConnection()
 
-// Get products - simplified API in v1.0.0-rc.1
-val products = kmpIapInstance.requestProducts(
-    skus = listOf("product_id"),
+// Get products - DSL API in v1.0.0-rc.1
+val products = kmpIapInstance.requestProducts {
+    skus = listOf("product_id")
     type = ProductType.INAPP
-)
+}
 
-// Request purchase - simplified API
-val purchase = kmpIapInstance.requestPurchase(
-    sku = "product_id",
-    ios = RequestPurchaseIosProps(
-        sku = "product_id",
+// Request purchase - DSL API with platform-specific options
+val purchase = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "product_id"
         quantity = 1
-    ),
-    android = RequestPurchaseAndroidProps(
+    }
+    android {
         skus = listOf("product_id")
-    )
-)
+    }
+}
 
-// Or even simpler - just the SKU
-val simplePurchase = kmpIapInstance.requestPurchase(sku = "product_id")
+// Or just for one platform
+val iosPurchase = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "product_id"
+    }
+}
 
 // Finish transaction (after server-side validation)
 kmpIapInstance.finishTransaction(
@@ -78,26 +81,29 @@ val kmpIAP = KmpIAP()
 // Initialize connection
 kmpIAP.initConnection()
 
-// Get products - simplified API in v1.0.0-rc.1
-val products = kmpIAP.requestProducts(
-    skus = listOf("product_id"),
+// Get products - DSL API in v1.0.0-rc.1
+val products = kmpIAP.requestProducts {
+    skus = listOf("product_id")
     type = ProductType.INAPP
-)
+}
 
-// Request purchase - simplified API
-val purchase = kmpIAP.requestPurchase(
-    sku = "product_id",
-    ios = RequestPurchaseIosProps(
-        sku = "product_id",
+// Request purchase - DSL API with platform-specific options
+val purchase = kmpIAP.requestPurchase {
+    ios {
+        sku = "product_id"
         quantity = 1
-    ),
-    android = RequestPurchaseAndroidProps(
+    }
+    android {
         skus = listOf("product_id")
-    )
-)
+    }
+}
 
-// Or even simpler - just the SKU
-val simplePurchase = kmpIAP.requestPurchase(sku = "product_id")
+// Or just for one platform
+val androidPurchase = kmpIAP.requestPurchase {
+    android {
+        skus = listOf("product_id")
+    }
+}
 
 // Finish transaction (after server-side validation)
 kmpIAP.finishTransaction(

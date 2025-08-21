@@ -61,11 +61,11 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // v1.0.0-rc.1 - simplified API
-            val products = kmpIapInstance.requestProducts(
-                skus = listOf("product_1", "product_2"),
+            // v1.0.0-rc.1 - DSL API
+            val products = kmpIapInstance.requestProducts {
+                skus = listOf("product_1", "product_2")
                 type = ProductType.INAPP
-            )
+            }
             println("Loaded ${products.size} products")
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
@@ -74,8 +74,15 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // v1.0.0-rc.1 - simplified API (just SKU)
-            val purchase = kmpIapInstance.requestPurchase(sku = productId)
+            // v1.0.0-rc.1 - DSL API
+            val purchase = kmpIapInstance.requestPurchase {
+                ios {
+                    sku = productId
+                }
+                android {
+                    skus = listOf(productId)
+                }
+            }
             println("Purchase initiated for: ${purchase.productId}")
         } catch (e: Exception) {
             println("Purchase failed: ${e.message}")
@@ -138,11 +145,11 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // Load in-app products - v1.0.0-rc.1 simplified API
-            val products = kmpIAP.requestProducts(
-                skus = listOf("remove_ads", "premium_upgrade"),
+            // Load in-app products - v1.0.0-rc.1 DSL API
+            val products = kmpIAP.requestProducts {
+                skus = listOf("remove_ads", "premium_upgrade")
                 type = ProductType.INAPP
-            )
+            }
 
             products.forEach { product ->
                 println("Product: ${product.id} - ${product.price}")
@@ -154,8 +161,15 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // Request purchase - v1.0.0-rc.1 simplified API
-            val purchase = kmpIAP.requestPurchase(sku = productId)
+            // Request purchase - v1.0.0-rc.1 DSL API
+            val purchase = kmpIAP.requestPurchase {
+                ios {
+                    sku = productId
+                }
+                android {
+                    skus = listOf(productId)
+                }
+            }
             // Purchase will be handled in purchaseUpdatedListener
         } catch (e: Exception) {
             println("Purchase request failed: ${e.message}")
@@ -230,8 +244,15 @@ class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
     }
 
     suspend fun purchaseItem(productId: String) {
-        // v1.0.0-rc.1 - simplified API
-        val purchase = kmpIAP.requestPurchase(sku = productId)
+        // v1.0.0-rc.1 - DSL API
+        val purchase = kmpIAP.requestPurchase {
+            ios {
+                sku = productId
+            }
+            android {
+                skus = listOf(productId)
+            }
+        }
 
         // Validate and finish transaction
         kmpIAP.finishTransaction(purchase, isConsumable = true)
@@ -264,11 +285,11 @@ fun StoreScreen() {
         // Load products
         isLoading = true
         try {
-            // v1.0.0-rc.1 - simplified API
-            products = kmpIAP.requestProducts(
-                skus = listOf("product_1", "product_2"),
+            // v1.0.0-rc.1 - DSL API
+            products = kmpIAP.requestProducts {
+                skus = listOf("product_1", "product_2")
                 type = ProductType.INAPP
-            )
+            }
         } finally {
             isLoading = false
         }
@@ -288,8 +309,15 @@ fun StoreScreen() {
                 onClick = {
                     // Purchase product
                     scope.launch {
-                        // v1.0.0-rc.1 - simplified API
-                        kmpIAP.requestPurchase(sku = product.id)
+                        // v1.0.0-rc.1 - DSL API
+                        kmpIAP.requestPurchase {
+                            ios {
+                                sku = product.id
+                            }
+                            android {
+                                skus = listOf(product.id)
+                            }
+                        }
                     }
                 }
             ) {

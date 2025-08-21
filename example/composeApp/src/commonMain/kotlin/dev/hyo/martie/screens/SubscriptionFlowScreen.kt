@@ -20,9 +20,23 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.ErrorCode
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.requestProducts
+import io.github.hyochan.kmpiap.requestSubscription
+import io.github.hyochan.kmpiap.Product
+import io.github.hyochan.kmpiap.Purchase
+import io.github.hyochan.kmpiap.PurchaseError
+import io.github.hyochan.kmpiap.ProductType
+import io.github.hyochan.kmpiap.ErrorCode
+import io.github.hyochan.kmpiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.PurchaseIOS
+import io.github.hyochan.kmpiap.ProductAndroid
+import io.github.hyochan.kmpiap.ProductIOS
+import io.github.hyochan.kmpiap.SubscriptionProduct
+import io.github.hyochan.kmpiap.SubscriptionProductAndroid
+import io.github.hyochan.kmpiap.SubscriptionProductIOS
+import io.github.hyochan.kmpiap.SubscriptionOfferAndroid
+import io.github.hyochan.kmpiap.ActiveSubscription
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -146,10 +160,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        kmpIAP.requestProducts(
-                            skus = SUBSCRIPTION_IDS,
+                        kmpIAP.requestProducts {
+                            skus = SUBSCRIPTION_IDS
                             type = ProductType.SUBS
-                        )
+                        }
                     } catch (e: Exception) {
                         println("Failed to load subscription products: ${e.message}")
                         throw e
@@ -376,16 +390,15 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     isProcessing = true
                                     purchaseResult = null
                                     try {
-                                        kmpIAP.requestPurchase(
-                                            sku = subscription.id,
-                                            ios = RequestPurchaseIosProps(
-                                                sku = subscription.id,
+                                        val purchase = kmpIAP.requestSubscription {
+                                            ios {
+                                                sku = subscription.id
                                                 quantity = 1
-                                            ),
-                                            android = RequestPurchaseAndroidProps(
+                                            }
+                                            android {
                                                 skus = listOf(subscription.id)
-                                            )
-                                        )
+                                            }
+                                        }
                                         // Purchase updates will be received through the purchaseUpdatedListener
                                         // The UI will be updated automatically when the listener triggers
                                     } catch (e: Exception) {
@@ -464,8 +477,8 @@ fun SubscriptionCard(
                 
                 // Serialize based on concrete type since Product is an interface
                 val jsonString = when (subscription) {
-                    is ProductSubscriptionAndroid -> json.encodeToString(subscription)
-                    is ProductSubscriptionIOS -> json.encodeToString(subscription)
+                    is SubscriptionProductAndroid -> json.encodeToString(subscription)
+                    is SubscriptionProductIOS -> json.encodeToString(subscription)
                     is ProductAndroid -> json.encodeToString(subscription)
                     is ProductIOS -> json.encodeToString(subscription)
                     else -> {

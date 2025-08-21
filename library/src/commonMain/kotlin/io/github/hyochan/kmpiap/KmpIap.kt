@@ -1,6 +1,7 @@
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.dsl.*
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -13,8 +14,14 @@ import kotlinx.coroutines.flow.Flow
 
 // Re-export all types
 typealias Product = io.github.hyochan.kmpiap.types.Product
+typealias ProductAndroid = io.github.hyochan.kmpiap.types.ProductAndroid
+typealias ProductIOS = io.github.hyochan.kmpiap.types.ProductIOS
 typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProduct
+typealias SubscriptionProductAndroid = io.github.hyochan.kmpiap.types.SubscriptionProductAndroid
+typealias SubscriptionProductIOS = io.github.hyochan.kmpiap.types.SubscriptionProductIOS
 typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
+typealias PurchaseAndroid = io.github.hyochan.kmpiap.types.PurchaseAndroid
+typealias PurchaseIOS = io.github.hyochan.kmpiap.types.PurchaseIOS
 typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
 typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
 typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
@@ -56,6 +63,11 @@ typealias PurchaseOptions = io.github.hyochan.kmpiap.types.PurchaseOptions
 typealias DeepLinkOptions = io.github.hyochan.kmpiap.types.DeepLinkOptions
 typealias ValidationOptions = io.github.hyochan.kmpiap.types.ValidationOptions
 typealias ValidationResult = io.github.hyochan.kmpiap.types.ValidationResult
+
+// Re-export DSL builders
+typealias ProductsRequestBuilder = io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder
+typealias PurchaseRequestBuilder = io.github.hyochan.kmpiap.dsl.PurchaseRequestBuilder
+typealias SubscriptionRequestBuilder = io.github.hyochan.kmpiap.dsl.SubscriptionRequestBuilder
 
 /**
  * Main interface for In-App Purchase operations across all platforms.

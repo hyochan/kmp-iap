@@ -61,20 +61,23 @@ val purchase = kmpIapInstance.requestPurchase(
 #### After (v1.0.0-rc.1)
 
 ```kotlin
-// Simple usage - just the SKU
-val purchase = kmpIapInstance.requestPurchase(sku = "product_id")
-
-// With platform-specific options
-val purchase = kmpIapInstance.requestPurchase(
-    sku = "product_id",
-    ios = RequestPurchaseIosProps(
-        sku = "product_id",
+// Cross-platform purchase with DSL
+val purchase = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "product_id"
         quantity = 1
-    ),
-    android = RequestPurchaseAndroidProps(
+    }
+    android {
         skus = listOf("product_id")
-    )
-)
+    }
+}
+
+// Single platform purchase
+val iosPurchase = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "product_id"
+    }
+}
 ```
 
 ## 🚀 Migration Guide
