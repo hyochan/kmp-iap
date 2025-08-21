@@ -56,6 +56,7 @@ typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 
 // Re-export request types
 typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
+typealias ProductRequest = io.github.hyochan.kmpiap.types.ProductRequest
 typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
 typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.types.RequestPurchaseIosProps
 typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.types.RequestPurchaseAndroidProps
@@ -117,12 +118,11 @@ interface KmpInAppPurchase {
     // ===== Product Management =====
     
     /**
-     * Retrieve products or subscriptions from the store
-     * @param skus List of product SKUs to retrieve
-     * @param type Product type (INAPP or SUBS)
+     * Retrieve products or subscriptions from the store following OpenIAP spec
+     * @param params Product request parameters containing SKUs and type
      * @return List of products matching the provided SKUs
      */
-    suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product>
+    suspend fun requestProducts(params: ProductRequest): List<Product>
 
     // ===== Purchase Operations =====
     
@@ -304,8 +304,8 @@ class KmpIAP : KmpInAppPurchase {
     override suspend fun endConnection() = delegate.endConnection()
     
     // Product Management
-    override suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product> = 
-        delegate.requestProducts(skus, type)
+    override suspend fun requestProducts(params: ProductRequest): List<Product> = 
+        delegate.requestProducts(params)
     
     // Purchase Operations
     override suspend fun requestPurchase(

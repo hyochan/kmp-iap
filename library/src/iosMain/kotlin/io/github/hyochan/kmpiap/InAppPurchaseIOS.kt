@@ -238,11 +238,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         _connectionStateListener.emit(ConnectionResult(connected = false, message = "Disconnected from App Store"))
     }
     
-    override suspend fun requestProducts(skus: List<String>, type: ProductType): List<Product> {
+    override suspend fun requestProducts(params: ProductRequest): List<Product> {
         ensureConnection()
         return suspendCancellableCoroutine { continuation ->
             try {
-                val request = SKProductsRequest(productIdentifiers = skus.toSet())
+                val request = SKProductsRequest(productIdentifiers = params.skus.toSet())
                 
                 productRequests[request] = { products, invalidIds ->
                     productRequests.remove(request)
@@ -290,7 +290,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         val appAccountToken = ios?.appAccountToken
         
         // Fetch product details
-        val products = requestProducts(listOf(sku), ProductType.INAPP)
+        val products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
         if (products.isEmpty()) {
             val error = PurchaseError(
                 code = ErrorCode.E_ITEM_UNAVAILABLE.name,
