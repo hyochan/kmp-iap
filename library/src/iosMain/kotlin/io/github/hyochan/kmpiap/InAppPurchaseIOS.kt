@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import platform.Foundation.*
 import platform.StoreKit.*
 import platform.UIKit.*
@@ -581,14 +582,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                                 SKProductPeriodUnit.SKProductPeriodUnitYear -> period.numberOfUnits.toLong() * 365
                                 else -> 0
                             }
-                            ((purchaseTime + (daysToAdd * 24 * 60 * 60)) * 1000).toLong() // Convert to milliseconds
+                            val expirationSeconds = purchaseTime + (daysToAdd * 24 * 60 * 60)
+                            Instant.fromEpochSeconds(expirationSeconds.toLong())
                         } else {
                             null
                         }
                     }
                     
-                    val daysUntilExpiration = expirationDate?.let { exp ->
-                        ((exp / 1000.0 - now) / (24 * 60 * 60)).toInt()
+                    val daysUntilExpiration: Number? = expirationDate?.let { exp ->
+                        ((exp.epochSeconds - now) / (24 * 60 * 60)).toInt()
                     }
                     
                     val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
