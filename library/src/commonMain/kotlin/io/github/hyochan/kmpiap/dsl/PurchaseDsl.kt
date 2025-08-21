@@ -31,6 +31,7 @@ class ProductsRequestBuilder {
         if (_type == null) {
             throw IllegalArgumentException("Product type must be specified")
         }
+        println("[KMP-IAP DSL] Building product request with skus: $_skus, type: $_type")
         return Pair(_skus, _type!!)
     }
 }

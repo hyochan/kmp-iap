@@ -19,6 +19,7 @@ suspend fun KmpInAppPurchase.requestProducts(
 ): List<Product> {
     val requestBuilder = ProductsRequestBuilder().apply(builder)
     val (skus, type) = requestBuilder.build()
+    println("[KMP-IAP DSL] Calling requestProducts with skus: $skus, type: $type")
     return requestProducts(skus, type)
 }
 
