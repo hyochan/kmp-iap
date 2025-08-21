@@ -1,6 +1,7 @@
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.dsl.*
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -13,8 +14,14 @@ import kotlinx.coroutines.flow.Flow
 
 // Re-export all types
 typealias Product = io.github.hyochan.kmpiap.types.Product
+typealias ProductAndroid = io.github.hyochan.kmpiap.types.ProductAndroid
+typealias ProductIOS = io.github.hyochan.kmpiap.types.ProductIOS
 typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProduct
+typealias SubscriptionProductAndroid = io.github.hyochan.kmpiap.types.SubscriptionProductAndroid
+typealias SubscriptionProductIOS = io.github.hyochan.kmpiap.types.SubscriptionProductIOS
 typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
+typealias PurchaseAndroid = io.github.hyochan.kmpiap.types.PurchaseAndroid
+typealias PurchaseIOS = io.github.hyochan.kmpiap.types.PurchaseIOS
 typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
 typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
 typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
@@ -49,14 +56,19 @@ typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 
 // Re-export request types
 typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
-typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
-typealias RequestPurchaseProps = io.github.hyochan.kmpiap.types.RequestPurchaseProps
-typealias RequestSubscriptionProps = io.github.hyochan.kmpiap.types.RequestSubscriptionProps
 typealias ProductRequest = io.github.hyochan.kmpiap.types.ProductRequest
+typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
+typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.types.RequestPurchaseIosProps
+typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.types.RequestPurchaseAndroidProps
 typealias PurchaseOptions = io.github.hyochan.kmpiap.types.PurchaseOptions
 typealias DeepLinkOptions = io.github.hyochan.kmpiap.types.DeepLinkOptions
 typealias ValidationOptions = io.github.hyochan.kmpiap.types.ValidationOptions
 typealias ValidationResult = io.github.hyochan.kmpiap.types.ValidationResult
+
+// Re-export DSL builders
+typealias ProductsRequestBuilder = io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder
+typealias PurchaseRequestBuilder = io.github.hyochan.kmpiap.dsl.PurchaseRequestBuilder
+typealias SubscriptionRequestBuilder = io.github.hyochan.kmpiap.dsl.SubscriptionRequestBuilder
 
 /**
  * Main interface for In-App Purchase operations across all platforms.
@@ -106,8 +118,8 @@ interface KmpInAppPurchase {
     // ===== Product Management =====
     
     /**
-     * Retrieve products or subscriptions from the store
-     * @param params Product request with SKUs and type
+     * Retrieve products or subscriptions from the store following OpenIAP spec
+     * @param params Product request parameters containing SKUs and type
      * @return List of products matching the provided SKUs
      */
     suspend fun requestProducts(params: ProductRequest): List<Product>
@@ -116,10 +128,16 @@ interface KmpInAppPurchase {
     
     /**
      * Request a purchase (one-time or subscription)
-     * @param request Purchase request configuration
+     * @param sku Product SKU to purchase
+     * @param ios iOS-specific purchase options (optional)
+     * @param android Android-specific purchase options (optional)
      * @return The successful purchase
      */
-    suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
+    suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps? = null,
+        android: RequestPurchaseAndroidProps? = null
+    ): Purchase
 
     /**
      * Get all available purchases for the current user
@@ -290,8 +308,11 @@ class KmpIAP : KmpInAppPurchase {
         delegate.requestProducts(params)
     
     // Purchase Operations
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase = 
-        delegate.requestPurchase(request)
+    override suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps?,
+        android: RequestPurchaseAndroidProps?
+    ): Purchase = delegate.requestPurchase(sku, ios, android)
     
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
         delegate.getAvailablePurchases(options)

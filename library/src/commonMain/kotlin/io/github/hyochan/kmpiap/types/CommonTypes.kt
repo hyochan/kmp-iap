@@ -63,7 +63,7 @@ data class ActiveSubscription(
 )
 
 /**
- * Product request parameters
+ * Product request parameters following OpenIAP spec
  */
 data class ProductRequest(
     val skus: List<String>,

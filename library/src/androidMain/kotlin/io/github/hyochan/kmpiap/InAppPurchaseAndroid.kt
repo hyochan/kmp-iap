@@ -296,13 +296,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         return allProducts
     }
     
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
+    override suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps?,
+        android: RequestPurchaseAndroidProps?
+    ): Purchase {
         ensureConnection()
-        
-        val sku = request.android?.skus?.firstOrNull() ?: throw PurchaseError(
-            code = ErrorCode.E_DEVELOPER_ERROR.name,
-            message = "No SKU provided"
-        )
         
         println("[KMP-IAP] Requesting purchase for SKU: $sku")
         println("[KMP-IAP] Current activity: ${currentActivity?.javaClass?.simpleName}")

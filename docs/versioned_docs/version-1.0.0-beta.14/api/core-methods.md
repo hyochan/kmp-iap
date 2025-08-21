@@ -83,16 +83,18 @@ override fun onCleared() {
 
 Loads product information from the store.
 
-#### v1.0.0-rc.1 (Current) - DSL API
+#### v1.0.0-rc.1 (Current)
 
 ```kotlin
 suspend fun requestProducts(
-    builder: ProductsRequestBuilder.() -> Unit
+    skus: List<String>,
+    type: ProductType
 ): List<Product>
 ```
 
 **Parameters**:
-- `builder` - DSL builder for configuring the request
+- `skus` - List of product SKUs to load
+- `type` - Product type (INAPP or SUBS)
 
 **Returns**: List of products with pricing and metadata
 
@@ -101,17 +103,17 @@ suspend fun requestProducts(
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.ProductType
 
-// Load in-app products using DSL
-val products = kmpIapInstance.requestProducts {
-    skus = listOf("coins_100", "coins_500", "remove_ads")
+// Load in-app products
+val products = kmpIapInstance.requestProducts(
+    skus = listOf("coins_100", "coins_500", "remove_ads"),
     type = ProductType.INAPP
-}
+)
 
-// Load subscriptions using DSL
-val subscriptions = kmpIapInstance.requestProducts {
-    skus = listOf("premium_monthly", "premium_yearly")
+// Load subscriptions
+val subscriptions = kmpIapInstance.requestProducts(
+    skus = listOf("premium_monthly", "premium_yearly"),
     type = ProductType.SUBS
-}
+)
 ```
 
 #### v1.0.0-beta.14
@@ -140,16 +142,20 @@ val products = kmpIapInstance.requestProducts(
 
 Initiates a purchase using OpenIAP-compliant request structure.
 
-#### v1.0.0-rc.1 (Current) - DSL API
+#### v1.0.0-rc.1 (Current)
 
 ```kotlin
 suspend fun requestPurchase(
-    builder: PurchaseRequestBuilder.() -> Unit
+    sku: String,
+    ios: RequestPurchaseIosProps? = null,
+    android: RequestPurchaseAndroidProps? = null
 ): Purchase
 ```
 
 **Parameters**:
-- `builder` - DSL builder for configuring platform-specific purchase options
+- `sku` - Product SKU to purchase
+- `ios` - iOS-specific purchase options (optional)
+- `android` - Android-specific purchase options (optional)
 
 **Returns**: Purchase object implementing `PurchaseCommon` interface following OpenIAP specification
 
@@ -158,34 +164,23 @@ suspend fun requestPurchase(
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.*
 
-// Cross-platform purchase using DSL
-val purchase = kmpIapInstance.requestPurchase {
-    ios {
-        sku = "premium_upgrade"
-        quantity = 1
-    }
-    android {
-        skus = listOf("premium_upgrade")
-    }
-}
+// Simple purchase - just SKU
+val purchase = kmpIapInstance.requestPurchase(sku = "premium_upgrade")
 
-// iOS-only purchase
-val iosPurchase = kmpIapInstance.requestPurchase {
-    ios {
-        sku = "coins_100"
-        quantity = 5
+// With platform-specific options
+val purchase = kmpIapInstance.requestPurchase(
+    sku = "coins_100",
+    ios = RequestPurchaseIosProps(
+        sku = "coins_100",
+        quantity = 5,
         appAccountToken = "token_456"
-    }
-}
-
-// Android-only purchase
-val androidPurchase = kmpIapInstance.requestPurchase {
-    android {
-        skus = listOf("coins_100")
-        obfuscatedAccountIdAndroid = "user_123"
+    ),
+    android = RequestPurchaseAndroidProps(
+        skus = listOf("coins_100"),
+        obfuscatedAccountIdAndroid = "user_123",
         obfuscatedProfileIdAndroid = "profile_456"
-    }
-}
+    )
+)
 ```
 
 #### v1.0.0-beta.14

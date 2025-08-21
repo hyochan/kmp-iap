@@ -20,9 +20,18 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
-import io.github.hyochan.kmpiap.ErrorCode
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.requestProducts
+import io.github.hyochan.kmpiap.requestPurchase
+import io.github.hyochan.kmpiap.Product
+import io.github.hyochan.kmpiap.Purchase
+import io.github.hyochan.kmpiap.PurchaseError
+import io.github.hyochan.kmpiap.ProductType
+import io.github.hyochan.kmpiap.ErrorCode
+import io.github.hyochan.kmpiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.PurchaseIOS
+import io.github.hyochan.kmpiap.ProductAndroid
+import io.github.hyochan.kmpiap.ProductIOS
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -149,12 +158,10 @@ fun PurchaseFlowScreen(navController: NavController) {
                 val loadJob = async {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                        val result = kmpIapInstance.requestProducts(
-                            ProductRequest(
-                                skus = PRODUCT_IDS,
-                                type = ProductType.INAPP
-                            )
-                        )
+                        val result = kmpIapInstance.requestProducts {
+                            skus = PRODUCT_IDS
+                            type = ProductType.INAPP
+                        }
                         println("[KMP-IAP Example] Products loaded: ${result.size} products")
                         result
                     } catch (e: Exception) {
@@ -332,17 +339,15 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 isProcessing = true
                                 purchaseResult = null
                                 try {
-                                    val purchase = kmpIapInstance.requestPurchase(
-                                        RequestPurchaseProps(
-                                            ios = RequestPurchaseIosProps(
-                                                sku = product.id,
-                                                quantity = 1
-                                            ),
-                                            android = RequestPurchaseAndroidProps(
-                                                skus = listOf(product.id)
-                                            )
-                                        )
-                                    )
+                                    val purchase = kmpIapInstance.requestPurchase {
+                                        ios {
+                                            sku = product.id
+                                            quantity = 1
+                                        }
+                                        android {
+                                            skus = listOf(product.id)
+                                        }
+                                    }
                                     // Purchase updates will be received through the Flow
                                 } catch (e: Exception) {
                                     purchaseResult = "Purchase failed: ${e.message}"

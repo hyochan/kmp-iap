@@ -279,20 +279,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
     
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
+    override suspend fun requestPurchase(
+        sku: String,
+        ios: RequestPurchaseIosProps?,
+        android: RequestPurchaseAndroidProps?
+    ): Purchase {
         ensureConnection()
-        val sku = request.ios?.sku
-        if (sku == null) {
-            val error = PurchaseError(
-                code = ErrorCode.E_DEVELOPER_ERROR.name,
-                message = "No SKU provided in request"
-            )
-            _purchaseErrorListener.tryEmit(error)
-            throw error
-        }
         
-        val quantity = request.ios?.quantity ?: 1
-        val appAccountToken = request.ios?.appAccountToken
+        val quantity = ios?.quantity ?: 1
+        val appAccountToken = ios?.appAccountToken
         
         // Fetch product details
         val products = requestProducts(ProductRequest(listOf(sku), ProductType.INAPP))
