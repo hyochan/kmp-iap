@@ -6,6 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import io.github.hyochan.kmpiap.types.*
 import io.github.hyochan.kmpiap.utils.ErrorCode
+import kotlinx.datetime.Instant
 
 class InAppPurchaseTest {
     
@@ -115,10 +116,11 @@ class InAppPurchaseTest {
     
     @Test
     fun testActiveSubscription() {
+        val expirationDate = Instant.fromEpochSeconds(1234567890)
         val activeSubscription = ActiveSubscription(
             productId = "test_sub",
             isActive = true,
-            expirationDateIOS = 1234567890L,
+            expirationDateIOS = expirationDate,
             autoRenewingAndroid = null,
             environmentIOS = "Production",
             willExpireSoon = false,
@@ -127,7 +129,7 @@ class InAppPurchaseTest {
         
         assertEquals("test_sub", activeSubscription.productId)
         assertEquals(true, activeSubscription.isActive)
-        assertEquals(1234567890L, activeSubscription.expirationDateIOS)
+        assertEquals(expirationDate, activeSubscription.expirationDateIOS)
         assertEquals("Production", activeSubscription.environmentIOS)
     }
 }
