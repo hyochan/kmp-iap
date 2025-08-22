@@ -11,8 +11,8 @@ Essential methods for implementing in-app purchases with kmp-iap, now **100% Ope
 
 :::info Version Differences
 This documentation covers both:
-- **v1.0.0-rc.1** (Current) - Simplified API without wrapper classes
-- **v1.0.0-beta.14** - Previous API with wrapper classes
+- **v1.0.0-rc** (Current) - Simplified API without wrapper classes
+- **v1.0.0-beta** - Previous API with wrapper classes
 :::
 
 ⚠️ **Platform Differences**: While the API is unified, there are important differences between iOS and Android implementations. Each method documents platform-specific behavior.
@@ -83,7 +83,7 @@ override fun onCleared() {
 
 Loads product information from the store.
 
-#### v1.0.0-rc.1 (Current)
+#### v1.0.0-rc (Current)
 
 ```kotlin
 suspend fun requestProducts(
@@ -116,7 +116,7 @@ val subscriptions = kmpIapInstance.requestProducts(
 )
 ```
 
-#### v1.0.0-beta.14
+#### v1.0.0-beta
 
 ```kotlin
 suspend fun requestProducts(params: ProductRequest): List<Product>
@@ -142,7 +142,7 @@ val products = kmpIapInstance.requestProducts(
 
 Initiates a purchase using OpenIAP-compliant request structure.
 
-#### v1.0.0-rc.1 (Current)
+#### v1.0.0-rc (Current)
 
 ```kotlin
 suspend fun requestPurchase(
@@ -183,7 +183,7 @@ val purchase = kmpIapInstance.requestPurchase(
 )
 ```
 
-#### v1.0.0-beta.14
+#### v1.0.0-beta
 
 ```kotlin
 suspend fun requestPurchase(request: RequestPurchaseProps): Purchase

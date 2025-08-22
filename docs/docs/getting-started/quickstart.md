@@ -7,7 +7,7 @@ sidebar_position: 2
 Get up and running with KMP IAP in just a few minutes!
 
 :::info Version
-This guide covers **v1.0.0-rc.1** with simplified API. For v1.0.0-rc.1, see the [migration guide](/blog/2025/08/20/rc1-simplified-api).
+This guide covers **v1.0.0-rc** with simplified API. For v1.0.0-rc, see the [migration guide](/blog/2025/08/20/rc1-simplified-api).
 :::
 
 ## Choose Your Approach
@@ -61,7 +61,7 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // v1.0.0-rc.1 - DSL API
+            // v1.0.0-rc - DSL API
             val products = kmpIapInstance.requestProducts {
                 skus = listOf("product_1", "product_2")
                 type = ProductType.INAPP
@@ -74,7 +74,7 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // v1.0.0-rc.1 - DSL API
+            // v1.0.0-rc - DSL API
             val purchase = kmpIapInstance.requestPurchase {
                 ios {
                     sku = productId
@@ -145,7 +145,7 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // Load in-app products - v1.0.0-rc.1 DSL API
+            // Load in-app products - v1.0.0-rc DSL API
             val products = kmpIAP.requestProducts {
                 skus = listOf("remove_ads", "premium_upgrade")
                 type = ProductType.INAPP
@@ -161,7 +161,7 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // Request purchase - v1.0.0-rc.1 DSL API
+            // Request purchase - v1.0.0-rc DSL API
             val purchase = kmpIAP.requestPurchase {
                 ios {
                     sku = productId
@@ -244,7 +244,7 @@ class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
     }
 
     suspend fun purchaseItem(productId: String) {
-        // v1.0.0-rc.1 - DSL API
+        // v1.0.0-rc - DSL API
         val purchase = kmpIAP.requestPurchase {
             ios {
                 sku = productId
@@ -285,7 +285,7 @@ fun StoreScreen() {
         // Load products
         isLoading = true
         try {
-            // v1.0.0-rc.1 - DSL API
+            // v1.0.0-rc - DSL API
             products = kmpIAP.requestProducts {
                 skus = listOf("product_1", "product_2")
                 type = ProductType.INAPP
@@ -309,7 +309,7 @@ fun StoreScreen() {
                 onClick = {
                     // Purchase product
                     scope.launch {
-                        // v1.0.0-rc.1 - DSL API
+                        // v1.0.0-rc - DSL API
                         kmpIAP.requestPurchase {
                             ios {
                                 sku = product.id

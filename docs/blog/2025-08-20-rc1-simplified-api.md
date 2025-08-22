@@ -1,12 +1,12 @@
 ---
-title: v1.0.0-rc.1 - Simplified API Design
+title: v1.0.0-rc - Simplified API Design
 authors: [hyochan]
 tags: [release, api, rc1]
 ---
 
-# kmp-iap v1.0.0-rc.1 Released - Simplified API Design
+# kmp-iap v1.0.0-rc Released - Simplified API Design
 
-We're excited to announce the release of **kmp-iap v1.0.0-rc.1**, which brings significant API improvements that make in-app purchases even easier to implement in your Kotlin Multiplatform projects.
+We're excited to announce the release of **kmp-iap v1.0.0-rc**, which brings significant API improvements that make in-app purchases even easier to implement in your Kotlin Multiplatform projects.
 
 ## 🎯 Key Changes
 
@@ -20,7 +20,7 @@ We've removed unnecessary wrapper classes to make the API more intuitive and red
 
 ### 1. requestProducts() - Direct Parameters
 
-#### Before (v1.0.0-beta.14)
+#### Before (v1.0.0-beta)
 
 ```kotlin
 val products = kmpIapInstance.requestProducts(
@@ -31,7 +31,7 @@ val products = kmpIapInstance.requestProducts(
 )
 ```
 
-#### After (v1.0.0-rc.1)
+#### After (v1.0.0-rc)
 
 ```kotlin
 val products = kmpIapInstance.requestProducts(
@@ -42,7 +42,7 @@ val products = kmpIapInstance.requestProducts(
 
 ### 2. requestPurchase() - Streamlined Parameters
 
-#### Before (v1.0.0-beta.14)
+#### Before (v1.0.0-beta)
 
 ```kotlin
 val purchase = kmpIapInstance.requestPurchase(
@@ -58,7 +58,7 @@ val purchase = kmpIapInstance.requestPurchase(
 )
 ```
 
-#### After (v1.0.0-rc.1)
+#### After (v1.0.0-rc)
 
 ```kotlin
 // Cross-platform purchase with DSL
@@ -86,7 +86,7 @@ val iosPurchase = kmpIapInstance.requestPurchase {
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.1")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc")
 }
 ```
 

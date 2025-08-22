@@ -7,7 +7,7 @@ sidebar_position: 2
 Get up and running with KMP IAP in just a few minutes!
 
 :::info Version
-This guide covers **v1.0.0-rc.1** with simplified API. For v1.0.0-rc.1, see the [migration guide](/blog/2025/08/20/rc1-simplified-api).
+This guide covers **v1.0.0-rc** with simplified API. For v1.0.0-rc, see the [migration guide](/blog/2025/08/20/rc1-simplified-api).
 :::
 
 ## Choose Your Approach
@@ -61,7 +61,7 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // v1.0.0-rc.1 - simplified API
+            // v1.0.0-rc - simplified API
             val products = kmpIapInstance.requestProducts(
                 skus = listOf("product_1", "product_2"),
                 type = ProductType.INAPP
@@ -74,7 +74,7 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // v1.0.0-rc.1 - simplified API (just SKU)
+            // v1.0.0-rc - simplified API (just SKU)
             val purchase = kmpIapInstance.requestPurchase(sku = productId)
             println("Purchase initiated for: ${purchase.productId}")
         } catch (e: Exception) {
@@ -138,7 +138,7 @@ class IAPManager {
 
     suspend fun loadProducts() {
         try {
-            // Load in-app products - v1.0.0-rc.1 simplified API
+            // Load in-app products - v1.0.0-rc simplified API
             val products = kmpIAP.requestProducts(
                 skus = listOf("remove_ads", "premium_upgrade"),
                 type = ProductType.INAPP
@@ -154,7 +154,7 @@ class IAPManager {
 
     suspend fun purchaseProduct(productId: String) {
         try {
-            // Request purchase - v1.0.0-rc.1 simplified API
+            // Request purchase - v1.0.0-rc simplified API
             val purchase = kmpIAP.requestPurchase(sku = productId)
             // Purchase will be handled in purchaseUpdatedListener
         } catch (e: Exception) {
@@ -230,7 +230,7 @@ class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
     }
 
     suspend fun purchaseItem(productId: String) {
-        // v1.0.0-rc.1 - simplified API
+        // v1.0.0-rc - simplified API
         val purchase = kmpIAP.requestPurchase(sku = productId)
 
         // Validate and finish transaction
@@ -264,7 +264,7 @@ fun StoreScreen() {
         // Load products
         isLoading = true
         try {
-            // v1.0.0-rc.1 - simplified API
+            // v1.0.0-rc - simplified API
             products = kmpIAP.requestProducts(
                 skus = listOf("product_1", "product_2"),
                 type = ProductType.INAPP
@@ -288,7 +288,7 @@ fun StoreScreen() {
                 onClick = {
                     // Purchase product
                     scope.launch {
-                        // v1.0.0-rc.1 - simplified API
+                        // v1.0.0-rc - simplified API
                         kmpIAP.requestPurchase(sku = product.id)
                     }
                 }

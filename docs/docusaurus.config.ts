@@ -54,9 +54,9 @@ const config: Config = {
               label: '1.0.0-rc.1 (Current)',
               path: '',
             },
-            '1.0.0-beta.14': {
-              label: '1.0.0-beta.14',
-              path: '1.0.0-beta.14',
+            '1.0.0-beta': {
+              label: '1.0.0-beta',
+              path: '1.0.0-beta',
             },
           },
           // Import MDX components
