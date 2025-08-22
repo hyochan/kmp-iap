@@ -561,7 +561,7 @@ class PurchaseError(
 Update to KMP-IAP v1.0.0-beta today:
 
 ```kotlin
-implementation("io.github.hyochan:kmp-iap:1.0.0-beta")
+implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
 ```
 
 ### Documentation Links
