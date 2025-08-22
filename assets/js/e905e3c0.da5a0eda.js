@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[5737],{8761:l=>{l.exports=JSON.parse('{"label":"google-play-billing","permalink":"/blog/tags/google-play-billing","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

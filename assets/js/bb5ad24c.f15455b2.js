@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[8448],{8595:s=>{s.exports=JSON.parse('{"label":"cross-platform","permalink":"/blog/tags/cross-platform","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

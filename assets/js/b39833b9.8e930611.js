@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[8848],{5473:a=>{a.exports=JSON.parse('{"label":"api-standardization","permalink":"/blog/tags/api-standardization","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

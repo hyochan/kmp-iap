@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[4579],{8024:a=>{a.exports=JSON.parse('{"label":"api-enhancement","permalink":"/blog/tags/api-enhancement","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

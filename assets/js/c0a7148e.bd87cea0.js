@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[8436],{5522:a=>{a.exports=JSON.parse('{"label":"openiap","permalink":"/blog/tags/openiap","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

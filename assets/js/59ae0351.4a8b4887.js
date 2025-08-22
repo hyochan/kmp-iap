@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[206],{8702:s=>{s.exports=JSON.parse('{"label":"purchase-types","permalink":"/blog/tags/purchase-types","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[122],{22:s=>{s.exports=JSON.parse('{"label":"rc1","permalink":"/blog/tags/rc-1","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

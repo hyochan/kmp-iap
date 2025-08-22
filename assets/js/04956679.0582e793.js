@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[9289],{2383:s=>{s.exports=JSON.parse('{"label":"ios","permalink":"/blog/tags/ios","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[7955],{1637:s=>{s.exports=JSON.parse('{"label":"naming-conventions","permalink":"/blog/tags/naming-conventions","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

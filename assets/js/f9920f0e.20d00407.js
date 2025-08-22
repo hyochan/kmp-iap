@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[234],{4252:s=>{s.exports=JSON.parse('{"label":"type-safety","permalink":"/blog/tags/type-safety","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);

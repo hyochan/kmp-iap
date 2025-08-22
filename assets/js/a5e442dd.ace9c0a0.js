@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[6768],{1955:a=>{a.exports=JSON.parse('{"label":"standards-compliance","permalink":"/blog/tags/standards-compliance","allTagsPath":"/blog/tags","count":1,"unlisted":false}')}}]);
