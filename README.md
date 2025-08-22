@@ -23,7 +23,7 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.1")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.2")
 }
 ```
 
@@ -38,7 +38,7 @@ import io.github.hyochan.kmpiap.*
 // Use the global singleton instance
 kmpIapInstance.initConnection()
 
-// Get products - DSL API in v1.0.0-rc.1
+// Get products - DSL API in v1.0.0-rc.2
 val products = kmpIapInstance.requestProducts {
     skus = listOf("product_id")
     type = ProductType.INAPP
@@ -81,7 +81,7 @@ val kmpIAP = KmpIAP()
 // Initialize connection
 kmpIAP.initConnection()
 
-// Get products - DSL API in v1.0.0-rc.1
+// Get products - DSL API in v1.0.0-rc.2
 val products = kmpIAP.requestProducts {
     skus = listOf("product_id")
     type = ProductType.INAPP

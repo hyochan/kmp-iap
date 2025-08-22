@@ -86,7 +86,7 @@ val iosPurchase = kmpIapInstance.requestPurchase {
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-rc")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.2")
 }
 ```
 
