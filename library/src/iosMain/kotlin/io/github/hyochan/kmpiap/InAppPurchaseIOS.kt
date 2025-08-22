@@ -589,9 +589,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         }
                     }
                     
-                    val daysUntilExpiration: Number? = expirationDate?.let { exp ->
-                        ((exp.epochSeconds - now) / (24 * 60 * 60)).toInt()
-                    }
+val daysUntilExpiration: Int? = expirationDate?.let { exp ->
+    val nowSeconds = now.toLong()
+    ((exp.epochSeconds - nowSeconds) / (24 * 60 * 60)).toInt()
+}
+val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
                     
                     val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
                     

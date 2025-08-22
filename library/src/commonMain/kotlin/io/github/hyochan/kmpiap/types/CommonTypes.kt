@@ -56,11 +56,14 @@ data class AppStoreInfo(
 data class ActiveSubscription(
     val productId: String,
     val isActive: Boolean,
-    val expirationDateIOS: Instant? = null,                    // iOS only - expiration date
-    val autoRenewingAndroid: Boolean? = null,                 // Android only  
-    val environmentIOS: String? = null,                        // iOS only: "Sandbox" | "Production"
-    val willExpireSoon: Boolean? = null,                       // True if expiring within 7 days
-    val daysUntilExpirationIOS: Number? = null                 // iOS only
+data class ActiveSubscription(
+  val productId: String,
+  val isActive: Boolean,
+  val expirationDateIOS: Instant? = null,                    // iOS only - expiration date
+  val autoRenewingAndroid: Boolean? = null,                 // Android only  
+  val environmentIOS: String? = null,                        // iOS only: "Sandbox" | "Production"
+  val willExpireSoon: Boolean? = null,                       // True if expiring within 7 days
+  val daysUntilExpirationIOS: Int? = null                    // iOS only (whole days)
 )
 
 /**
