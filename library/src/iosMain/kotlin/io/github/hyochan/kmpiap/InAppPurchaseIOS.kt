@@ -593,10 +593,10 @@ val daysUntilExpiration: Int? = expirationDate?.let { exp ->
     val nowSeconds = now.toLong()
     ((exp.epochSeconds - nowSeconds) / (24 * 60 * 60)).toInt()
 }
-val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
-                    
-                    val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
-                    
+@@ Lines 596-599 in InAppPurchaseIOS.kt
+- val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
+- 
+ val willExpireSoon = daysUntilExpiration?.let { it in 0..7 }
                     // Determine environment
                     val receiptURL = NSBundle.mainBundle.appStoreReceiptURL
                     val environment = if (receiptURL?.absoluteString?.contains("sandboxReceipt") == true) {
