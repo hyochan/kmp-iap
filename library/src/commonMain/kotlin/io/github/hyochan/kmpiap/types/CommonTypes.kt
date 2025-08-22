@@ -1,5 +1,6 @@
 package io.github.hyochan.kmpiap.types
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
@@ -55,11 +56,11 @@ data class AppStoreInfo(
 data class ActiveSubscription(
     val productId: String,
     val isActive: Boolean,
-    val expirationDateIOS: Long? = null,        // iOS only - expiration timestamp
-    val autoRenewingAndroid: Boolean? = null,   // Android only  
-    val environmentIOS: String? = null,         // iOS only: "Sandbox" | "Production"
-    val willExpireSoon: Boolean? = null,        // True if expiring within 7 days
-    val daysUntilExpirationIOS: Int? = null     // iOS only
+    val expirationDateIOS: Instant? = null,
+    val autoRenewingAndroid: Boolean? = null,
+    val environmentIOS: String? = null,
+    val willExpireSoon: Boolean? = null,
+    val daysUntilExpirationIOS: Int? = null
 )
 
 /**
