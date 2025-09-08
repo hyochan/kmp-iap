@@ -1,0 +1,25 @@
+platform :ios, '15.0'
+use_frameworks! :linkage => :static
+
+target 'iosApp' do
+  # The Kotlin Gradle plugin will insert the KmpIap pod spec here during podInstall
+  # Ensure static linkage for Swift pods like 'openiap'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # Force static linkage for Swift Pods (especially 'openiap')
+      if target.name == 'openiap'
+        config.build_settings['MACH_O_TYPE'] = 'staticlib'
+      end
+      # Remove _main alias flags that cause dylib linkage issues
+      if config.build_settings['OTHER_LDFLAGS']
+        flags = [config.build_settings['OTHER_LDFLAGS']].flatten.map(&:to_s)
+        flags = flags.reject { |f| f.include?('_main') || f.include?('___debug_main_executable_dylib_entry_point') }
+        config.build_settings['OTHER_LDFLAGS'] = flags
+      end
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+    end
+  end
+end
