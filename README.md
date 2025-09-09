@@ -17,7 +17,7 @@
 
 Visit the documentation site for installation guides, API reference, and examples:
 
-### **[kmp-iap.hyo.dev](https://kmp-iap.hyo.dev)**
+### **[hyochan.github.io/kmp-iap](https://hyochan.github.io/kmp-iap)**
 
 ## 📦 Installation
 

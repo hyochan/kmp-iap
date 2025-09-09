@@ -567,7 +567,7 @@ implementation("io.github.hyochan:kmp-iap:1.0.0-beta.14")
 ### Documentation Links
 
 - **[OpenIAP Specification](https://openiap.dev)** - Learn about the standard
-- **[Complete API Documentation](https://kmp-iap.hyo.dev)** - Complete API reference
+- **[Complete API Documentation](https://hyochan.github.io/kmp-iap)** - Complete API reference
 
 ## 🎉 What's Next
 

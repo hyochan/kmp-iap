@@ -17,7 +17,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://kmp-iap.hyo.dev',
+  url: 'https://hyochan.github.io/kmp-iap',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',

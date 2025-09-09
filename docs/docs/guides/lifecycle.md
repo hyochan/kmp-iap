@@ -7,7 +7,7 @@ title: Lifecycle
 
 Understanding and managing the in-app purchase lifecycle is crucial for creating robust and reliable purchase experiences in Kotlin Multiplatform projects.
 
-![Purchase Lifecycle](https://expo-iap.hyo.dev/assets/images/lifecycle-882aa01ea00089e05a08f19581d9b349.svg)
+![Purchase Lifecycle](https://kmp-iap.hyo.dev/assets/images/lifecycle-882aa01ea00089e05a08f19581d9b349.svg)
 
 The purchase lifecycle involves multiple interconnected states and transitions, from initial store connection through purchase completion and transaction finalization. Understanding this flow helps you build resilient purchase systems that handle edge cases gracefully.
 
