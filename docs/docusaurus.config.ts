@@ -17,10 +17,10 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://hyochan.github.io/kmp-iap',
+  url: 'https://hyochan.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: '/kmp-iap/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
