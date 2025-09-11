@@ -91,6 +91,8 @@ plugins {
     alias(libs.plugins.vanniktechMavenPublish)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlinxSerialization)
+    // Enable CocoaPods integration for iOS
+    id("org.jetbrains.kotlin.native.cocoapods")
     signing
 }
 
@@ -108,6 +110,73 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+
+    // CocoaPods configuration for iOS linking and external Pods
+cocoapods {
+        summary = "KMP IAP: OpenIAP-compliant IAP library (Kotlin Multiplatform)"
+        homepage = "https://github.com/hyochan/kmp-iap"
+        ios.deploymentTarget = "15.0"
+        // Use the example iOS Podfile to control CocoaPods settings (static linkage)
+        podfile = project.file("../example/iosApp/Podfile")
+        framework {
+            baseName = "KmpIap"
+            isStatic = true
+        }
+
+        // Install OpenIAP CocoaPods dependency (v1.1.6)
+        // Pod name is lowercase 'openiap' per upstream spec
+        pod("openiap") {
+            version = "1.1.6"
+        }
+    }
+
+// Patch the synthetic Podfile to force static frameworks (fixes SwiftUICore/main alias link issues)
+tasks.register("patchSyntheticPodfile") {
+    doLast {
+        val podfile = file("build/cocoapods/synthetic/ios/Podfile")
+        if (podfile.exists()) {
+            var content = podfile.readText()
+            // Force static linkage for frameworks
+            content = content.replace("use_frameworks!", "use_frameworks! :linkage => :static")
+            // Ensure we force static lib mode for 'openiap' target to avoid dylib '_main' alias
+            if (!content.contains("MACH_O_TYPE") || !content.contains("OTHER_LDFLAGS")) {
+                content = content.replace(
+                    "post_install do |installer|",
+                    "post_install do |installer|\n  installer.pods_project.targets.each do |target|\n    target.build_configurations.each do |config|\n      # Force static output for OpenIAP pod\n      if target.name == 'openiap'\n        config.build_settings['MACH_O_TYPE'] = 'staticlib'\n      end\n      # Remove debug-executable alias flags that inject _main into dylib link\n      if config.build_settings['OTHER_LDFLAGS']\n        flags = [config.build_settings['OTHER_LDFLAGS']].flatten.map(&:to_s)\n        flags = flags.reject { |f| f.include?('_main') || f.include?('___debug_main_executable_dylib_entry_point') }\n        config.build_settings['OTHER_LDFLAGS'] = flags\n      end\n      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'\n    end\n  end\n"
+                )
+            }
+            podfile.writeText(content)
+            println("Patched synthetic Podfile for static frameworks")
+        } else {
+            println("Synthetic Podfile not found to patch: ${podfile.path}")
+        }
+    }
+}
+
+// Ensure patch runs after pod install generates the synthetic Podfile
+tasks.matching { it.name == "podInstallSyntheticIos" }.configureEach {
+    finalizedBy("patchSyntheticPodfile")
+}
+
+// Clean synthetic Pods so patched Podfile takes effect on next install
+tasks.register("cleanSyntheticPods") {
+    doLast {
+        val base = file("build/cocoapods/synthetic/ios")
+        val podsDir = file("build/cocoapods/synthetic/ios/Pods")
+        val lock = file("build/cocoapods/synthetic/ios/Podfile.lock")
+        val xcworkspace = file("build/cocoapods/synthetic/ios/Pods/Pods.xcodeproj")
+        if (podsDir.exists()) podsDir.deleteRecursively()
+        if (lock.exists()) lock.delete()
+        if (xcworkspace.exists()) xcworkspace.deleteRecursively()
+        println("Deleted synthetic Pods to force re-install")
+    }
+}
+
+// Enforce re-install after patching Podfile
+tasks.matching { it.name == "podSetupBuildOpeniapIos" || it.name == "podBuildOpeniapIos" }.configureEach {
+    dependsOn("cleanSyntheticPods")
+    dependsOn("podInstallSyntheticIos")
+}
 
     sourceSets {
         val commonMain by getting {
