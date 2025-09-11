@@ -17,7 +17,7 @@ This documentation is for **kmp-iap v1.0.0-beta**. For the latest version with s
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
 
 <div style={{textAlign: 'center', margin: '2rem 0'}}>
-  <img src="/img/logo.png" alt="kmp-iap Logo" style={{maxWidth: '100%', height: 'auto'}} />
+  <img src="img/logo.png" alt="kmp-iap Logo" style={{maxWidth: '100%', height: 'auto'}} />
 </div>
 
 ## 🚀 What is kmp-iap?
