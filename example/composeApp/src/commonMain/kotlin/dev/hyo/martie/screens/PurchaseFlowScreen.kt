@@ -27,6 +27,7 @@ import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlinx.coroutines.*
@@ -70,51 +71,56 @@ fun PurchaseFlowScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                
-                // Log purchase data as JSON
-                println("\n========== PURCHASE SUCCESS (JSON) ==========")
-                val json = Json { 
-                    prettyPrint = true
-                    encodeDefaults = true
-                    ignoreUnknownKeys = true
-                }
-                
-                val jsonString = purchase.toPrettyJson(json)
-                println(jsonString)
-                println("=============================================\n")
-                
-                // Handle successful purchase
-                val dateText = purchase.transactionDate?.let {
-                    Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
-                } ?: "N/A"
-                purchaseResult = """
+
+                when (purchase.purchaseState) {
+                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                        isProcessing = false
+
+                        println("\n========== PURCHASE SUCCESS (JSON) ==========")
+                        val json = Json {
+                            prettyPrint = true
+                            encodeDefaults = true
+                            ignoreUnknownKeys = true
+                        }
+
+                        val jsonString = purchase.toPrettyJson(json)
+                        println(jsonString)
+                        println("=============================================\n")
+
+                        val dateText = purchase.transactionDate?.let {
+                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
+                        } ?: "N/A"
+                        purchaseResult = """
                     ✅ Purchase successful (${purchase.platform})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
                     Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
                 """.trimIndent()
-                
-                // IMPORTANT: Server-side receipt validation should be performed here
-                // Send the receipt to your backend server for validation
-                // Example:
-                // val isValid = validateReceiptOnServer(purchase.purchaseToken)
-                // if (!isValid) {
-                //     purchaseResult = "❌ Receipt validation failed"
-                //     return@collect
-                // }
-                
-                // After successful server validation, finish the transaction
-                // For consumable products (like bulb packs), set isConsumable to true
-                scope.launch {
-                    try {
-                        kmpIapInstance.finishTransaction(
-                            purchase = purchase.toPurchaseInput(),
-                            isConsumable = true // Set to true for consumable products
-                        )
-                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
-                    } catch (e: Exception) {
-                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+
+                        scope.launch {
+                            try {
+                                kmpIapInstance.finishTransaction(
+                                    purchase = purchase.toPurchaseInput(),
+                                    isConsumable = true
+                                )
+                                purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+                            } catch (e: Exception) {
+                                purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                            }
+                        }
+                    }
+                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                        isProcessing = true
+                        purchaseResult = "⏳ Purchase is pending user confirmation..."
+                    }
+                    PurchaseState.Failed -> {
+                        isProcessing = false
+                        purchaseResult = "❌ Purchase failed"
+                    }
+                    else -> {
+                        isProcessing = false
+                        purchaseResult = null
                     }
                 }
             }
@@ -122,6 +128,7 @@ fun PurchaseFlowScreen(navController: NavController) {
         
         launch {
             kmpIapInstance.purchaseErrorListener.collect { error ->
+                isProcessing = false
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.UserCancelled -> "⚠️ Purchase cancelled by user"
@@ -349,10 +356,9 @@ fun PurchaseFlowScreen(navController: NavController) {
                                     // Purchase updates will be received through the Flow
                                 } catch (e: Exception) {
                                     purchaseResult = "Purchase failed: ${e.message}"
-                                } finally {
                                     isProcessing = false
                                 }
-                            }
+                        }
                         },
                         isProcessing = isProcessing
                     )

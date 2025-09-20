@@ -27,6 +27,7 @@ import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.ErrorCode
@@ -72,43 +73,48 @@ fun SubscriptionFlowScreen(navController: NavController) {
         launch {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                
-                // Handle successful purchase
-                val dateText = purchase.transactionDate?.let {
-                    Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
-                } ?: "N/A"
-                purchaseResult = """
+
+                when (purchase.purchaseState) {
+                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                        isProcessing = false
+
+                        val dateText = purchase.transactionDate?.let {
+                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
+                        } ?: "N/A"
+                        purchaseResult = """
                     ✅ Subscription successful (${purchase.platform})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
                     Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
                 """.trimIndent()
-                
-                // IMPORTANT: Server-side receipt validation should be performed here
-                // Send the receipt to your backend server for validation
-                // Example:
-                // val isValid = validateReceiptOnServer(purchase.purchaseToken)
-                // if (!isValid) {
-                //     purchaseResult = "❌ Receipt validation failed"
-                //     return@collect
-                // }
-                
-                // After successful server validation, finish the transaction
-                // For subscriptions, set isConsumable to false
-                scope.launch {
-                    try {
-                        kmpIAP.finishTransaction(
-                            purchase = purchase.toPurchaseInput(),
-                            isConsumable = false // Set to false for subscription products
-                        )
-                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
-                        
-                        // Refresh active subscriptions after successful purchase
-                        activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
-                        hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
-                    } catch (e: Exception) {
-                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+
+                        scope.launch {
+                            try {
+                                kmpIAP.finishTransaction(
+                                    purchase = purchase.toPurchaseInput(),
+                                    isConsumable = false
+                                )
+                                purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+
+                                activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                                hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                            } catch (e: Exception) {
+                                purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                            }
+                        }
+                    }
+                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                        isProcessing = true
+                        purchaseResult = "⏳ Subscription is pending user confirmation..."
+                    }
+                    PurchaseState.Failed -> {
+                        isProcessing = false
+                        purchaseResult = "❌ Subscription failed"
+                    }
+                    else -> {
+                        isProcessing = false
+                        purchaseResult = null
                     }
                 }
             }
@@ -116,6 +122,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
         
         launch {
             kmpIAP.purchaseErrorListener.collect { error ->
+                isProcessing = false
                 currentError = error
                 purchaseResult = when (error.code) {
                     ErrorCode.UserCancelled -> "⚠️ Subscription cancelled by user"
@@ -413,7 +420,6 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         // The UI will be updated automatically when the listener triggers
                                     } catch (e: Exception) {
                                         purchaseResult = "Subscription failed: ${e.message}"
-                                    } finally {
                                         isProcessing = false
                                     }
                                 }
