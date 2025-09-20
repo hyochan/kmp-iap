@@ -7,7 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,23 +21,25 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.requestProducts
-import io.github.hyochan.kmpiap.requestSubscription
-import io.github.hyochan.kmpiap.Product
-import io.github.hyochan.kmpiap.Purchase
-import io.github.hyochan.kmpiap.PurchaseError
-import io.github.hyochan.kmpiap.ProductType
-import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.PurchaseAndroid
-import io.github.hyochan.kmpiap.PurchaseIOS
-import io.github.hyochan.kmpiap.ProductAndroid
-import io.github.hyochan.kmpiap.ProductIOS
-import io.github.hyochan.kmpiap.SubscriptionProduct
-import io.github.hyochan.kmpiap.SubscriptionProductAndroid
-import io.github.hyochan.kmpiap.SubscriptionProductIOS
-import io.github.hyochan.kmpiap.SubscriptionOfferAndroid
-import io.github.hyochan.kmpiap.ActiveSubscription
+import io.github.hyochan.kmpiap.fetchProducts
+import io.github.hyochan.kmpiap.requestPurchase
+import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseState
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
+import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
+import io.github.hyochan.kmpiap.openiap.ProductAndroid
+import io.github.hyochan.kmpiap.openiap.ProductIOS
+import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import kotlinx.coroutines.*
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -71,40 +73,48 @@ fun SubscriptionFlowScreen(navController: NavController) {
         launch {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                
-                // Handle successful purchase
-                purchaseResult = """
+
+                when (purchase.purchaseState) {
+                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                        isProcessing = false
+
+                        val dateText = purchase.transactionDate?.let {
+                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
+                        } ?: "N/A"
+                        purchaseResult = """
                     ✅ Subscription successful (${purchase.platform})
                     Product: ${purchase.productId}
-                    Transaction ID: ${purchase.transactionId ?: "N/A"}
-                    Date: ${purchase.transactionDate?.let { kotlinx.datetime.Instant.fromEpochSeconds(it.toLong()) } ?: "N/A"}
-                    Receipt: ${purchase.transactionReceipt?.take(50)}...
+                    Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
+                    Date: $dateText
+                    Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
                 """.trimIndent()
-                
-                // IMPORTANT: Server-side receipt validation should be performed here
-                // Send the receipt to your backend server for validation
-                // Example:
-                // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
-                // if (!isValid) {
-                //     purchaseResult = "❌ Receipt validation failed"
-                //     return@collect
-                // }
-                
-                // After successful server validation, finish the transaction
-                // For subscriptions, set isConsumable to false
-                scope.launch {
-                    try {
-                        kmpIAP.finishTransaction(
-                            purchase = purchase,
-                            isConsumable = false // Set to false for subscription products
-                        )
-                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
-                        
-                        // Refresh active subscriptions after successful purchase
-                        activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
-                        hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
-                    } catch (e: Exception) {
-                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+
+                        scope.launch {
+                            try {
+                                kmpIAP.finishTransaction(
+                                    purchase = purchase.toPurchaseInput(),
+                                    isConsumable = false
+                                )
+                                purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+
+                                activeSubscriptions = kmpIAP.getActiveSubscriptions(SUBSCRIPTION_IDS)
+                                hasActiveSubscription = kmpIAP.hasActiveSubscriptions(SUBSCRIPTION_IDS)
+                            } catch (e: Exception) {
+                                purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                            }
+                        }
+                    }
+                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                        isProcessing = true
+                        purchaseResult = "⏳ Subscription is pending user confirmation..."
+                    }
+                    PurchaseState.Failed -> {
+                        isProcessing = false
+                        purchaseResult = "❌ Subscription failed"
+                    }
+                    else -> {
+                        isProcessing = false
+                        purchaseResult = null
                     }
                 }
             }
@@ -112,9 +122,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
         
         launch {
             kmpIAP.purchaseErrorListener.collect { error ->
+                isProcessing = false
                 currentError = error
                 purchaseResult = when (error.code) {
-                    ErrorCode.E_USER_CANCELLED.name -> "⚠️ Subscription cancelled by user"
+                    ErrorCode.UserCancelled -> "⚠️ Subscription cancelled by user"
                     else -> "❌ Error: ${error.message}\nCode: ${error.code}"
                 }
             }
@@ -160,9 +171,9 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        kmpIAP.requestProducts {
+                        kmpIAP.fetchProducts {
                             skus = SUBSCRIPTION_IDS
-                            type = ProductType.SUBS
+                            type = ProductQueryType.Subs
                         }
                     } catch (e: Exception) {
                         println("Failed to load subscription products: ${e.message}")
@@ -207,7 +218,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 title = { Text("Subscription Flow") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -290,8 +304,10 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 
                                 // Show iOS-specific info
                                 activeSub.expirationDateIOS?.let { expDate ->
+                                    val expiration = Instant.fromEpochMilliseconds(expDate.toLong())
+                                        .toLocalDateTime(TimeZone.currentSystemDefault())
                                     Text(
-                                        text = "  Expires: ${kotlinx.datetime.Instant.fromEpochMilliseconds(expDate)}",
+                                        text = "  Expires: $expiration",
                                         fontSize = 12.sp,
                                         color = AppColors.Secondary
                                     )
@@ -390,7 +406,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     isProcessing = true
                                     purchaseResult = null
                                     try {
-                                        val purchase = kmpIAP.requestSubscription {
+                                        val purchase = kmpIAP.requestPurchase {
+                                            type = ProductType.Subs
                                             ios {
                                                 sku = subscription.id
                                                 quantity = 1
@@ -403,7 +420,6 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         // The UI will be updated automatically when the listener triggers
                                     } catch (e: Exception) {
                                         purchaseResult = "Subscription failed: ${e.message}"
-                                    } finally {
                                         isProcessing = false
                                     }
                                 }
@@ -477,8 +493,6 @@ fun SubscriptionCard(
                 
                 // Serialize based on concrete type since Product is an interface
                 val jsonString = when (subscription) {
-                    is SubscriptionProductAndroid -> json.encodeToString(subscription)
-                    is SubscriptionProductIOS -> json.encodeToString(subscription)
                     is ProductAndroid -> json.encodeToString(subscription)
                     is ProductIOS -> json.encodeToString(subscription)
                     else -> {
@@ -609,4 +623,3 @@ fun SubscriptionCard(
         }
     }
 }
-

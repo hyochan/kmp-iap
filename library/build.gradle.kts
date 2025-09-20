@@ -127,6 +127,7 @@ kotlin {
             dependencies {
                 implementation(libs.billing)
                 implementation(libs.billing.ktx)
+                implementation(libs.openiap.google)
             }
         }
     }

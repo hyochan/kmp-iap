@@ -2,48 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Android Debug (Auto)",
+      "name": "Android - Run Example",
       "request": "launch",
       "type": "node-terminal",
       "command": "${workspaceFolder}/.vscode/run_android.sh",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Android Debug",
+      "name": "iOS - Run Example",
       "request": "launch",
       "type": "node-terminal",
-      "command": "${workspaceFolder}/.vscode/run_android.sh",
+      "command": "bash -lc \"if [ \\\"${input:iosTarget}\\\" = \\\"device\\\" ]; then \\\"${workspaceFolder}/.vscode/run_ios_device.sh\\\"; else \\\"${workspaceFolder}/.vscode/run_ios.sh\\\"; fi\"",
       "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "iOS Simulator",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "${workspaceFolder}/.vscode/run_ios.sh",
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "iOS Device",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "${workspaceFolder}/.vscode/run_ios_device.sh",
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "iOS Device (Open in Xcode)",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "${workspaceFolder}/.vscode/run_ios_device_xcode.sh",
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "Desktop Debug",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/example/gradlew",
-      "args": ["composeApp:run"],
-      "cwd": "${workspaceFolder}/example",
-      "console": "integratedTerminal"
     },
     {
       "name": "Docs - Start Dev Server",
@@ -51,20 +21,24 @@
       "type": "node-terminal",
       "command": "cd docs && npm start",
       "cwd": "${workspaceFolder}"
-    },
+    }
+  ],
+  "inputs": [
     {
-      "name": "Docs - Build",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "cd docs && npm run build",
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "Docs - Serve Production Build",
-      "request": "launch",
-      "type": "node-terminal",
-      "command": "cd docs && npm run serve",
-      "cwd": "${workspaceFolder}"
+      "id": "iosTarget",
+      "type": "pickString",
+      "description": "Choose how to run the iOS example",
+      "options": [
+        {
+          "label": "Simulator (default)",
+          "value": "simulator"
+        },
+        {
+          "label": "Physical Device",
+          "value": "device"
+        }
+      ],
+      "default": "simulator"
     }
   ]
 }

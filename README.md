@@ -39,9 +39,9 @@ import io.github.hyochan.kmpiap.*
 kmpIapInstance.initConnection()
 
 // Get products - DSL API in v1.0.0-rc.2
-val products = kmpIapInstance.requestProducts {
+val products = kmpIapInstance.fetchProducts {
     skus = listOf("product_id")
-    type = ProductType.INAPP
+    type = ProductQueryType.InApp
 }
 
 // Request purchase - DSL API with platform-specific options
@@ -64,7 +64,7 @@ val iosPurchase = kmpIapInstance.requestPurchase {
 
 // Finish transaction (after server-side validation)
 kmpIapInstance.finishTransaction(
-    purchase = purchase,
+    purchase = purchase.toPurchaseInput(),
     isConsumable = true // true for consumables, false for subscriptions
 )
 ```
@@ -82,9 +82,9 @@ val kmpIAP = KmpIAP()
 kmpIAP.initConnection()
 
 // Get products - DSL API in v1.0.0-rc.2
-val products = kmpIAP.requestProducts {
+val products = kmpIAP.fetchProducts {
     skus = listOf("product_id")
-    type = ProductType.INAPP
+    type = ProductQueryType.InApp
 }
 
 // Request purchase - DSL API with platform-specific options
@@ -107,7 +107,7 @@ val androidPurchase = kmpIAP.requestPurchase {
 
 // Finish transaction (after server-side validation)
 kmpIAP.finishTransaction(
-    purchase = purchase,
+    purchase = purchase.toPurchaseInput(),
     isConsumable = true // true for consumables, false for subscriptions
 )
 ```

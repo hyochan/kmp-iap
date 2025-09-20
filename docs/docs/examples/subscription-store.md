@@ -34,7 +34,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.data.*
-import io.github.hyochan.kmpiap.IapPlatform
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.*

@@ -28,6 +28,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
 billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
 navigationCompose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
+openiap-google = { module = "io.github.hyochan.openiap:openiap-google", version = "1.2.6" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,8 +25,8 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.navigation.Screen
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.types.IapPlatform
-import io.github.hyochan.kmpiap.types.getCurrentPlatform
+import io.github.hyochan.kmpiap.getCurrentPlatform
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import kotlinx.coroutines.launch
 
 @Composable
@@ -37,7 +38,7 @@ fun HomeScreen(navController: NavController) {
     val kmpIAP = remember { KmpIAP() }
     
     LaunchedEffect(Unit) {
-        if (getCurrentPlatform() == IapPlatform.IOS) {
+        if (getCurrentPlatform() == IapPlatform.Ios) {
             try {
                 val storefront = kmpIAP.getStorefrontIOS()
                 storefrontInfo = "Storefront: $storefront"
@@ -204,7 +205,7 @@ fun NavigationCard(
             }
             
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = AppColors.Secondary
             )

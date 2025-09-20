@@ -7,7 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,20 +21,27 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestProducts
+import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
-import io.github.hyochan.kmpiap.Product
-import io.github.hyochan.kmpiap.Purchase
-import io.github.hyochan.kmpiap.PurchaseError
-import io.github.hyochan.kmpiap.ProductType
-import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.PurchaseAndroid
-import io.github.hyochan.kmpiap.PurchaseIOS
-import io.github.hyochan.kmpiap.ProductAndroid
-import io.github.hyochan.kmpiap.ProductIOS
+import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.PurchaseState
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlinx.coroutines.*
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 
 private val PRODUCT_IDS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bulbs")
 
@@ -64,62 +71,56 @@ fun PurchaseFlowScreen(navController: NavController) {
         launch {
             kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 currentPurchase = purchase
-                
-                // Log purchase data as JSON
-                println("\n========== PURCHASE SUCCESS (JSON) ==========")
-                val json = Json { 
-                    prettyPrint = true
-                    encodeDefaults = true
-                    ignoreUnknownKeys = true
-                }
-                
-                val jsonString = when (purchase) {
-                    is PurchaseAndroid -> json.encodeToString(purchase)
-                    is PurchaseIOS -> json.encodeToString(purchase)
-                    else -> {
-                        // Fallback if unknown type
-                        """
-                        {
-                          "id": "${purchase.id}",
-                          "productId": "${purchase.productId}",
-                          "transactionDate": ${purchase.transactionDate},
-                          "platform": "${purchase.platform}"
+
+                when (purchase.purchaseState) {
+                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                        isProcessing = false
+
+                        println("\n========== PURCHASE SUCCESS (JSON) ==========")
+                        val json = Json {
+                            prettyPrint = true
+                            encodeDefaults = true
+                            ignoreUnknownKeys = true
                         }
-                        """.trimIndent()
-                    }
-                }
-                println(jsonString)
-                println("=============================================\n")
-                
-                // Handle successful purchase
-                purchaseResult = """
+
+                        val jsonString = purchase.toPrettyJson(json)
+                        println(jsonString)
+                        println("=============================================\n")
+
+                        val dateText = purchase.transactionDate?.let {
+                            Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(TimeZone.currentSystemDefault())
+                        } ?: "N/A"
+                        purchaseResult = """
                     ✅ Purchase successful (${purchase.platform})
                     Product: ${purchase.productId}
-                    Transaction ID: ${purchase.transactionId ?: "N/A"}
-                    Date: ${purchase.transactionDate?.let { kotlinx.datetime.Instant.fromEpochSeconds(it.toLong()) } ?: "N/A"}
-                    Receipt: ${purchase.transactionReceipt?.take(50)}...
+                    Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
+                    Date: $dateText
+                    Receipt: ${purchase.purchaseToken?.take(50) ?: "N/A"}
                 """.trimIndent()
-                
-                // IMPORTANT: Server-side receipt validation should be performed here
-                // Send the receipt to your backend server for validation
-                // Example:
-                // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
-                // if (!isValid) {
-                //     purchaseResult = "❌ Receipt validation failed"
-                //     return@collect
-                // }
-                
-                // After successful server validation, finish the transaction
-                // For consumable products (like bulb packs), set isConsumable to true
-                scope.launch {
-                    try {
-                        kmpIapInstance.finishTransaction(
-                            purchase = purchase,
-                            isConsumable = true // Set to true for consumable products
-                        )
-                        purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
-                    } catch (e: Exception) {
-                        purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+
+                        scope.launch {
+                            try {
+                                kmpIapInstance.finishTransaction(
+                                    purchase = purchase.toPurchaseInput(),
+                                    isConsumable = true
+                                )
+                                purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"
+                            } catch (e: Exception) {
+                                purchaseResult = "$purchaseResult\n\n❌ Failed to finish transaction: ${e.message}"
+                            }
+                        }
+                    }
+                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                        isProcessing = true
+                        purchaseResult = "⏳ Purchase is pending user confirmation..."
+                    }
+                    PurchaseState.Failed -> {
+                        isProcessing = false
+                        purchaseResult = "❌ Purchase failed"
+                    }
+                    else -> {
+                        isProcessing = false
+                        purchaseResult = null
                     }
                 }
             }
@@ -127,9 +128,10 @@ fun PurchaseFlowScreen(navController: NavController) {
         
         launch {
             kmpIapInstance.purchaseErrorListener.collect { error ->
+                isProcessing = false
                 currentError = error
                 purchaseResult = when (error.code) {
-                    ErrorCode.E_USER_CANCELLED.name -> "⚠️ Purchase cancelled by user"
+                    ErrorCode.UserCancelled -> "⚠️ Purchase cancelled by user"
                     else -> "❌ Error: ${error.message}\nCode: ${error.code}"
                 }
             }
@@ -158,9 +160,9 @@ fun PurchaseFlowScreen(navController: NavController) {
                 val loadJob = async {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                        val result = kmpIapInstance.requestProducts {
+                        val result = kmpIapInstance.fetchProducts {
                             skus = PRODUCT_IDS
-                            type = ProductType.INAPP
+                            type = ProductQueryType.InApp
                         }
                         println("[KMP-IAP Example] Products loaded: ${result.size} products")
                         result
@@ -223,7 +225,10 @@ fun PurchaseFlowScreen(navController: NavController) {
                 title = { Text("In-App Purchase Flow") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -351,10 +356,9 @@ fun PurchaseFlowScreen(navController: NavController) {
                                     // Purchase updates will be received through the Flow
                                 } catch (e: Exception) {
                                     purchaseResult = "Purchase failed: ${e.message}"
-                                } finally {
                                     isProcessing = false
                                 }
-                            }
+                        }
                         },
                         isProcessing = isProcessing
                     )
@@ -419,27 +423,8 @@ fun ProductCard(
                     prettyPrint = true
                     encodeDefaults = true
                 }
-                
-                // Serialize based on concrete type since Product is an interface
-                val jsonString = when (product) {
-                    is ProductAndroid -> json.encodeToString(product)
-                    is ProductIOS -> json.encodeToString(product)
-                    else -> {
-                        // Fallback to manual JSON if unknown type
-                        """
-                        {
-                          "id": "${product.id}",
-                          "title": "${product.title}",
-                          "description": "${product.description}",
-                          "displayPrice": "${product.displayPrice}",
-                          "price": ${product.price},
-                          "currency": "${product.currency}",
-                          "type": "${product.type}",
-                          "platform": "${product.platform}"
-                        }
-                        """.trimIndent()
-                    }
-                }
+
+                val jsonString = product.toPrettyJson(json)
                 println(jsonString)
                 println("====================================\n")
             },
@@ -517,4 +502,66 @@ fun ProductCard(
             }
         }
     }
+}
+
+private fun Purchase.toPrettyJson(json: Json): String = toJson().toPrettyJson(json)
+
+private fun Product.toPrettyJson(json: Json): String = toJson().toPrettyJson(json)
+
+private fun Map<String, Any?>.toPrettyJson(json: Json): String {
+    return runCatching {
+        val element = toJsonElement()
+        json.encodeToString(JsonElement.serializer(), element)
+    }.getOrElse { error ->
+        println("[KMP-IAP Example] Failed to encode map to JSON: ${error.message}")
+        buildString {
+            appendLine("{")
+            val entries = this@toPrettyJson.entries.toList()
+            entries.forEachIndexed { index, (key, value) ->
+                append("  \"")
+                append(key)
+                append("\": \"")
+                append(value?.toString() ?: "null")
+                append("\"")
+                if (index < entries.lastIndex) {
+                    append(',')
+                }
+                appendLine()
+            }
+            append('}')
+        }
+    }
+}
+
+private fun Map<String, Any?>.toJsonElement(): JsonElement = buildJsonObject {
+    this@toJsonElement.forEach { (key, value) ->
+        put(key, value.toJsonElement())
+    }
+}
+
+private fun Iterable<*>.toJsonArray(): JsonArray = buildJsonArray {
+    this@toJsonArray.forEach { item ->
+        add(item.toJsonElement())
+    }
+}
+
+private fun Any?.toJsonElement(): JsonElement = when (this) {
+    null -> JsonNull
+    is Boolean -> JsonPrimitive(this)
+    is Number -> JsonPrimitive(this)
+    is String -> JsonPrimitive(this)
+    is Map<*, *> -> this.toStringKeyMapOrNull()?.toJsonElement() ?: JsonPrimitive(toString())
+    is Iterable<*> -> this.toJsonArray()
+    is Array<*> -> this.asList().toJsonArray()
+    else -> JsonPrimitive(this.toString())
+}
+
+private fun Map<*, *>.toStringKeyMapOrNull(): Map<String, Any?>? {
+    if (isEmpty()) return emptyMap<String, Any?>()
+    val result = mutableMapOf<String, Any?>()
+    for ((key, value) in this) {
+        val stringKey = key as? String ?: return null
+        result[stringKey] = value
+    }
+    return result
 }

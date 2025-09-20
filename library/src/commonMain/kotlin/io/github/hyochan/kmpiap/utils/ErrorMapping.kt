@@ -1,174 +1,148 @@
 package io.github.hyochan.kmpiap.utils
 
-import io.github.hyochan.kmpiap.types.IapPlatform
+import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 
 /**
- * Error codes matching OpenIAP specification
- * https://openiap.dev/docs/errors
- * 
- * Complete list of 27 standardized error codes for in-app purchases
- */
-enum class ErrorCode {
-    // General Errors
-    E_UNKNOWN,                        // Unknown error occurred
-    E_DEVELOPER_ERROR,                // Developer configuration error
-    
-    // User Action Errors
-    E_USER_CANCELLED,                 // User cancelled the purchase flow
-    E_USER_ERROR,                     // User-related error during purchase
-    E_DEFERRED_PAYMENT,               // Payment was deferred (pending family approval, etc.)
-    E_INTERRUPTED,                    // Purchase flow was interrupted
-    
-    // Product Errors
-    E_ITEM_UNAVAILABLE,               // Product not available in store
-    E_PRODUCT_NOT_AVAILABLE,          // Product SKU not found
-    E_PRODUCT_ALREADY_OWNED,          // Non-consumable product already purchased
-    E_ALREADY_OWNED,                  // Item already owned by user
-    
-    // Network & Service Errors
-    E_NETWORK_ERROR,                  // Network connection error
-    E_SERVICE_ERROR,                  // Store service error
-    E_REMOTE_ERROR,                   // Remote server error
-    E_CONNECTION_CLOSED,              // Connection to store service was closed
-    E_IAP_NOT_AVAILABLE,              // In-app purchase service not available
-    E_SYNC_ERROR,                     // Synchronization error with store
-    
-    // Validation Errors
-    E_RECEIPT_FAILED,                 // Receipt validation failed
-    E_RECEIPT_FINISHED,               // Receipt already processed/finished
-    E_RECEIPT_FINISHED_FAILED,        // Failed to finish receipt processing
-    E_TRANSACTION_VALIDATION_FAILED,  // Transaction validation failed
-    
-    // Platform-Specific Errors
-    E_PENDING,                        // Purchase is pending approval (Android)
-    E_NOT_ENDED,                      // Transaction not finished (iOS)
-    E_NOT_PREPARED,                   // Store connection not initialized
-    E_ALREADY_PREPARED,               // Store connection already initialized
-    E_BILLING_RESPONSE_JSON_PARSE_ERROR, // Failed to parse billing response (Android)
-    E_PURCHASE_ERROR,                 // General purchase error
-    E_ACTIVITY_UNAVAILABLE            // Activity context not available (Android)
-}
-
-/**
- * Error code mapping utilities
+ * Utilities for working with OpenIAP error codes across platforms.
  */
 object ErrorCodeUtils {
-    /**
-     * iOS error code mapping based on OpenIAP specification
-     * Maps StoreKit error codes to OpenIAP error codes
-     */
-    private val iosErrorMapping = mapOf(
-        // OpenIAP Core Error Codes
-        ErrorCode.E_UNKNOWN to 0,
-        ErrorCode.E_USER_CANCELLED to 1,
-        ErrorCode.E_NETWORK_ERROR to 2,
-        ErrorCode.E_ITEM_UNAVAILABLE to 3,
-        ErrorCode.E_SERVICE_ERROR to 4,
-        ErrorCode.E_RECEIPT_FAILED to 5,
-        ErrorCode.E_ALREADY_OWNED to 6,
-        ErrorCode.E_PRODUCT_NOT_AVAILABLE to 7,
-        ErrorCode.E_PRODUCT_ALREADY_OWNED to 8,
-        ErrorCode.E_RECEIPT_FINISHED to 9,
-        ErrorCode.E_NOT_ENDED to 10,
-        ErrorCode.E_DEVELOPER_ERROR to 11,
-        ErrorCode.E_USER_ERROR to 12,
-        ErrorCode.E_REMOTE_ERROR to 13,
-        ErrorCode.E_PENDING to 14,
-        ErrorCode.E_RECEIPT_FINISHED_FAILED to 15,
-        ErrorCode.E_NOT_PREPARED to 16,
-        ErrorCode.E_BILLING_RESPONSE_JSON_PARSE_ERROR to 17,
-        ErrorCode.E_DEFERRED_PAYMENT to 18,
-        ErrorCode.E_INTERRUPTED to 19,
-        ErrorCode.E_IAP_NOT_AVAILABLE to 20,
-        ErrorCode.E_PURCHASE_ERROR to 21,
-        ErrorCode.E_SYNC_ERROR to 22,
-        ErrorCode.E_TRANSACTION_VALIDATION_FAILED to 23,
-        ErrorCode.E_ACTIVITY_UNAVAILABLE to 24,
-        ErrorCode.E_ALREADY_PREPARED to 25,
-        ErrorCode.E_CONNECTION_CLOSED to 26
+    private val iosErrorMapping: Map<ErrorCode, Int> = mapOf(
+        ErrorCode.Unknown to 0,
+        ErrorCode.UserCancelled to 1,
+        ErrorCode.NetworkError to 2,
+        ErrorCode.ItemUnavailable to 3,
+        ErrorCode.ServiceError to 4,
+        ErrorCode.ReceiptFailed to 5,
+        ErrorCode.AlreadyOwned to 6,
+        ErrorCode.NotEnded to 10,
+        ErrorCode.DeveloperError to 11,
+        ErrorCode.UserError to 12,
+        ErrorCode.RemoteError to 13,
+        ErrorCode.Pending to 14,
+        ErrorCode.ReceiptFinishedFailed to 15,
+        ErrorCode.NotPrepared to 16,
+        ErrorCode.BillingResponseJsonParseError to 17,
+        ErrorCode.DeferredPayment to 18,
+        ErrorCode.Interrupted to 19,
+        ErrorCode.IapNotAvailable to 20,
+        ErrorCode.PurchaseError to 21,
+        ErrorCode.SyncError to 22,
+        ErrorCode.TransactionValidationFailed to 23,
+        ErrorCode.ActivityUnavailable to 24,
+        ErrorCode.AlreadyPrepared to 25,
+        ErrorCode.ConnectionClosed to 26
     )
 
+    private val legacyCodeMap: Map<String, ErrorCode> = buildMap {
+        fun alias(vararg keys: String, target: ErrorCode) {
+            keys.forEach { put(it, target) }
+        }
 
-    /**
-     * Convert platform-specific error code to OpenIAP error code
-     * 
-     * iOS: Maps StoreKit error codes (Int) to OpenIAP error codes
-     * Android: Maps Google Play Billing response codes (String) to OpenIAP error codes
-     */
+        alias("E_UNKNOWN", "UNKNOWN", "ERROR", target = ErrorCode.Unknown)
+        alias("E_USER_CANCELLED", "USER_CANCELLED", target = ErrorCode.UserCancelled)
+        alias("E_USER_ERROR", "USER_ERROR", target = ErrorCode.UserError)
+        alias("E_ITEM_UNAVAILABLE", "ITEM_UNAVAILABLE", target = ErrorCode.ItemUnavailable)
+        alias("E_PRODUCT_NOT_AVAILABLE", target = ErrorCode.ItemUnavailable)
+        alias("E_REMOTE_ERROR", "REMOTE_ERROR", target = ErrorCode.RemoteError)
+        alias("E_NETWORK_ERROR", "NETWORK_ERROR", target = ErrorCode.NetworkError)
+        alias("E_SERVICE_ERROR", "SERVICE_ERROR", target = ErrorCode.ServiceError)
+        alias("E_RECEIPT_FAILED", "RECEIPT_FAILED", target = ErrorCode.ReceiptFailed)
+        alias("E_RECEIPT_FINISHED", "RECEIPT_FINISHED", target = ErrorCode.ReceiptFinished)
+        alias("E_RECEIPT_FINISHED_FAILED", "RECEIPT_FINISHED_FAILED", target = ErrorCode.ReceiptFinishedFailed)
+        alias("E_NOT_PREPARED", "NOT_PREPARED", target = ErrorCode.NotPrepared)
+        alias("E_NOT_ENDED", "NOT_ENDED", target = ErrorCode.NotEnded)
+        alias("E_ALREADY_OWNED", "ALREADY_OWNED", target = ErrorCode.AlreadyOwned)
+        alias("E_PRODUCT_ALREADY_OWNED", target = ErrorCode.AlreadyOwned)
+        alias("E_DEVELOPER_ERROR", "DEVELOPER_ERROR", target = ErrorCode.DeveloperError)
+        alias("E_BILLING_RESPONSE_JSON_PARSE_ERROR", "BILLING_RESPONSE_JSON_PARSE_ERROR", target = ErrorCode.BillingResponseJsonParseError)
+        alias("E_DEFERRED_PAYMENT", "DEFERRED_PAYMENT", target = ErrorCode.DeferredPayment)
+        alias("E_INTERRUPTED", "INTERRUPTED", target = ErrorCode.Interrupted)
+        alias("E_IAP_NOT_AVAILABLE", "IAP_NOT_AVAILABLE", target = ErrorCode.IapNotAvailable)
+        alias("E_PURCHASE_ERROR", "PURCHASE_ERROR", target = ErrorCode.PurchaseError)
+        alias("E_SYNC_ERROR", "SYNC_ERROR", target = ErrorCode.SyncError)
+        alias("E_TRANSACTION_VALIDATION_FAILED", "TRANSACTION_VALIDATION_FAILED", target = ErrorCode.TransactionValidationFailed)
+        alias("E_ACTIVITY_UNAVAILABLE", "ACTIVITY_UNAVAILABLE", target = ErrorCode.ActivityUnavailable)
+        alias("E_ALREADY_PREPARED", "ALREADY_PREPARED", target = ErrorCode.AlreadyPrepared)
+        alias("E_PENDING", "PENDING", target = ErrorCode.Pending)
+        alias("E_CONNECTION_CLOSED", "CONNECTION_CLOSED", target = ErrorCode.ConnectionClosed)
+        alias("E_INIT_CONNECTION", "INIT_CONNECTION", target = ErrorCode.InitConnection)
+        alias("E_SERVICE_DISCONNECTED", "SERVICE_DISCONNECTED", target = ErrorCode.ServiceDisconnected)
+        alias("E_QUERY_PRODUCT", "QUERY_PRODUCT", target = ErrorCode.QueryProduct)
+        alias("E_SKU_NOT_FOUND", "SKU_NOT_FOUND", target = ErrorCode.SkuNotFound)
+        alias("E_SKU_OFFER_MISMATCH", "SKU_OFFER_MISMATCH", target = ErrorCode.SkuOfferMismatch)
+        alias("E_ITEM_NOT_OWNED", "ITEM_NOT_OWNED", target = ErrorCode.ItemNotOwned)
+        alias("E_BILLING_UNAVAILABLE", "BILLING_UNAVAILABLE", target = ErrorCode.BillingUnavailable)
+        alias("E_FEATURE_NOT_SUPPORTED", "FEATURE_NOT_SUPPORTED", target = ErrorCode.FeatureNotSupported)
+        alias("E_EMPTY_SKU_LIST", "EMPTY_SKU_LIST", target = ErrorCode.EmptySkuList)
+    }
+
     fun fromPlatformCode(platformCode: Any, platform: IapPlatform): ErrorCode {
         return when (platform) {
-            IapPlatform.IOS -> {
-                when (val code = platformCode as? Int) {
-                    0 -> ErrorCode.E_UNKNOWN
-                    1 -> ErrorCode.E_USER_CANCELLED
-                    2 -> ErrorCode.E_NETWORK_ERROR
-                    3 -> ErrorCode.E_ITEM_UNAVAILABLE
-                    4 -> ErrorCode.E_SERVICE_ERROR
-                    5 -> ErrorCode.E_RECEIPT_FAILED
-                    6 -> ErrorCode.E_ALREADY_OWNED
-                    else -> ErrorCode.E_UNKNOWN
-                }
+            IapPlatform.Ios -> {
+                val code = platformCode as? Int ?: return ErrorCode.Unknown
+                iosErrorMapping.entries.firstOrNull { it.value == code }?.key ?: ErrorCode.Unknown
             }
-            IapPlatform.ANDROID -> {
-                val code = platformCode as? String ?: return ErrorCode.E_UNKNOWN
-                try {
-                    ErrorCode.valueOf(code)
-                } catch (e: IllegalArgumentException) {
-                    ErrorCode.E_UNKNOWN
-                }
+            IapPlatform.Android -> {
+                val raw = (platformCode as? String) ?: return ErrorCode.Unknown
+                val normalized = raw.uppercase().replace('-', '_')
+                legacyCodeMap[normalized]
+                    ?: legacyCodeMap[
+                        if (normalized.startsWith("E_")) normalized else "E_${normalized}"
+                    ]
+                    ?: ErrorCode.Unknown
             }
         }
     }
 
     fun toPlatformCode(errorCode: ErrorCode, platform: IapPlatform): Any {
         return when (platform) {
-            IapPlatform.IOS -> iosErrorMapping[errorCode] ?: 0
-            IapPlatform.ANDROID -> errorCode.name
+            IapPlatform.Ios -> iosErrorMapping[errorCode] ?: 0
+            IapPlatform.Android -> errorCode.rawValue.replace('-', '_').uppercase()
         }
     }
 
-    /**
-     * Check if an error code is valid for a specific platform
-     */
     fun isValidForPlatform(errorCode: ErrorCode, platform: IapPlatform): Boolean {
         return when (platform) {
-            IapPlatform.IOS -> iosErrorMapping.containsKey(errorCode)
-            IapPlatform.ANDROID -> true // All error codes are valid for Android since we use the enum name directly
+            IapPlatform.Ios -> iosErrorMapping.containsKey(errorCode)
+            IapPlatform.Android -> true
         }
     }
-    
-    /**
-     * Get a user-friendly error message for an error code
-     */
-    fun getErrorMessage(errorCode: ErrorCode): String {
-        return when (errorCode) {
-            ErrorCode.E_UNKNOWN -> "Unknown error occurred"
-            ErrorCode.E_USER_CANCELLED -> "Purchase cancelled by user"
-            ErrorCode.E_USER_ERROR -> "User-related error during purchase"
-            ErrorCode.E_ITEM_UNAVAILABLE -> "Product not available in store"
-            ErrorCode.E_PRODUCT_NOT_AVAILABLE -> "Product SKU not found"
-            ErrorCode.E_PRODUCT_ALREADY_OWNED -> "Non-consumable product already purchased"
-            ErrorCode.E_ALREADY_OWNED -> "Item already owned by user"
-            ErrorCode.E_NETWORK_ERROR -> "Network connection error"
-            ErrorCode.E_SERVICE_ERROR -> "Store service error"
-            ErrorCode.E_REMOTE_ERROR -> "Remote server error"
-            ErrorCode.E_RECEIPT_FAILED -> "Receipt validation failed"
-            ErrorCode.E_RECEIPT_FINISHED -> "Receipt already processed"
-            ErrorCode.E_PENDING -> "Purchase is pending approval"
-            ErrorCode.E_NOT_ENDED -> "Transaction not finished"
-            ErrorCode.E_DEVELOPER_ERROR -> "Developer configuration error"
-            ErrorCode.E_RECEIPT_FINISHED_FAILED -> "Failed to finish receipt processing"
-            ErrorCode.E_NOT_PREPARED -> "Store connection not initialized"
-            ErrorCode.E_BILLING_RESPONSE_JSON_PARSE_ERROR -> "Failed to parse billing response"
-            ErrorCode.E_DEFERRED_PAYMENT -> "Payment was deferred"
-            ErrorCode.E_INTERRUPTED -> "Purchase flow was interrupted"
-            ErrorCode.E_IAP_NOT_AVAILABLE -> "In-app purchase service not available"
-            ErrorCode.E_PURCHASE_ERROR -> "General purchase error"
-            ErrorCode.E_SYNC_ERROR -> "Synchronization error with store"
-            ErrorCode.E_TRANSACTION_VALIDATION_FAILED -> "Transaction validation failed"
-            ErrorCode.E_ACTIVITY_UNAVAILABLE -> "Activity context not available"
-            ErrorCode.E_ALREADY_PREPARED -> "Store connection already initialized"
-            ErrorCode.E_CONNECTION_CLOSED -> "Connection to store service was closed"
-        }
+
+    fun getErrorMessage(errorCode: ErrorCode): String = when (errorCode) {
+        ErrorCode.Unknown -> "Unknown error occurred"
+        ErrorCode.UserCancelled -> "Purchase cancelled by user"
+        ErrorCode.UserError -> "User-related error during purchase"
+        ErrorCode.ItemUnavailable -> "Product not available in store"
+        ErrorCode.AlreadyOwned -> "Item already owned"
+        ErrorCode.RemoteError -> "Remote service error"
+        ErrorCode.NetworkError -> "Network connection error"
+        ErrorCode.ServiceError -> "Store service error"
+        ErrorCode.ReceiptFailed -> "Receipt validation failed"
+        ErrorCode.ReceiptFinished -> "Receipt already processed"
+        ErrorCode.ReceiptFinishedFailed -> "Failed to finish receipt"
+        ErrorCode.NotPrepared -> "Billing client not initialized"
+        ErrorCode.NotEnded -> "Transaction not finished"
+        ErrorCode.DeveloperError -> "Developer configuration error"
+        ErrorCode.BillingResponseJsonParseError -> "Failed to parse billing response"
+        ErrorCode.DeferredPayment -> "Payment deferred"
+        ErrorCode.Interrupted -> "Purchase flow interrupted"
+        ErrorCode.IapNotAvailable -> "In-app purchases not available"
+        ErrorCode.PurchaseError -> "General purchase error"
+        ErrorCode.SyncError -> "Sync error with store"
+        ErrorCode.TransactionValidationFailed -> "Transaction validation failed"
+        ErrorCode.ActivityUnavailable -> "Activity context not available"
+        ErrorCode.AlreadyPrepared -> "Billing client already initialized"
+        ErrorCode.Pending -> "Purchase pending"
+        ErrorCode.ConnectionClosed -> "Billing service connection closed"
+        ErrorCode.InitConnection -> "Failed to initialize connection"
+        ErrorCode.ServiceDisconnected -> "Service disconnected"
+        ErrorCode.QueryProduct -> "Failed to query product"
+        ErrorCode.SkuNotFound -> "SKU not found"
+        ErrorCode.SkuOfferMismatch -> "SKU offer mismatch"
+        ErrorCode.ItemNotOwned -> "Item not owned"
+        ErrorCode.BillingUnavailable -> "Billing unavailable"
+        ErrorCode.FeatureNotSupported -> "Feature not supported"
+        ErrorCode.EmptySkuList -> "SKU list is empty"
     }
 }

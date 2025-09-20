@@ -6,7 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,8 +19,8 @@ import androidx.navigation.NavController
 import io.github.hyochan.kmpiap.KmpIAP
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
-import io.github.hyochan.kmpiap.types.IapPlatform
-import io.github.hyochan.kmpiap.types.getCurrentPlatform
+import io.github.hyochan.kmpiap.getCurrentPlatform
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +51,10 @@ fun OfferCodeScreen(navController: NavController) {
                 title = { Text("Offer Code Redemption") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -97,7 +100,7 @@ fun OfferCodeScreen(navController: NavController) {
             
             // Platform-specific content
             when (platform) {
-                IapPlatform.IOS -> {
+                IapPlatform.Ios -> {
                     Text(
                         text = "iOS Offer Code Redemption",
                         fontSize = 20.sp,
@@ -154,7 +157,7 @@ fun OfferCodeScreen(navController: NavController) {
                     }
                 }
                 
-                IapPlatform.ANDROID -> {
+                IapPlatform.Android -> {
                     Text(
                         text = "Android Promo Code Redemption",
                         fontSize = 20.sp,
@@ -243,7 +246,7 @@ fun OfferCodeScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     when (platform) {
-                        IapPlatform.IOS -> {
+                        IapPlatform.Ios -> {
                             Text(
                                 text = "1. Create promo codes in App Store Connect\n" +
                                       "2. Go to My Apps → Your App → Features → Promo Codes\n" +
@@ -253,7 +256,7 @@ fun OfferCodeScreen(navController: NavController) {
                                 color = AppColors.Secondary
                             )
                         }
-                        IapPlatform.ANDROID -> {
+                        IapPlatform.Android -> {
                             Text(
                                 text = "1. Create promo codes in Play Console\n" +
                                       "2. Go to Your App → Monetize → Promotions\n" +

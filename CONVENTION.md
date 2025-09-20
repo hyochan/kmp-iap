@@ -26,7 +26,7 @@ The main API uses a singleton pattern for simplicity:
 ```kotlin
 // Good - Singleton pattern
 KmpIAP.initConnection()
-KmpIAP.requestProducts(...)
+KmpIAP.fetchProducts(...)
 
 // Avoid - Instance creation
 val iapHelper = UseIap(scope, options)
@@ -50,13 +50,13 @@ Avoid arbitrary delays; use proper async/await patterns:
 // Good - Proper async chaining
 val connectionResult = KmpIAP.initConnection()
 if (connectionResult) {
-    val products = KmpIAP.requestProducts(...)
+    val products = KmpIAP.fetchProducts(...)
 }
 
 // Avoid - Arbitrary delays
 KmpIAP.initConnection()
 delay(500)  // Don't do this
-val products = KmpIAP.requestProducts(...)
+val products = KmpIAP.fetchProducts(...)
 ```
 
 ## Error Handling
@@ -85,7 +85,7 @@ Provide clear, actionable error messages:
 Use typed request objects instead of multiple parameters:
 ```kotlin
 // Good
-KmpIAP.requestProducts(
+KmpIAP.fetchProducts(
     ProductRequest(
         skus = listOf("product_id"),
         type = ProductType.INAPP
@@ -93,7 +93,7 @@ KmpIAP.requestProducts(
 )
 
 // Avoid
-KmpIAP.requestProducts(listOf("product_id"), "inapp")
+KmpIAP.fetchProducts(listOf("product_id"), "inapp")
 ```
 
 ### Platform-Specific Code
@@ -126,7 +126,7 @@ Include practical examples in documentation:
 KmpIAP.initConnection()
 
 // Load products
-val products = KmpIAP.requestProducts(
+val products = KmpIAP.fetchProducts(
     ProductRequest(
         skus = listOf("product_id"),
         type = ProductType.INAPP
