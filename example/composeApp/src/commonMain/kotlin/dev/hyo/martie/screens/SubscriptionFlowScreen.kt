@@ -297,7 +297,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 
                                 // Show iOS-specific info
                                 activeSub.expirationDateIOS?.let { expDate ->
-                                    val expiration = Instant.fromEpochSeconds(expDate.toLong())
+                                    val expiration = Instant.fromEpochMilliseconds(expDate.toLong())
                                         .toLocalDateTime(TimeZone.currentSystemDefault())
                                     Text(
                                         text = "  Expires: $expiration",

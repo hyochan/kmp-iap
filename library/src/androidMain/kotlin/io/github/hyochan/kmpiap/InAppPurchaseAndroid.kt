@@ -38,6 +38,7 @@ import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseOptions
@@ -61,6 +62,7 @@ import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.ValidationOptions
 import io.github.hyochan.kmpiap.ValidationResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -69,6 +71,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.collections.buildList
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -79,7 +82,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private var context: Context? = null
     private var currentActivity: Activity? = null
     private var activityCallbacksDisposer: (() -> Unit)? = null
-    private val cachedProductDetails = mutableMapOf<String, ProductDetails>()
+    private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
 
     // ---------------------------------------------------------------------
@@ -130,38 +133,42 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 )
             }
 
-            suspendCancellableCoroutine { continuation ->
-                val listener = object : BillingClientStateListener {
-                    override fun onBillingSetupFinished(result: BillingResult) {
-                        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                            isConnected = true
-                            _connectionStateListener.tryEmit(ConnectionResult(connected = true, message = "Connected"))
-                            continuation.resume(true)
-                        } else {
-                            val error = PurchaseError(
-                                code = ErrorCode.ServiceError,
-                                message = result.debugMessage ?: "Failed to connect"
-                            )
-                            _purchaseErrorListener.tryEmit(error)
-                            continuation.resume(false)
+            withTimeout(15_000) {
+                suspendCancellableCoroutine { continuation ->
+                    val listener = object : BillingClientStateListener {
+                        override fun onBillingSetupFinished(result: BillingResult) {
+                            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                                isConnected = true
+                                _connectionStateListener.tryEmit(ConnectionResult(connected = true, message = "Connected"))
+                                continuation.resume(true)
+                            } else {
+                                val error = PurchaseError(
+                                    code = ErrorCode.ServiceError,
+                                    message = result.debugMessage ?: "Failed to connect"
+                                )
+                                _purchaseErrorListener.tryEmit(error)
+                                continuation.resume(false)
+                            }
+                        }
+
+                        override fun onBillingServiceDisconnected() {
+                            isConnected = false
+                            _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
                         }
                     }
 
-                    override fun onBillingServiceDisconnected() {
-                        isConnected = false
-                        _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
+                    val builder = BillingClient.newBuilder(ctx)
+                        .setListener { billingResult, purchases ->
+                            handlePurchaseUpdate(billingResult, purchases)
+                        }
+
+                    billingClient = enablePendingPurchasesCompat(builder).build()
+                    billingClient?.startConnection(listener)
+
+                    continuation.invokeOnCancellation {
+                        billingClient?.endConnection()
+                        billingClient = null
                     }
-                }
-
-                val builder = BillingClient.newBuilder(ctx)
-                    .setListener(::handlePurchaseUpdate)
-
-                billingClient = enablePendingPurchasesCompat(builder).build()
-                billingClient?.startConnection(listener)
-
-                continuation.invokeOnCancellation {
-                    billingClient?.endConnection()
-                    billingClient = null
                 }
             }
         }

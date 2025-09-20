@@ -469,6 +469,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     
     // New methods from updated interface
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult {
+        // NOTE: This implementation performs a client-side presence check only.
+        // Real receipt validation should be delegated to your backend or the configured
+        // OpenIAP resolver to avoid false positives.
         ensureConnection()
         val receiptData = readReceiptData()
             ?: failWithPurchase(ErrorCode.ReceiptFailed, "App Store receipt not found")
