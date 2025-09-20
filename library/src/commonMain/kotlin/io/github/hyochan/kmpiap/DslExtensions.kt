@@ -1,7 +1,7 @@
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.dsl.*
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.openiap.*
 
 /**
  * Request products using DSL
@@ -42,41 +42,6 @@ suspend fun KmpInAppPurchase.requestPurchase(
     builder: PurchaseRequestBuilder.() -> Unit
 ): Purchase {
     val requestBuilder = PurchaseRequestBuilder().apply(builder)
-    val (primarySku, ios, android) = requestBuilder.build()
-    return requestPurchase(primarySku, ios, android)
-}
-
-/**
- * Request subscription using DSL
- * 
- * Example:
- * ```kotlin
- * val subscription = kmpIapInstance.requestSubscription {
- *     ios {
- *         sku = "monthly_sub"
- *     }
- *     android {
- *         skus = listOf("monthly_sub")
- *         subscriptionOffers = listOf(...)
- *     }
- * }
- * ```
- */
-suspend fun KmpInAppPurchase.requestSubscription(
-    builder: SubscriptionRequestBuilder.() -> Unit
-): Purchase {
-    val requestBuilder = SubscriptionRequestBuilder().apply(builder)
-    val (primarySku, ios, androidSub) = requestBuilder.build()
-    
-    // Convert subscription props to purchase props for Android
-    val androidPurchase = androidSub?.let {
-        RequestPurchaseAndroidProps(
-            skus = it.skus,
-            obfuscatedAccountIdAndroid = it.obfuscatedAccountIdAndroid,
-            obfuscatedProfileIdAndroid = it.obfuscatedProfileIdAndroid,
-            isOfferPersonalized = it.isOfferPersonalized
-        )
-    }
-    
-    return requestPurchase(primarySku, ios, androidPurchase)
+    val request = requestBuilder.build()
+    return requestPurchase(request)
 }

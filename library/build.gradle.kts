@@ -111,6 +111,7 @@ kotlin {
 
     sourceSets {
         val commonMain by getting {
+            kotlin.srcDir("${project.rootDir}/src/commonMain")
             dependencies {
                 api(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
@@ -127,6 +128,7 @@ kotlin {
             dependencies {
                 implementation(libs.billing)
                 implementation(libs.billing.ktx)
+                implementation(libs.openiap.google)
             }
         }
     }

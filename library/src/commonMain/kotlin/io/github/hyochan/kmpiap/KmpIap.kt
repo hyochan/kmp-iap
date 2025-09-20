@@ -1,6 +1,6 @@
 package io.github.hyochan.kmpiap
 
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.dsl.*
 import kotlinx.coroutines.flow.Flow
 
@@ -13,41 +13,37 @@ import kotlinx.coroutines.flow.Flow
  */
 
 // Re-export all types
-typealias Product = io.github.hyochan.kmpiap.types.Product
-typealias ProductAndroid = io.github.hyochan.kmpiap.types.ProductAndroid
-typealias ProductIOS = io.github.hyochan.kmpiap.types.ProductIOS
-typealias SubscriptionProduct = io.github.hyochan.kmpiap.types.SubscriptionProduct
-typealias SubscriptionProductAndroid = io.github.hyochan.kmpiap.types.SubscriptionProductAndroid
-typealias SubscriptionProductIOS = io.github.hyochan.kmpiap.types.SubscriptionProductIOS
-typealias Purchase = io.github.hyochan.kmpiap.types.Purchase
-typealias PurchaseAndroid = io.github.hyochan.kmpiap.types.PurchaseAndroid
-typealias PurchaseIOS = io.github.hyochan.kmpiap.types.PurchaseIOS
-typealias PurchaseError = io.github.hyochan.kmpiap.types.PurchaseError
-typealias ConnectionResult = io.github.hyochan.kmpiap.types.ConnectionResult
-typealias ActiveSubscription = io.github.hyochan.kmpiap.types.ActiveSubscription
+typealias Product = io.github.hyochan.kmpiap.openiap.Product
+typealias ProductAndroid = io.github.hyochan.kmpiap.openiap.ProductAndroid
+typealias ProductIOS = io.github.hyochan.kmpiap.openiap.ProductIOS
+typealias SubscriptionProduct = io.github.hyochan.kmpiap.openiap.ProductSubscription
+typealias SubscriptionProductAndroid = io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
+typealias SubscriptionProductIOS = io.github.hyochan.kmpiap.openiap.ProductSubscriptionIOS
+typealias Purchase = io.github.hyochan.kmpiap.openiap.Purchase
+typealias PurchaseAndroid = io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+typealias PurchaseIOS = io.github.hyochan.kmpiap.openiap.PurchaseIOS
+typealias PurchaseError = io.github.hyochan.kmpiap.openiap.PurchaseError
+typealias ActiveSubscription = io.github.hyochan.kmpiap.openiap.ActiveSubscription
 
 // Re-export enums
-typealias Store = io.github.hyochan.kmpiap.types.Store
-typealias IapPlatform = io.github.hyochan.kmpiap.types.IapPlatform
+typealias IapPlatform = io.github.hyochan.kmpiap.openiap.IapPlatform
 
 // Re-export error codes
-typealias ErrorCode = io.github.hyochan.kmpiap.utils.ErrorCode
-typealias ErrorCodeUtils = io.github.hyochan.kmpiap.utils.ErrorCodeUtils
+typealias ErrorCode = io.github.hyochan.kmpiap.openiap.ErrorCode
 
 // Re-export Android types
-typealias PurchaseAndroidState = io.github.hyochan.kmpiap.types.PurchaseAndroidState
-typealias SubscriptionOfferAndroid = io.github.hyochan.kmpiap.types.SubscriptionOfferAndroid
-typealias AndroidBillingResponseCode = io.github.hyochan.kmpiap.types.AndroidBillingResponseCode
-typealias PricingPhaseAndroid = io.github.hyochan.kmpiap.types.PricingPhaseAndroid
+typealias PricingPhaseAndroid = io.github.hyochan.kmpiap.openiap.PricingPhaseAndroid
+typealias PricingPhasesAndroid = io.github.hyochan.kmpiap.openiap.PricingPhasesAndroid
+typealias AndroidSubscriptionOfferInput = io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 
 // Re-export iOS types
-typealias TransactionStateIOS = io.github.hyochan.kmpiap.types.TransactionStateIOS
-typealias PaymentDiscountIOS = io.github.hyochan.kmpiap.types.PaymentDiscountIOS
-typealias DiscountIOS = io.github.hyochan.kmpiap.types.DiscountIOS
-typealias AppTransactionIOS = io.github.hyochan.kmpiap.types.AppTransactionIOS
-typealias PaymentModeIOS = io.github.hyochan.kmpiap.types.PaymentModeIOS
-typealias OfferTypeIOS = io.github.hyochan.kmpiap.types.OfferTypeIOS
-typealias EnvironmentIOS = io.github.hyochan.kmpiap.types.EnvironmentIOS
+typealias DiscountOfferInputIOS = io.github.hyochan.kmpiap.openiap.DiscountOfferInputIOS
+typealias PaymentModeIOS = io.github.hyochan.kmpiap.openiap.PaymentModeIOS
+typealias SubscriptionOfferIOS = io.github.hyochan.kmpiap.openiap.SubscriptionOfferIOS
+typealias SubscriptionStatusIOS = io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
+typealias SubscriptionPeriodValueIOS = io.github.hyochan.kmpiap.openiap.SubscriptionPeriodValueIOS
+typealias SubscriptionOfferTypeIOS = io.github.hyochan.kmpiap.openiap.SubscriptionOfferTypeIOS
+typealias AppTransaction = io.github.hyochan.kmpiap.openiap.AppTransaction
 
 /**
  * Re-export the main interface
@@ -55,20 +51,22 @@ typealias EnvironmentIOS = io.github.hyochan.kmpiap.types.EnvironmentIOS
 typealias InAppPurchase = io.github.hyochan.kmpiap.KmpInAppPurchase
 
 // Re-export request types
-typealias ProductType = io.github.hyochan.kmpiap.types.ProductType
-typealias ProductRequest = io.github.hyochan.kmpiap.types.ProductRequest
-typealias AppStoreInfo = io.github.hyochan.kmpiap.types.AppStoreInfo
-typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.types.RequestPurchaseIosProps
-typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.types.RequestPurchaseAndroidProps
-typealias PurchaseOptions = io.github.hyochan.kmpiap.types.PurchaseOptions
-typealias DeepLinkOptions = io.github.hyochan.kmpiap.types.DeepLinkOptions
-typealias ValidationOptions = io.github.hyochan.kmpiap.types.ValidationOptions
-typealias ValidationResult = io.github.hyochan.kmpiap.types.ValidationResult
+typealias ProductType = io.github.hyochan.kmpiap.openiap.ProductType
+typealias ProductQueryType = io.github.hyochan.kmpiap.openiap.ProductQueryType
+typealias ProductRequest = io.github.hyochan.kmpiap.openiap.ProductRequest
+typealias RequestPurchaseIosProps = io.github.hyochan.kmpiap.openiap.RequestPurchaseIosProps
+typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
+typealias RequestSubscriptionAndroidProps = io.github.hyochan.kmpiap.openiap.RequestSubscriptionAndroidProps
+typealias PurchaseOptions = io.github.hyochan.kmpiap.openiap.PurchaseOptions
+typealias DeepLinkOptions = io.github.hyochan.kmpiap.openiap.DeepLinkOptions
+typealias ValidationOptions = io.github.hyochan.kmpiap.openiap.ReceiptValidationProps
+typealias ValidationResult = io.github.hyochan.kmpiap.openiap.ReceiptValidationResult
+typealias ReceiptValidationResultAndroid = io.github.hyochan.kmpiap.openiap.ReceiptValidationResultAndroid
+typealias ReceiptValidationResultIOS = io.github.hyochan.kmpiap.openiap.ReceiptValidationResultIOS
 
 // Re-export DSL builders
 typealias ProductsRequestBuilder = io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder
 typealias PurchaseRequestBuilder = io.github.hyochan.kmpiap.dsl.PurchaseRequestBuilder
-typealias SubscriptionRequestBuilder = io.github.hyochan.kmpiap.dsl.SubscriptionRequestBuilder
 
 /**
  * Main interface for In-App Purchase operations across all platforms.
@@ -133,11 +131,7 @@ interface KmpInAppPurchase {
      * @param android Android-specific purchase options (optional)
      * @return The successful purchase
      */
-    suspend fun requestPurchase(
-        sku: String,
-        ios: RequestPurchaseIosProps? = null,
-        android: RequestPurchaseAndroidProps? = null
-    ): Purchase
+    suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
 
     /**
      * Get all available purchases for the current user
@@ -308,11 +302,8 @@ class KmpIAP : KmpInAppPurchase {
         delegate.requestProducts(params)
     
     // Purchase Operations
-    override suspend fun requestPurchase(
-        sku: String,
-        ios: RequestPurchaseIosProps?,
-        android: RequestPurchaseAndroidProps?
-    ): Purchase = delegate.requestPurchase(sku, ios, android)
+    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase =
+        delegate.requestPurchase(request)
     
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> = 
         delegate.getAvailablePurchases(options)

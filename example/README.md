@@ -58,7 +58,7 @@ LaunchedEffect(Unit) {
 // Listen for purchase updates
 kmpIAP.purchaseUpdatedListener.collect { purchase ->
     // IMPORTANT: Server-side receipt validation
-    // val isValid = validateReceiptOnServer(purchase.transactionReceipt)
+    // val isValid = validateReceiptOnServer(purchase.purchaseToken)
     
     // Finish transaction after validation
     kmpIAP.finishTransaction(

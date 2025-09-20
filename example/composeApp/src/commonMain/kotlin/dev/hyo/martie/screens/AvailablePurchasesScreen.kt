@@ -7,7 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +22,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -95,7 +95,10 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 title = { Text("Available Purchases") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -262,9 +265,9 @@ fun AvailablePurchasesScreen(navController: NavController) {
                     
                     // Check if already acknowledged (for Android) or restored (for iOS)
                     // Restored iOS transactions are already finished and cannot be finished again
-                    val isAcknowledged = when (purchase.platform) {
-                        "android" -> (purchase as? PurchaseAndroid)?.isAcknowledgedAndroid == true
-                        "ios" -> (purchase as? PurchaseIOS)?.transactionState == TransactionStateIOS.RESTORED
+                    val isAcknowledged = when (purchase) {
+                        is PurchaseAndroid -> purchase.isAcknowledgedAndroid == true
+                        is PurchaseIOS -> purchase.purchaseState == PurchaseState.Restored
                         else -> false
                     }
                     
@@ -362,13 +365,13 @@ fun PurchaseCard(
                     is PurchaseAndroid -> json.encodeToString(purchase)
                     is PurchaseIOS -> json.encodeToString(purchase)
                     else -> {
-                        // Fallback to manual JSON if unknown type
+                        val platform = purchase.platform.toJson()
                         """
                         {
                           "id": "${purchase.id}",
                           "productId": "${purchase.productId}",
                           "transactionDate": ${purchase.transactionDate},
-                          "platform": "${purchase.platform}"
+                          "platform": "$platform"
                         }
                         """.trimIndent()
                     }
@@ -394,32 +397,27 @@ fun PurchaseCard(
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            purchase.transactionId?.let {
-                Text(
-                    text = "Transaction ID: $it",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = AppColors.Secondary
-                )
-            }
-            
-            purchase.transactionDate?.let {
-                Text(
-                    text = "Date: ${kotlinx.datetime.Instant.fromEpochSeconds(it.toLong())}",
-                    fontSize = 12.sp,
-                    color = AppColors.Secondary
-                )
-            }
+            Text(
+                text = "Transaction ID: ${purchase.id}",
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                color = AppColors.Secondary
+            )
+
+            val instant = kotlinx.datetime.Instant.fromEpochSeconds(purchase.transactionDate.toLong())
+            Text(
+                text = "Date: $instant",
+                fontSize = 12.sp,
+                color = AppColors.Secondary
+            )
             
             // Show transaction state for iOS purchases
-            if (purchase.platform == "ios") {
-                (purchase as? PurchaseIOS)?.transactionState?.let {
-                    Text(
-                        text = "State: $it",
-                        fontSize = 12.sp,
-                        color = AppColors.Secondary
-                    )
-                }
+            if (purchase is PurchaseIOS) {
+                Text(
+                    text = "State: ${purchase.purchaseState}",
+                    fontSize = 12.sp,
+                    color = AppColors.Secondary
+                )
             }
             
             Spacer(modifier = Modifier.height(12.dp))
@@ -437,9 +435,9 @@ fun PurchaseCard(
                 )
                 
                 if (isSubscription && isAcknowledged) {
-                    val statusText = when (purchase.platform) {
-                        "android" -> "✓ Acknowledged"
-                        "ios" -> "✓ Finished"
+                    val statusText = when (purchase) {
+                        is PurchaseAndroid -> "✓ Acknowledged"
+                        is PurchaseIOS -> "✓ Finished"
                         else -> "✓ Processed"
                     }
                     Text(
@@ -469,9 +467,9 @@ fun PurchaseCard(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        val statusText = when (purchase.platform) {
-                            "android" -> "Already Acknowledged"
-                            "ios" -> "Already Finished"
+                        val statusText = when (purchase) {
+                            is PurchaseAndroid -> "Already Acknowledged"
+                            is PurchaseIOS -> "Already Finished"
                             else -> "Already Processed"
                         }
                         Text(
@@ -497,9 +495,9 @@ fun PurchaseCard(
                         )
                     } else {
                         val buttonText = if (isSubscription) {
-                            when (purchase.platform) {
-                                "android" -> "Acknowledge Subscription"
-                                "ios" -> "Finish Transaction"
+                            when (purchase) {
+                                is PurchaseAndroid -> "Acknowledge Subscription"
+                                is PurchaseIOS -> "Finish Transaction"
                                 else -> "Process Subscription"
                             }
                         } else {
