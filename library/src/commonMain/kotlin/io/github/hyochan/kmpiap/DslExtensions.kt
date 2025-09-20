@@ -17,28 +17,29 @@ import io.github.hyochan.kmpiap.openiap.ProductSubscriptionIOS
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseInput
+import io.github.hyochan.kmpiap.openiap.QueryResolver
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
 
 /**
- * Request products using DSL
- * 
+ * Fetch products using DSL
+ *
  * Example:
  * ```kotlin
- * val products = kmpIapInstance.requestProducts {
+ * val products = kmpIapInstance.fetchProducts {
  *     skus = listOf("product1", "product2")
- *     type = ProductType.INAPP
+ *     type = ProductType.InApp
  * }
  * ```
  */
-suspend fun KmpInAppPurchase.requestProducts(
+suspend fun KmpInAppPurchase.fetchProducts(
     builder: ProductsRequestBuilder.() -> Unit
 ): List<Product> {
     val requestBuilder = ProductsRequestBuilder().apply(builder)
     val (skus, type) = requestBuilder.build()
-    val result = fetchProducts(ProductRequest(skus, type ?: ProductQueryType.All))
+    val result = (this as QueryResolver).fetchProducts(ProductRequest(skus, type ?: ProductQueryType.All))
     return result.asProductList()
 }
 

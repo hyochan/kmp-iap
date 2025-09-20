@@ -21,7 +21,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.requestProducts
+import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
@@ -153,7 +153,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 val loadJob = async {
                     try {
                         println("[KMP-IAP Example] Requesting products: ${PRODUCT_IDS.joinToString()}")
-                        val result = kmpIapInstance.requestProducts {
+                        val result = kmpIapInstance.fetchProducts {
                             skus = PRODUCT_IDS
                             type = ProductQueryType.InApp
                         }

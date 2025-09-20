@@ -120,12 +120,12 @@ interface KmpInAppPurchase : MutationResolver, QueryResolver, SubscriptionResolv
  * 
  * // Option 1: Use global instance
  * KmpIAP.instance.initConnection()
- * KmpIAP.instance.requestProducts(...)
+ * KmpIAP.instance.fetchProducts(...)
  * 
  * // Option 2: Create your own instance
  * val kmpIAP = KmpIAP()
  * kmpIAP.initConnection()
- * kmpIAP.requestProducts(...)
+ * kmpIAP.fetchProducts(...)
  * ```
  */
 class KmpIAP(
@@ -148,7 +148,7 @@ expect fun createPlatformInAppPurchase(): KmpInAppPurchase
  * 
  * // Use the global instance
  * kmpIapInstance.initConnection()
- * kmpIapInstance.requestProducts(...)
+ * kmpIapInstance.fetchProducts(...)
  * ```
  * 
  * Note: For better testability and dependency injection,

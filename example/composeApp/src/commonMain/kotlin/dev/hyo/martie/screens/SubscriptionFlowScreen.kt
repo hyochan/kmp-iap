@@ -21,7 +21,7 @@ import androidx.navigation.NavController
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.requestProducts
+import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.Product
@@ -164,7 +164,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 val subscriptionProductsDeferred = async {
                     try {
-                        kmpIAP.requestProducts {
+                        kmpIAP.fetchProducts {
                             skus = SUBSCRIPTION_IDS
                             type = ProductQueryType.Subs
                         }
