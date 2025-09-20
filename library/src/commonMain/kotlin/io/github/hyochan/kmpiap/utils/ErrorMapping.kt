@@ -84,8 +84,13 @@ object ErrorCodeUtils {
                 iosErrorMapping.entries.firstOrNull { it.value == code }?.key ?: ErrorCode.Unknown
             }
             IapPlatform.Android -> {
-                val raw = (platformCode as? String)?.uppercase() ?: return ErrorCode.Unknown
-                legacyCodeMap[raw] ?: ErrorCode.Unknown
+                val raw = (platformCode as? String) ?: return ErrorCode.Unknown
+                val normalized = raw.uppercase().replace('-', '_')
+                legacyCodeMap[normalized]
+                    ?: legacyCodeMap[
+                        if (normalized.startsWith("E_")) normalized else "E_${normalized}"
+                    ]
+                    ?: ErrorCode.Unknown
             }
         }
     }
@@ -93,7 +98,7 @@ object ErrorCodeUtils {
     fun toPlatformCode(errorCode: ErrorCode, platform: IapPlatform): Any {
         return when (platform) {
             IapPlatform.Ios -> iosErrorMapping[errorCode] ?: 0
-            IapPlatform.Android -> errorCode.rawValue
+            IapPlatform.Android -> errorCode.rawValue.replace('-', '_').uppercase()
         }
     }
 

@@ -111,16 +111,24 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val initConnectionHandler: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
             if (context == null) {
-                activityCallbacksDisposer = tryCaptureApplication(
+                val disposer = tryCaptureApplication(
                     callback = this@InAppPurchaseAndroid,
                     onContextAvailable = { appContext -> context = appContext },
                     onActivityFound = { activity -> currentActivity = activity }
                 )
+                if (context != null) {
+                    activityCallbacksDisposer = disposer
+                } else {
+                    disposer?.invoke()
+                }
             }
 
-            val ctx = context ?: failWith(
-                PurchaseError(code = ErrorCode.ServiceError, message = "Context not available")
-            )
+            val ctx = context ?: run {
+                activityCallbacksDisposer = null
+                failWith(
+                    PurchaseError(code = ErrorCode.ServiceError, message = "Context not available")
+                )
+            }
 
             suspendCancellableCoroutine { continuation ->
                 val listener = object : BillingClientStateListener {

@@ -299,9 +299,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         val quantity = props.ios?.quantity ?: 1
         val appAccountToken = props.ios?.appAccountToken
 
-        val products = loadProducts(ProductRequest(listOf(sku), ProductQueryType.InApp))
-        if (products.isEmpty()) failWithPurchase(ErrorCode.ItemUnavailable, "Product not found: $sku")
-
         val skProduct = fetchSkProduct(sku)
             ?: failWithPurchase(ErrorCode.ItemUnavailable, "Failed to fetch product: $sku")
 
@@ -314,9 +311,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
         val quantity = props.ios?.quantity ?: 1
         val appAccountToken = props.ios?.appAccountToken
-
-        val products = loadProducts(ProductRequest(listOf(sku), ProductQueryType.Subs))
-        if (products.isEmpty()) failWithPurchase(ErrorCode.ItemUnavailable, "Subscription not found: $sku")
 
         val skProduct = fetchSkProduct(sku)
             ?: failWithPurchase(ErrorCode.ItemUnavailable, "Failed to fetch subscription: $sku")
@@ -722,6 +716,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
 // Extension functions
 private fun SKProduct.toProduct(): Product {
+    val isSubscription = runCatching {
+        subscriptionPeriod != null || subscriptionGroupIdentifier != null
+    }.getOrDefault(false)
+    val typeIOSValue = if (isSubscription) {
+        ProductTypeIOS.AutoRenewableSubscription
+    } else {
+        ProductTypeIOS.NonConsumable
+    }
     return ProductIOS(
         currency = runCatching { priceLocale.currencyCode }.getOrNull() ?: "USD",
         description = runCatching { localizedDescription }.getOrNull() ?: "",
@@ -734,8 +736,8 @@ private fun SKProduct.toProduct(): Product {
         price = price.doubleValue,
         subscriptionInfoIOS = null,
         title = runCatching { localizedTitle }.getOrNull() ?: productIdentifier,
-        type = ProductType.InApp,
-        typeIOS = ProductTypeIOS.NonConsumable
+        type = if (isSubscription) ProductType.Subs else ProductType.InApp,
+        typeIOS = typeIOSValue
     )
 }
 
@@ -749,14 +751,12 @@ private fun SKProduct.localizedPrice(): String {
         price.toString()
     }
 }
-private fun SKProductPeriodUnit?.toUnitEnum(): SubscriptionPeriodIOS? {
-    return when ((this as? NSNumber)?.longValue) {
-        0L -> SubscriptionPeriodIOS.Day
-        1L -> SubscriptionPeriodIOS.Week
-        2L -> SubscriptionPeriodIOS.Month
-        3L -> SubscriptionPeriodIOS.Year
-        else -> null
-    }
+private fun SKProductPeriodUnit?.toUnitEnum(): SubscriptionPeriodIOS? = when (this?.value?.toInt()) {
+    0 -> SubscriptionPeriodIOS.Day
+    1 -> SubscriptionPeriodIOS.Week
+    2 -> SubscriptionPeriodIOS.Month
+    3 -> SubscriptionPeriodIOS.Year
+    else -> null
 }
 
 private fun SKPaymentTransaction.toPurchase(): Purchase {
