@@ -104,7 +104,9 @@ internal fun tryCaptureApplication(
     callback: Application.ActivityLifecycleCallbacks,
     onContextAvailable: (Context?) -> Unit,
     onActivityFound: (Activity?) -> Unit
-) {
+): (() -> Unit)? {
+    var disposer: (() -> Unit)? = null
+
     runCatching {
         val activityThreadClass = Class.forName("android.app.ActivityThread")
         val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
@@ -112,6 +114,9 @@ internal fun tryCaptureApplication(
         val app = getApplication.invoke(currentActivityThread) as? Application
         onContextAvailable(app?.applicationContext)
         app?.registerActivityLifecycleCallbacks(callback)
+        disposer = app?.let { application ->
+            { application.unregisterActivityLifecycleCallbacks(callback) }
+        }
 
         val activitiesField = activityThreadClass.getDeclaredField("mActivities")
         activitiesField.isAccessible = true
@@ -127,6 +132,8 @@ internal fun tryCaptureApplication(
             }
         }
     }
+
+    return disposer
 }
 
 internal suspend fun loadProductDetails(

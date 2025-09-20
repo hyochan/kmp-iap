@@ -309,7 +309,7 @@ class ProductInfo {
 ### Platform Support
 
 ```kotlin
-import io.github.hyochan.kmpiap.IapPlatform
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 
 class PlatformSupport {
     suspend fun checkPurchaseSupport(): Boolean {

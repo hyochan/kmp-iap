@@ -38,17 +38,12 @@ package_line = "package io.github.hyochan.kmpiap.openiap\n"
 with open(path, "r", encoding="utf-8") as f:
     lines = f.readlines()
 
-if any(line.strip() == package_line.strip() for line in lines):
-    sys.exit(0)
-
-for index, line in enumerate(lines):
-    if line.startswith("@file:Suppress"):
-        insert_index = index + 1
-        break
+pkg_idx = next((i for i, l in enumerate(lines) if l.strip().startswith("package ")), None)
+if pkg_idx is not None:
+    lines[pkg_idx] = package_line
 else:
-    insert_index = 0
-
-lines.insert(insert_index, "\n" + package_line + "\n")
+    insert_index = next((i + 1 for i, l in enumerate(lines) if l.startswith("@file:Suppress")), 0)
+    lines.insert(insert_index, "\n" + package_line + "\n")
 
 with open(path, "w", encoding="utf-8") as f:
     f.writelines(lines)

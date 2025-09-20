@@ -29,6 +29,7 @@ import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
 import io.github.hyochan.kmpiap.openiap.MutationDeepLinkToSubscriptionsHandler
 import io.github.hyochan.kmpiap.openiap.MutationEndConnectionHandler
 import io.github.hyochan.kmpiap.openiap.MutationInitConnectionHandler
+import io.github.hyochan.kmpiap.openiap.MutationFinishTransactionHandler
 import io.github.hyochan.kmpiap.openiap.MutationRequestPurchaseHandler
 import io.github.hyochan.kmpiap.openiap.MutationValidateReceiptHandler
 import io.github.hyochan.kmpiap.openiap.MutationHandlers
@@ -37,6 +38,7 @@ import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductRequest
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseOptions
 import io.github.hyochan.kmpiap.openiap.QueryFetchProductsHandler
@@ -48,6 +50,10 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
+import io.github.hyochan.kmpiap.openiap.AppTransaction
+import io.github.hyochan.kmpiap.openiap.ReceiptValidationProps
+import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
+import io.github.hyochan.kmpiap.openiap.PurchaseInput
 import io.github.hyochan.kmpiap.openiap.SubscriptionHandlers
 import io.github.hyochan.kmpiap.openiap.ReceiptValidationResultIOS
 import io.github.hyochan.kmpiap.Store
@@ -72,6 +78,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private var isConnected = false
     private var context: Context? = null
     private var currentActivity: Activity? = null
+    private var activityCallbacksDisposer: (() -> Unit)? = null
     private val cachedProductDetails = mutableMapOf<String, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
 
@@ -104,7 +111,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val initConnectionHandler: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
             if (context == null) {
-                tryCaptureApplication(
+                activityCallbacksDisposer = tryCaptureApplication(
                     callback = this@InAppPurchaseAndroid,
                     onContextAvailable = { appContext -> context = appContext },
                     onActivityFound = { activity -> currentActivity = activity }
@@ -158,6 +165,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 billingClient?.endConnection()
                 billingClient = null
                 isConnected = false
+                activityCallbacksDisposer?.invoke()
+                activityCallbacksDisposer = null
                 _connectionStateListener.tryEmit(ConnectionResult(connected = false, message = "Disconnected"))
                 clearProductCache(cachedProductDetails)
                 true
@@ -166,7 +175,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     private val requestPurchaseHandler: MutationRequestPurchaseHandler = { props ->
-        val purchases = withContext(Dispatchers.IO) {
+        val purchases = withContext(Dispatchers.Main) {
             val resolvedType = props.type ?: when (props.request) {
                 is RequestPurchaseProps.Request.Purchase -> ProductQueryType.InApp
                 is RequestPurchaseProps.Request.Subscription -> ProductQueryType.Subs
@@ -288,17 +297,15 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     flowBuilder.setSubscriptionUpdateParams(updateParamsBuilder.build())
                 }
 
-                activity.runOnUiThread {
-                    val launchResult = billingClient?.launchBillingFlow(activity, flowBuilder.build())
-                    if (launchResult?.responseCode != BillingClient.BillingResponseCode.OK) {
-                        val error = PurchaseError(
-                            code = mapBillingResponseCode(launchResult?.responseCode ?: -1),
-                            message = launchResult?.debugMessage ?: "Failed to launch billing flow"
-                        )
-                        _purchaseErrorListener.tryEmit(error)
-                        currentPurchaseCallback?.invoke(Result.success(emptyList()))
-                        currentPurchaseCallback = null
-                    }
+                val launchResult = billingClient?.launchBillingFlow(activity, flowBuilder.build())
+                if (launchResult?.responseCode != BillingClient.BillingResponseCode.OK) {
+                    val error = PurchaseError(
+                        code = mapBillingResponseCode(launchResult?.responseCode ?: -1),
+                        message = launchResult?.debugMessage ?: "Failed to launch billing flow"
+                    )
+                    _purchaseErrorListener.tryEmit(error)
+                    currentPurchaseCallback?.invoke(Result.success(emptyList()))
+                    currentPurchaseCallback = null
                 }
 
                 continuation.invokeOnCancellation { currentPurchaseCallback = null }
@@ -316,20 +323,22 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         options?.let { launchDeepLinkToSubscriptions(it) }
     }
 
-    private val finishTransactionHandler: suspend (Purchase, Boolean?) -> Boolean = { purchase, isConsumable ->
-        if (purchase.platform != IapPlatform.Android) {
-            false
-        } else {
-            try {
-                val token = purchase.purchaseToken
-                if (isConsumable == true) {
-                    token?.let { consumePurchaseAndroid(it) } != null
-                } else {
-                    token?.let { acknowledgePurchaseAndroid(it) } != null
-                }
-            } catch (_: Exception) {
-                false
+    private val finishTransactionHandler: MutationFinishTransactionHandler = finishTransaction@{ purchase, isConsumable ->
+        if (purchase.platform != IapPlatform.Android) return@finishTransaction
+        val token = purchase.purchaseToken ?: return@finishTransaction
+        runCatching {
+            if (isConsumable == true) {
+                consumePurchaseAndroid(token)
+            } else {
+                acknowledgePurchaseAndroid(token)
             }
+        }.onFailure {
+            _purchaseErrorListener.tryEmit(
+                PurchaseError(
+                    code = ErrorCode.ReceiptFinishedFailed,
+                    message = "Failed to finish transaction: ${it.message ?: "unknown"}"
+                )
+            )
         }
     }
 
@@ -338,43 +347,18 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     override suspend fun initConnection(): Boolean = initConnectionHandler()
 
-    override suspend fun endConnection() {
-        endConnectionHandler()
-    }
+    override suspend fun endConnection(): Boolean = endConnectionHandler()
 
-    override suspend fun requestProducts(params: ProductRequest): List<Product> {
-        val result = fetchProductsHandler(params)
-        return mapFetchResultToProducts(params, result)
-    }
+    override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
+        fetchProductsHandler(params)
 
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
-        val result = requestPurchaseHandler(request)
-
-        val purchase = when (result) {
-            is RequestPurchaseResultPurchase -> result.value
-            is RequestPurchaseResultPurchases -> result.value?.firstOrNull()
-            null -> null
-        }
-
-        val targetSku = when (val req = request.request) {
-            is RequestPurchaseProps.Request.Purchase -> req.value.android?.skus?.firstOrNull()
-                ?: req.value.ios?.sku
-            is RequestPurchaseProps.Request.Subscription -> req.value.android?.skus?.firstOrNull()
-                ?: req.value.ios?.sku
-        }
-
-        return purchase ?: failWith(
-            PurchaseError(
-                code = ErrorCode.Unknown,
-                message = "Failed to start purchase flow for ${targetSku ?: "unknown"}"
-            )
-        )
-    }
+    override suspend fun requestPurchase(request: RequestPurchaseProps): RequestPurchaseResult? =
+        requestPurchaseHandler(request)
 
     override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
         getAvailablePurchasesHandler(options)
 
-    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> = emptyList()
+    suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> = emptyList()
 
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
         getActiveSubscriptionsHandler(subscriptionIds)
@@ -382,10 +366,44 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
         hasActiveSubscriptionsHandler(subscriptionIds)
 
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean =
-        finishTransactionHandler(purchase, isConsumable)
+    override suspend fun restorePurchases() {
+        getAvailablePurchasesHandler.invoke(null)
+    }
 
-    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) {
+    override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = null
+
+    override suspend fun getAppTransactionIOS(): AppTransaction? = null
+
+    override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> = emptyList()
+
+    override suspend fun getReceiptDataIOS(): String? = null
+
+    override suspend fun getTransactionJwsIOS(sku: String): String? = null
+
+    override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false
+
+    override suspend fun isTransactionVerifiedIOS(sku: String): Boolean = false
+
+    override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? = null
+
+    override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
+
+    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS =
+        ReceiptValidationResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
+
+    suspend fun isPurchaseValid(purchase: Purchase): Boolean = isPurchaseTokenValid(purchase)
+
+    override suspend fun promotedProductIOS(): String = ""
+
+    override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
+
+    override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
+
+    override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
+        finishTransactionHandler(purchase, isConsumable)
+    }
+
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
         deepLinkToSubscriptionsHandler(options)
     }
 
@@ -555,31 +573,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             requestPurchase = requestPurchaseHandler,
             validateReceipt = validateReceiptHandler,
             deepLinkToSubscriptions = deepLinkToSubscriptionsHandler,
-            finishTransaction = finishTransaction@{ purchase, isConsumable ->
-                if (purchase.platform != IapPlatform.Android) return@finishTransaction
-                val androidPurchase = PurchaseAndroid(
-                    autoRenewingAndroid = purchase.isAutoRenewing,
-                    dataAndroid = null,
-                    developerPayloadAndroid = null,
-                    id = purchase.id,
-                    ids = purchase.ids,
-                    isAcknowledgedAndroid = null,
-                    isAutoRenewing = purchase.isAutoRenewing,
-                    obfuscatedAccountIdAndroid = null,
-                    obfuscatedProfileIdAndroid = null,
-                    packageNameAndroid = context?.packageName,
-                    platform = purchase.platform,
-                    productId = purchase.productId,
-                    purchaseState = purchase.purchaseState,
-                    purchaseToken = purchase.purchaseToken,
-                    quantity = purchase.quantity,
-                    signatureAndroid = null,
-                    transactionDate = purchase.transactionDate
-                )
-                finishTransactionHandler(androidPurchase, isConsumable)
-            },
-            acknowledgePurchaseAndroid = { token -> runCatching { acknowledgePurchaseAndroid(token) }.isSuccess },
-            consumePurchaseAndroid = { token -> runCatching { consumePurchaseAndroid(token) }.isSuccess },
+            finishTransaction = finishTransactionHandler,
+            acknowledgePurchaseAndroid = { token -> acknowledgePurchaseAndroid(token) },
+            consumePurchaseAndroid = { token -> consumePurchaseAndroid(token) },
             restorePurchases = { getAvailablePurchasesHandler.invoke(null) }
         )
     }
@@ -594,17 +590,17 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Android specific overrides
     // ---------------------------------------------------------------------
-    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) {
+    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
         ensureConnectedOrFail(isConnected, ::failWith)
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchaseToken)
             .build()
 
-        suspendCancellableCoroutine<Unit> { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             billingClient?.acknowledgePurchase(params) { result ->
                 when (result.responseCode) {
                     BillingClient.BillingResponseCode.OK,
-                    BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> continuation.resume(Unit)
+                    BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> continuation.resume(true)
                     else -> {
                         val error = PurchaseError(
                             code = ErrorCode.ServiceError,
@@ -618,16 +614,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
-    override suspend fun consumePurchaseAndroid(purchaseToken: String) {
+    override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         ensureConnectedOrFail(isConnected, ::failWith)
         val params = ConsumeParams.newBuilder()
             .setPurchaseToken(purchaseToken)
             .build()
 
-        suspendCancellableCoroutine<Unit> { continuation ->
+        return suspendCancellableCoroutine { continuation ->
             billingClient?.consumeAsync(params) { result, _ ->
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    continuation.resume(Unit)
+                    continuation.resume(true)
                 } else {
                     val error = PurchaseError(
                         code = ErrorCode.ServiceError,
@@ -641,14 +637,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     override suspend fun getStorefrontIOS(): String = ""
-    override suspend fun presentCodeRedemptionSheetIOS() {}
-    override suspend fun finishTransactionIOS(transactionId: String) {}
-    override suspend fun clearTransactionIOS() {}
-    override suspend fun clearProductsIOS() {}
-    override suspend fun getPromotedProductIOS(): String? = null
-    override suspend fun buyPromotedProductIOS() {}
+    override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+    suspend fun finishTransactionIOS(transactionId: String) {}
+    override suspend fun clearTransactionIOS(): Boolean = false
+    suspend fun clearProductsIOS() {}
+    override suspend fun getPromotedProductIOS(): ProductIOS? = null
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean = false
+    override suspend fun beginRefundRequestIOS(sku: String): String? = null
+    override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
+    override suspend fun syncIOS(): Boolean = false
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
-    override suspend fun isPurchaseValid(purchase: Purchase): Boolean = isPurchaseTokenValid(purchase)
     override fun getVersion(): String = ANDROID_VERSION
     override fun getStore(): Store = Store.PLAY_STORE
     override suspend fun canMakePayments(): Boolean = true

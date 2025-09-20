@@ -23,11 +23,12 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.requestProducts
 import io.github.hyochan.kmpiap.requestPurchase
-import io.github.hyochan.kmpiap.Product
-import io.github.hyochan.kmpiap.Purchase
-import io.github.hyochan.kmpiap.PurchaseError
-import io.github.hyochan.kmpiap.ProductQueryType
-import io.github.hyochan.kmpiap.ErrorCode
+import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
+import io.github.hyochan.kmpiap.openiap.ErrorCode
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -108,7 +109,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 scope.launch {
                     try {
                         kmpIapInstance.finishTransaction(
-                            purchase = purchase,
+                            purchase = purchase.toPurchaseInput(),
                             isConsumable = true // Set to true for consumable products
                         )
                         purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"

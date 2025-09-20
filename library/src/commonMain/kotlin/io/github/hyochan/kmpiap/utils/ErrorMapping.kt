@@ -1,7 +1,7 @@
 package io.github.hyochan.kmpiap.utils
 
-import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.IapPlatform
+import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.IapPlatform
 
 /**
  * Utilities for working with OpenIAP error codes across platforms.

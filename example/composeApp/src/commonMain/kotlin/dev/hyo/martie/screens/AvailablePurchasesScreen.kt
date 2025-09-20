@@ -23,6 +23,7 @@ import dev.hyo.martie.utils.swipeToBack
 import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
+import io.github.hyochan.kmpiap.toPurchaseInput
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -284,7 +285,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                     try {
                                         // For subscriptions, acknowledge only (don't consume)
                                         // For consumables, consume them
-                                        kmpIAP.finishTransaction(purchase, isConsumable = !isSubscription)
+                                        kmpIAP.finishTransaction(purchase.toPurchaseInput(), isConsumable = !isSubscription)
                                         
                                         val action = if (isSubscription) "acknowledged" else "consumed"
                                         consumeResult = "✅ Purchase $action: ${purchase.productId}"

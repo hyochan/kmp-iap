@@ -23,17 +23,18 @@ import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.requestProducts
 import io.github.hyochan.kmpiap.requestPurchase
-import io.github.hyochan.kmpiap.Product
-import io.github.hyochan.kmpiap.Purchase
-import io.github.hyochan.kmpiap.PurchaseError
-import io.github.hyochan.kmpiap.ProductQueryType
-import io.github.hyochan.kmpiap.ProductType
-import io.github.hyochan.kmpiap.ErrorCode
-import io.github.hyochan.kmpiap.PurchaseAndroid
-import io.github.hyochan.kmpiap.PurchaseIOS
-import io.github.hyochan.kmpiap.ProductAndroid
-import io.github.hyochan.kmpiap.ProductIOS
-import io.github.hyochan.kmpiap.ActiveSubscription
+import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.openiap.Product
+import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.PurchaseError
+import io.github.hyochan.kmpiap.openiap.ProductQueryType
+import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
+import io.github.hyochan.kmpiap.openiap.ProductAndroid
+import io.github.hyochan.kmpiap.openiap.ProductIOS
+import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -98,7 +99,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 scope.launch {
                     try {
                         kmpIAP.finishTransaction(
-                            purchase = purchase,
+                            purchase = purchase.toPurchaseInput(),
                             isConsumable = false // Set to false for subscription products
                         )
                         purchaseResult = "$purchaseResult\n\n✅ Transaction finished successfully"

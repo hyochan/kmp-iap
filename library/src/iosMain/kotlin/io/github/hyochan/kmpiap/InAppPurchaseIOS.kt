@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import platform.Foundation.*
@@ -148,6 +149,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private var isConnected = false
     private var isRestoring = false
     private var hasRestoredOnce = false
+    private var promotedProduct: SKProduct? = null
     
     // The Objective-C observer
     private val paymentObserver = PaymentObserver()
@@ -192,6 +194,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
         
         paymentObserver.promotedProductHandler = { productId, product ->
+            promotedProduct = product
             _promotedProductListener.tryEmit(productId)
         }
         
@@ -227,29 +230,33 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return true
     }
     
-    override suspend fun endConnection() {
+    override suspend fun endConnection(): Boolean {
         SKPaymentQueue.defaultQueue().removeTransactionObserver(paymentObserver)
         isConnected = false
         cleanupState()
         _connectionStateListener.emit(ConnectionResult(connected = false, message = "Disconnected from App Store"))
+        return true
     }
     
-    override suspend fun requestProducts(params: ProductRequest): List<Product> {
+    override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult {
+        val products = loadProducts(params)
+        return FetchProductsResultProducts(products)
+    }
+
+    private suspend fun loadProducts(params: ProductRequest): List<Product> {
         ensureConnection()
         return suspendCancellableCoroutine { continuation ->
             try {
                 val request = SKProductsRequest(productIdentifiers = params.skus.toSet())
-                
-                productRequests[request] = { products, invalidIds ->
+
+                productRequests[request] = { products, _ ->
                     productRequests.remove(request)
-                    
-                    // Note: invalidIds contains products not found in the store
-                    
+
                     try {
                         val productList = products.map { skProduct ->
                             skProduct.toProduct()
                         }
-                        
+
                         if (continuation.isActive) {
                             continuation.resume(productList)
                         }
@@ -259,10 +266,10 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         }
                     }
                 }
-                
+
                 request.delegate = paymentObserver
                 request.start()
-                
+
                 continuation.invokeOnCancellation {
                     request.cancel()
                     productRequests.remove(request)
@@ -275,13 +282,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
     
-    override suspend fun requestPurchase(request: RequestPurchaseProps): Purchase {
+    override suspend fun requestPurchase(request: RequestPurchaseProps): RequestPurchaseResult? {
         ensureConnection()
 
-        return when (val req = request.request) {
+        val purchase = when (val req = request.request) {
             is RequestPurchaseProps.Request.Purchase -> handlePurchaseRequest(req.value)
             is RequestPurchaseProps.Request.Subscription -> handleSubscriptionRequest(req.value)
         }
+        return RequestPurchaseResultPurchase(purchase)
     }
 
     private suspend fun handlePurchaseRequest(props: RequestPurchasePropsByPlatforms): Purchase {
@@ -291,7 +299,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         val quantity = props.ios?.quantity ?: 1
         val appAccountToken = props.ios?.appAccountToken
 
-        val products = requestProducts(ProductRequest(listOf(sku), ProductQueryType.InApp))
+        val products = loadProducts(ProductRequest(listOf(sku), ProductQueryType.InApp))
         if (products.isEmpty()) failWithPurchase(ErrorCode.ItemUnavailable, "Product not found: $sku")
 
         val skProduct = fetchSkProduct(sku)
@@ -307,7 +315,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         val quantity = props.ios?.quantity ?: 1
         val appAccountToken = props.ios?.appAccountToken
 
-        val products = requestProducts(ProductRequest(listOf(sku), ProductQueryType.Subs))
+        val products = loadProducts(ProductRequest(listOf(sku), ProductQueryType.Subs))
         if (products.isEmpty()) failWithPurchase(ErrorCode.ItemUnavailable, "Subscription not found: $sku")
 
         val skProduct = fetchSkProduct(sku)
@@ -399,36 +407,39 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
     }
+
+    override suspend fun restorePurchases() {
+        getAvailablePurchases(null)
+    }
     
-    override suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> {
+    suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> {
         // iOS doesn't have a separate purchase history API
         // Return available purchases directly
         return getAvailablePurchases(options)
     }
     
-    override suspend fun finishTransaction(purchase: Purchase, isConsumable: Boolean?): Boolean {
+    override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
         ensureConnection()
-        val transactionId = purchase.id ?: return false
-        
+        val transactionId = purchase.id
+
         // Find the transaction from the queue instead of using cache
         val queue = SKPaymentQueue.defaultQueue()
         val transactions = queue.transactions() ?: emptyList<Any>()
-        
+
         val transaction = transactions.firstOrNull { trans ->
             val skTransaction = trans as? SKPaymentTransaction
             skTransaction?.transactionIdentifier == transactionId
         } as? SKPaymentTransaction
-        
+
         if (transaction == null) {
             // Transaction not found in queue - it's likely already finished
             // For restored purchases, this is normal and should be considered success
             println("[KMP-IAP] Transaction not found in queue (likely already finished): $transactionId")
-            return true
+            return
         }
-        
+
         queue.finishTransaction(transaction)
         println("[KMP-IAP] Transaction finished: $transactionId")
-        return true
     }
     
     override suspend fun getStorefrontIOS(): String {
@@ -441,36 +452,57 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
     
     @OptIn(ExperimentalForeignApi::class)
-    override suspend fun presentCodeRedemptionSheetIOS() {
+    override suspend fun presentCodeRedemptionSheetIOS(): Boolean {
         ensureConnection()
         if (NSClassFromString("SKPaymentQueue") != null) {
             val queue = SKPaymentQueue.defaultQueue()
             if (queue.respondsToSelector(NSSelectorFromString("presentCodeRedemptionSheet"))) {
                 queue.performSelector(NSSelectorFromString("presentCodeRedemptionSheet"))
+                return true
             }
         }
+        return false
     }
     
-    // iOS subscription management - not in interface
-    private suspend fun showManageSubscriptionsIOS() {
+    override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> {
         ensureConnection()
         val url = NSURL(string = "https://apps.apple.com/account/subscriptions")
         if (url != null && UIApplication.sharedApplication.canOpenURL(url)) {
             UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any?>()) { _ -> }
         }
+        return emptyList()
     }
     
     // New methods from updated interface
-    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult =
-        ReceiptValidationResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
-    
-    override suspend fun isPurchaseValid(purchase: Purchase): Boolean {
-        return purchase.purchaseToken?.isNotEmpty() == true
+    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult {
+        ensureConnection()
+        val receiptData = readReceiptData()
+            ?: failWithPurchase(ErrorCode.ReceiptFailed, "App Store receipt not found")
+
+        val purchases = getAvailablePurchases(null)
+        val matchingPurchase = purchases.firstOrNull { it.productId == options.sku }
+        val isValid = matchingPurchase != null
+
+        if (!isValid) {
+            _purchaseErrorListener.tryEmit(
+                PurchaseError(
+                    code = ErrorCode.ReceiptFailed,
+                    message = "No matching purchase for SKU ${options.sku}"
+                )
+            )
+        }
+
+        return ReceiptValidationResultIOS(
+            isValid = isValid,
+            jwsRepresentation = "",
+            latestTransaction = matchingPurchase,
+            receiptData = receiptData
+        )
     }
     
-    override suspend fun finishTransactionIOS(transactionId: String) {
+    suspend fun finishTransactionIOS(transactionId: String) {
         ensureConnection()
-        
+
         // Find the transaction from the queue instead of using cache
         val queue = SKPaymentQueue.defaultQueue()
         val transactions = queue.transactions() ?: return
@@ -483,43 +515,113 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         queue.finishTransaction(transaction)
     }
     
-    override suspend fun clearTransactionIOS() {
+    override suspend fun clearTransactionIOS(): Boolean {
         ensureConnection()
         val queue = SKPaymentQueue.defaultQueue()
-        queue.transactions?.forEach { transaction ->
+        val transactions = queue.transactions() ?: return false
+        transactions.forEach { transaction ->
             queue.finishTransaction(transaction as SKPaymentTransaction)
         }
+        return true
+    }
+    
+    suspend fun clearProductsIOS() {
         // No cache to clear anymore
     }
     
-    override suspend fun clearProductsIOS() {
-        // No cache to clear anymore
+    override suspend fun getPromotedProductIOS(): ProductIOS? {
+        ensureConnection()
+        return promotedProduct?.toProduct() as? ProductIOS
+    }
+
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean {
+        ensureConnection()
+        val product = promotedProduct ?: return false
+        val queue = SKPaymentQueue.defaultQueue()
+        return runCatching {
+            val payment = SKMutablePayment.paymentWithProduct(product)
+            dispatch_async(dispatch_get_main_queue()) {
+                queue.addPayment(payment)
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+    override suspend fun syncIOS(): Boolean {
+        ensureConnection()
+        return false
+    }
+
+    override suspend fun beginRefundRequestIOS(sku: String): String? {
+        ensureConnection()
+        return null
     }
     
-    override suspend fun getPromotedProductIOS(): String? {
-        // Return last promoted product from flow
-        return null // Would need to track this separately
-    }
-    
-    override suspend fun buyPromotedProductIOS() {
-        // Would need to track promoted product and buy it
-    }
-    
-    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String) {
+    override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
         // No-op on iOS
+        return false
     }
-    
-    override suspend fun consumePurchaseAndroid(purchaseToken: String) {
+
+    override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         // No-op on iOS
+        return false
     }
     
-    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) {
-        // No-op on iOS
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
+        showManageSubscriptionsIOS()
     }
     
+    override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = latestTransactionIOS(sku)
+
     override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> = emptyList()
-    
-    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean = false
+
+    override suspend fun getAppTransactionIOS(): AppTransaction? = null
+
+    override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> {
+        ensureConnection()
+        val queue = SKPaymentQueue.defaultQueue()
+        val transactions = queue.transactions() ?: emptyList<Any>()
+        return transactions.mapNotNull { (it as? SKPaymentTransaction)?.toPurchase() as? PurchaseIOS }
+    }
+
+    override suspend fun getReceiptDataIOS(): String? = readReceiptData()
+
+    override suspend fun getTransactionJwsIOS(sku: String): String? = null
+
+    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
+        getActiveSubscriptions(subscriptionIds).isNotEmpty()
+
+    override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false
+
+    override suspend fun isTransactionVerifiedIOS(sku: String): Boolean = false
+
+    override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? {
+        ensureConnection()
+        return getAvailablePurchases(null)
+            .filterIsInstance<PurchaseIOS>()
+            .firstOrNull { it.productId == sku }
+    }
+
+    override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
+
+    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS {
+        val result = validateReceipt(options)
+        return result as? ReceiptValidationResultIOS
+            ?: ReceiptValidationResultIOS(
+                isValid = false,
+                jwsRepresentation = "",
+                receiptData = readReceiptData() ?: ""
+            )
+    }
+
+    override suspend fun promotedProductIOS(): String = promotedProductListener.first() ?: ""
+
+    override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
+
+    override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
+
+    suspend fun isPurchaseValid(purchase: Purchase): Boolean =
+        purchase.purchaseToken?.isNotEmpty() == true || purchase.id.isNotEmpty()
     
     
     // Internal iOS receipt validation - not in interface
@@ -554,6 +656,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         restoredPurchases.clear()
         restoreCompletion = null
         hasRestoredOnce = false
+        promotedProduct = null
+    }
+
+    private fun readReceiptData(): String? {
+        val receiptUrl = NSBundle.mainBundle.appStoreReceiptURL ?: return null
+        val data = NSData.dataWithContentsOfURL(receiptUrl) ?: return null
+        return data.base64EncodedStringWithOptions(0u)
     }
     
     private suspend fun ensureConnection() {
@@ -576,22 +685,28 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
     
     private fun handleFailedTransaction(transaction: SKPaymentTransaction) {
-        val error = transaction.error
-        val errorCode = when ((error as? NSError)?.code) {
-            2L -> ErrorCode.UserCancelled
-            0L -> ErrorCode.DeveloperError  // Payment invalid
-            1L -> ErrorCode.UserError       // Payment not allowed
-            5L -> ErrorCode.ItemUnavailable
-            else -> ErrorCode.Unknown
+        val nsError = transaction.error as? NSError
+        val errorCode = if (nsError?.domain == SKErrorDomain) {
+            when (nsError.code.toLong()) {
+                0L -> ErrorCode.Unknown          // SKErrorUnknown
+                1L -> ErrorCode.DeveloperError   // SKErrorClientInvalid
+                2L -> ErrorCode.UserCancelled    // SKErrorPaymentCancelled
+                3L -> ErrorCode.DeveloperError   // SKErrorPaymentInvalid
+                4L -> ErrorCode.UserError        // SKErrorPaymentNotAllowed
+                5L -> ErrorCode.ItemUnavailable  // SKErrorStoreProductNotAvailable
+                else -> ErrorCode.Unknown
+            }
+        } else {
+            ErrorCode.Unknown
         }
-        
+
         _purchaseErrorListener.tryEmit(
             PurchaseError(
                 code = errorCode,
-                message = error?.localizedDescription ?: "Purchase failed",
+                message = nsError?.localizedDescription ?: "Purchase failed",
             )
         )
-        
+
         SKPaymentQueue.defaultQueue().finishTransaction(transaction)
     }
     
