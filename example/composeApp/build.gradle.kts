@@ -47,7 +47,7 @@ kotlin {
 
     sourceSets {
         val desktopMain by getting
-        
+
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -58,13 +58,17 @@ kotlin {
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.8.0-alpha10")
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serialization.json)
-            implementation(project(":library"))
         }
 
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
             implementation(compose.preview)
+            implementation(project(":library"))
+        }
+
+        iosMain.dependencies {
+            implementation(project(":library"))
         }
 
         desktopMain.dependencies {

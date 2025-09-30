@@ -9,6 +9,23 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
+// Load OpenIAP versions from openiap-versions.json
+val openIapVersionsFile = rootProject.file("openiap-versions.json")
+val appleVersion = if (openIapVersionsFile.exists()) {
+    val jsonContent = openIapVersionsFile.readText()
+    Regex(""""apple":\s*"([^"]+)"""").find(jsonContent)?.groupValues?.get(1) ?: "1.2.5"
+} else {
+    "1.2.5"
+}
+val googleVersion = if (openIapVersionsFile.exists()) {
+    val jsonContent = openIapVersionsFile.readText()
+    Regex(""""google":\s*"([^"]+)"""").find(jsonContent)?.groupValues?.get(1) ?: "1.2.10"
+} else {
+    "1.2.10"
+}
+
+println("DEBUG: OpenIAP versions loaded - Apple: $appleVersion, Google: $googleVersion")
+
 // Load environment variables first (for CI)
 System.getenv().forEach { (key, value) ->
     if (key.startsWith("ORG_GRADLE_PROJECT_")) {
@@ -122,7 +139,7 @@ kotlin {
         // Add openiap-apple pod dependency with @objc support (using Git URL for development)
         pod("openiap") {
             source = git("https://github.com/hyodotdev/openiap-apple.git") {
-                tag = "1.2.6"
+                tag = appleVersion
             }
             moduleName = "OpenIAP"
         }
@@ -146,7 +163,7 @@ kotlin {
             dependencies {
                 implementation(libs.billing)
                 implementation(libs.billing.ktx)
-                implementation(libs.openiap.google)
+                implementation("io.github.hyochan.openiap:openiap-google:$googleVersion")
             }
         }
     }
