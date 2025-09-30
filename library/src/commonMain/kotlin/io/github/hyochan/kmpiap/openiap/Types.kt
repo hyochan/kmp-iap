@@ -7,6 +7,7 @@
 
 package io.github.hyochan.kmpiap.openiap
 
+
 // MARK: - Enums
 
 public enum class ErrorCode(val rawValue: String) {
@@ -44,7 +45,6 @@ public enum class ErrorCode(val rawValue: String) {
     BillingUnavailable("billing-unavailable"),
     FeatureNotSupported("feature-not-supported"),
     EmptySkuList("empty-sku-list");
-
     companion object {
         fun fromJson(value: String): ErrorCode = when (value) {
             "unknown" -> ErrorCode.Unknown
@@ -160,7 +160,6 @@ public enum class IapEvent(val rawValue: String) {
     PurchaseUpdated("purchase-updated"),
     PurchaseError("purchase-error"),
     PromotedProductIos("promoted-product-ios");
-
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
@@ -182,7 +181,6 @@ public enum class IapEvent(val rawValue: String) {
 public enum class IapPlatform(val rawValue: String) {
     Ios("ios"),
     Android("android");
-
     companion object {
         fun fromJson(value: String): IapPlatform = when (value) {
             "ios" -> IapPlatform.Ios
@@ -202,7 +200,6 @@ public enum class PaymentModeIOS(val rawValue: String) {
     FreeTrial("free-trial"),
     PayAsYouGo("pay-as-you-go"),
     PayUpFront("pay-up-front");
-
     companion object {
         fun fromJson(value: String): PaymentModeIOS = when (value) {
             "empty" -> PaymentModeIOS.Empty
@@ -228,7 +225,6 @@ public enum class ProductQueryType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs"),
     All("all");
-
     companion object {
         fun fromJson(value: String): ProductQueryType = when (value) {
             "in-app" -> ProductQueryType.InApp
@@ -250,7 +246,6 @@ public enum class ProductQueryType(val rawValue: String) {
 public enum class ProductType(val rawValue: String) {
     InApp("in-app"),
     Subs("subs");
-
     companion object {
         fun fromJson(value: String): ProductType = when (value) {
             "in-app" -> ProductType.InApp
@@ -271,7 +266,6 @@ public enum class ProductTypeIOS(val rawValue: String) {
     NonConsumable("non-consumable"),
     AutoRenewableSubscription("auto-renewable-subscription"),
     NonRenewingSubscription("non-renewing-subscription");
-
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
             "consumable" -> ProductTypeIOS.Consumable
@@ -300,7 +294,6 @@ public enum class PurchaseState(val rawValue: String) {
     Restored("restored"),
     Deferred("deferred"),
     Unknown("unknown");
-
     companion object {
         fun fromJson(value: String): PurchaseState = when (value) {
             "pending" -> PurchaseState.Pending
@@ -331,7 +324,6 @@ public enum class PurchaseState(val rawValue: String) {
 public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     Introductory("introductory"),
     Promotional("promotional");
-
     companion object {
         fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
             "introductory" -> SubscriptionOfferTypeIOS.Introductory
@@ -353,7 +345,6 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     Month("month"),
     Year("year"),
     Empty("empty");
-
     companion object {
         fun fromJson(value: String): SubscriptionPeriodIOS = when (value) {
             "day" -> SubscriptionPeriodIOS.Day
