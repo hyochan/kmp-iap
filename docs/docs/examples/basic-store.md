@@ -91,16 +91,15 @@ class BasicStoreViewModel : ViewModel() {
             
             try {
                 // Initialize connection using kmpIapInstance
-                val connected = kmpIapInstance.initConnection()
-                _state.update { it.copy(isConnected = connected) }
-                
-                if (connected) {
-                    // Load products after connection
-                    loadProducts()
-                }
-                
+                kmpIapInstance.initConnection()
+                _state.update { it.copy(isConnected = true) }
+
+                // Load products after connection
+                loadProducts()
+
             } catch (e: Exception) {
                 showError("Failed to initialize store: ${e.message}")
+                _state.update { it.copy(isConnected = false) }
             }
         }
     }
@@ -125,18 +124,16 @@ class BasicStoreViewModel : ViewModel() {
         _state.update { it.copy(isLoading = true, errorMessage = null) }
         
         try {
-            val products = kmpIapInstance.requestProducts(
-                ProductRequest(
-                    skus = productIds,
-                    type = ProductType.INAPP
-                )
-            )
+            val products = kmpIapInstance.fetchProducts {
+                skus = productIds
+                type = ProductQueryType.InApp
+            }
             _state.update { it.copy(products = products, isLoading = false) }
-            
+
             products.forEach { product ->
                 println("Product: ${product.id} - ${product.displayPrice}")
             }
-            
+
         } catch (e: PurchaseError) {
             showError("Failed to load products: ${e.message}")
         } finally {
@@ -165,12 +162,12 @@ class BasicStoreViewModel : ViewModel() {
                 
                 // 3. Finish the transaction
                 kmpIapInstance.finishTransaction(
-                    purchase = purchase,
+                    purchase = purchase.toPurchaseInput(),
                     isConsumable = isConsumableProduct(purchase.productId)
                 )
-                
+
                 println("✅ Purchase completed and delivered")
-                
+
                 // 4. Clear purchase state
                 _state.update { it.copy(latestPurchase = null) }
             } else {
@@ -194,19 +191,19 @@ class BasicStoreViewModel : ViewModel() {
         
         // Handle specific error codes
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
+            ErrorCode.UserCancelled -> {
                 // Don't show error for user cancellation
                 println("User cancelled purchase")
             }
-            
-            ErrorCode.E_NETWORK_ERROR.name -> {
+
+            ErrorCode.NetworkError -> {
                 showError("Network error. Please check your connection and try again.")
             }
-            
-            ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+
+            ErrorCode.AlreadyOwned -> {
                 showError("You already own this item. Try restoring your purchases.")
             }
-            
+
             else -> {
                 showError(error.message)
             }
@@ -286,20 +283,18 @@ class BasicStoreViewModel : ViewModel() {
             }
             
             try {
-                kmpIapInstance.requestPurchase(
-                    RequestPurchaseProps(
-                        ios = RequestPurchaseIosProps(
-                            sku = productId,
-                            quantity = 1
-                        ),
-                        android = RequestPurchaseAndroidProps(
-                            skus = listOf(productId)
-                        )
-                    )
-                )
-                
+                kmpIapInstance.requestPurchase {
+                    ios {
+                        sku = productId
+                        quantity = 1
+                    }
+                    android {
+                        skus = listOf(productId)
+                    }
+                }
+
                 println("🛒 Purchase requested for: $productId")
-                
+
             } catch (e: Exception) {
                 showError("Failed to request purchase: ${e.message}")
                 _state.update { it.copy(processingProductId = null) }
@@ -688,12 +683,10 @@ kmpIapInstance.initConnection()
 
 ### 2. Product Loading (OpenIAP-Compliant)
 ```kotlin
-val products = kmpIapInstance.requestProducts(
-    ProductRequest(
-        skus = productIds,
-        type = ProductType.INAPP
-    )
-)
+val products = kmpIapInstance.fetchProducts {
+    skus = productIds
+    type = ProductQueryType.InApp
+}
 ```
 - Fetches products implementing `ProductCommon` interface
 - Returns OpenIAP-compliant product objects with unified fields
@@ -701,19 +694,17 @@ val products = kmpIapInstance.requestProducts(
 
 ### 3. Purchase Flow (OpenIAP-Compliant)
 ```kotlin
-kmpIapInstance.requestPurchase(
-    RequestPurchaseProps(
-        ios = RequestPurchaseIosProps(
-            sku = productId,
-            quantity = 1,
-            appAccountToken = getUserId()
-        ),
-        android = RequestPurchaseAndroidProps(
-            skus = listOf(productId),
-            obfuscatedAccountIdAndroid = getUserId()
-        )
-    )
-)
+kmpIapInstance.requestPurchase {
+    ios {
+        sku = productId
+        quantity = 1
+        appAccountToken = getUserId()
+    }
+    android {
+        skus = listOf(productId)
+        obfuscatedAccountIdAndroid = getUserId()
+    }
+}
 ```
 - Uses OpenIAP-compliant `RequestPurchaseProps` structure
 - Platform-specific options in dedicated iOS/Android properties
@@ -723,7 +714,7 @@ kmpIapInstance.requestPurchase(
 ### 4. Transaction Finishing
 ```kotlin
 val success = kmpIapInstance.finishTransaction(
-    purchase = purchase,
+    purchase = purchase.toPurchaseInput(),
     isConsumable = true // or false for non-consumables
 )
 ```
@@ -765,9 +756,9 @@ fun isConsumableProduct(productId: String): Boolean {
 ```kotlin
 fun handlePurchaseError(error: PurchaseError) {
     when (error.code) {
-        ErrorCode.USER_CANCELLED -> { /* Silent */ }
-        ErrorCode.NETWORK_ERROR -> { /* Show retry */ }
-        ErrorCode.PRODUCT_ALREADY_OWNED -> { /* Suggest restore */ }
+        ErrorCode.UserCancelled -> { /* Silent */ }
+        ErrorCode.NetworkError -> { /* Show retry */ }
+        ErrorCode.AlreadyOwned -> { /* Suggest restore */ }
         // Add your custom error handling
     }
 }

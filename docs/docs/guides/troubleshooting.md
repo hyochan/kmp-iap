@@ -17,10 +17,10 @@ Common issues and solutions when implementing in-app purchases with kmp-iap.
 ```kotlin
 // In your module's build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-beta.2")
-    
+    implementation("io.github.hyochan:kmp-iap:<version>")
+
     // Ensure correct Kotlin version
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.20")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:<version>")
 }
 
 // Clean and rebuild
@@ -59,9 +59,9 @@ dependencies {
    ```kotlin
    android {
        compileSdk = 34
-       
+
        defaultConfig {
-           minSdk = 21  // Required minimum
+           minSdk = 24  // Required minimum
        }
    }
    ```
@@ -130,12 +130,10 @@ dependencies {
    // Enable debug logging
    // Check exact product ID matching
    try {
-       val products = kmpIapInstance.requestProducts(
-           ProductRequest(
-               skus = listOf("exact.product.id.from.store"),
-               type = ProductType.INAPP
-           )
-       )
+       val products = kmpIapInstance.fetchProducts {
+           skus = listOf("exact.product.id.from.store")
+           type = ProductQueryType.InApp
+       }
        println("Loaded products: ${products.size}")
    } catch (e: PurchaseError) {
        println("Error loading products: $e")
@@ -224,7 +222,7 @@ dependencies {
    }
    
    scope.launch {
-       kmpIAP.purchaseErrorListener.collect { error ->
+       kmpIapInstance.purchaseErrorListener.collect { error ->
            error?.let {
                println("Purchase error: ${it.message}")
            }
@@ -479,21 +477,19 @@ class DebugIAPHelper(scope: CoroutineScope) {
 ```kotlin
 suspend fun debugConnection() {
     try {
-        val connected = kmpIapInstance.initConnection()
-        println("Connection initialized: $connected")
-        
+        kmpIapInstance.initConnection()
+        println("Connection initialized")
+
         // Test with known product
         val testProductId = when (getCurrentPlatform()) {
-            IapPlatform.ANDROID -> "android.test.purchased"
-            IapPlatform.IOS -> "your.test.product"
+            IapPlatform.Android -> "android.test.purchased"
+            IapPlatform.Ios -> "your.test.product"
         }
-        
-        val products = kmpIapInstance.requestProducts(
-            ProductRequest(
-                skus = listOf(testProductId),
-                type = ProductType.INAPP
-            )
-        )
+
+        val products = kmpIapInstance.fetchProducts {
+            skus = listOf(testProductId)
+            type = ProductQueryType.InApp
+        }
         println("Test products loaded: ${products.size}")
     } catch (e: PurchaseError) {
         println("Debug error: $e")
@@ -508,19 +504,19 @@ suspend fun debugConnection() {
 ```kotlin
 fun handleError(error: PurchaseError) {
     when (error.code) {
-        ErrorCode.E_USER_CANCELLED.name -> {
+        ErrorCode.UserCancelled -> {
             // User cancelled - no action needed
         }
-        ErrorCode.E_NETWORK_ERROR.name -> {
+        ErrorCode.NetworkError -> {
             showRetryDialog("Network error. Please try again.")
         }
-        ErrorCode.E_ITEM_ALREADY_OWNED.name -> {
+        ErrorCode.AlreadyOwned -> {
             // Refresh purchases
             scope.launch {
-                kmpIapInstance.getAvailablePurchases()
+                kmpIapInstance.syncPurchases()
             }
         }
-        ErrorCode.E_SERVICE_DISCONNECTED.name -> {
+        ErrorCode.ServiceDisconnected -> {
             // Reconnect
             scope.launch {
                 kmpIapInstance.initConnection()

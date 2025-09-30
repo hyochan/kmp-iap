@@ -99,18 +99,18 @@ suspend fun requestProducts(
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.ProductType
+import io.github.hyochan.kmpiap.ProductQueryType
 
 // Load in-app products using DSL
-val products = kmpIapInstance.requestProducts {
+val products = kmpIapInstance.fetchProducts {
     skus = listOf("coins_100", "coins_500", "remove_ads")
-    type = ProductType.INAPP
+    type = ProductQueryType.InApp
 }
 
 // Load subscriptions using DSL
-val subscriptions = kmpIapInstance.requestProducts {
+val subscriptions = kmpIapInstance.fetchProducts {
     skus = listOf("premium_monthly", "premium_yearly")
-    type = ProductType.SUBS
+    type = ProductQueryType.Subscription
 }
 ```
 
@@ -122,12 +122,10 @@ suspend fun requestProducts(params: ProductRequest): List<Product>
 
 **Example**:
 ```kotlin
-val products = kmpIapInstance.requestProducts(
-    ProductRequest(
-        skus = listOf("coins_100", "coins_500"),
-        type = ProductType.INAPP
-    )
-)
+val products = kmpIapInstance.fetchProducts {
+    skus = listOf("coins_100", "coins_500")
+    type = ProductQueryType.InApp
+}
 ```
 
 **Platform Differences**:
@@ -159,7 +157,7 @@ import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.*
 
 // Cross-platform purchase using DSL
-val purchase = kmpIapInstance.requestPurchase {
+kmpIapInstance.requestPurchase {
     ios {
         sku = "premium_upgrade"
         quantity = 1
@@ -170,7 +168,7 @@ val purchase = kmpIapInstance.requestPurchase {
 }
 
 // iOS-only purchase
-val iosPurchase = kmpIapInstance.requestPurchase {
+kmpIapInstance.requestPurchase {
     ios {
         sku = "coins_100"
         quantity = 5
@@ -179,7 +177,7 @@ val iosPurchase = kmpIapInstance.requestPurchase {
 }
 
 // Android-only purchase
-val androidPurchase = kmpIapInstance.requestPurchase {
+kmpIapInstance.requestPurchase {
     android {
         skus = listOf("coins_100")
         obfuscatedAccountIdAndroid = "user_123"
@@ -196,17 +194,15 @@ suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
 
 **Example**:
 ```kotlin
-val purchase = kmpIapInstance.requestPurchase(
-    RequestPurchaseProps(
-        ios = RequestPurchaseIosProps(
-            sku = "premium_upgrade",
-            quantity = 1
-        ),
-        android = RequestPurchaseAndroidProps(
-            skus = listOf("premium_upgrade")
-        )
-    )
-)
+kmpIapInstance.requestPurchase {
+    ios {
+        sku = "premium_upgrade"
+        quantity = 1
+    }
+    android {
+        skus = listOf("premium_upgrade")
+    }
+}
 ```
 
 **Platform Differences**:
@@ -236,14 +232,21 @@ suspend fun finishTransaction(
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 
+
 // For consumable products
-val success = kmpIapInstance.finishTransaction(purchase, isConsumable = true)
+val success = kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)
 if (success) {
     println("Transaction finished successfully")
 }
 
 // For subscriptions (acknowledge only, don't consume)
-val acknowledged = kmpIapInstance.finishTransaction(purchase, isConsumable = false)
+val acknowledged = kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = false
+)
 if (acknowledged) {
     println("Subscription acknowledged")
 }

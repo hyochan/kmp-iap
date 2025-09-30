@@ -5,7 +5,7 @@ sidebar_position: 4
 
 # Listeners
 
-Event listeners and flow collectors for monitoring purchase updates, errors, and connection states in kmp-iap v1.0.0-beta.2.
+Event listeners and flow collectors for monitoring purchase updates, errors, and connection states in kmp-iap.
 
 ## Purchase Update Listener
 

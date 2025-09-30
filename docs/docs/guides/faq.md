@@ -85,13 +85,13 @@ Products must be properly configured and approved in the respective stores.
 ```kotlin
 // For consumable products
 val success = kmpIapInstance.finishTransaction(
-    purchase = purchase,
+    purchase = purchase.toPurchaseInput(),
     isConsumable = true
 )
 
 // For non-consumable products and subscriptions
 val success = kmpIapInstance.finishTransaction(
-    purchase = purchase,
+    purchase = purchase.toPurchaseInput(),
     isConsumable = false
 )
 ```
@@ -249,7 +249,7 @@ val isValid = api.validateAndroidPurchase(
 scope.launch {
     kmpIapInstance.purchaseErrorListener.collect { error ->
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled - no error message needed
             }
             else -> {
@@ -305,17 +305,15 @@ scope.launch {
 
 ```kotlin
 class PurchaseViewModel : ViewModel() {
-    private val kmpIAP = KmpIAP()
-
     init {
         viewModelScope.launch {
-            kmpIAP.initConnection()
+            kmpIapInstance.initConnection()
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        kmpIAP.dispose()
+        kmpIapInstance.endConnection()
     }
 }
 ```
@@ -346,12 +344,15 @@ fun PurchaseButton(productId: String) {
 
     Button(onClick = {
         scope.launch {
-            kmpIapInstance.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = productId,
+            kmpIapInstance.requestPurchase {
+                ios {
+                    sku = productId
                     quantity = 1
-                )
-            )
+                }
+                android {
+                    skus = listOf(productId)
+                }
+            }
         }
     }) {
         Text("Purchase")

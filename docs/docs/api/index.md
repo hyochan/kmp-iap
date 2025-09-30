@@ -9,7 +9,7 @@ import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 
 <AdFitTopFixed />
 
-Complete reference for kmp-iap v1.0.0-beta.2 - A unified Kotlin Multiplatform API for implementing in-app purchases across iOS and Android platforms.
+Complete reference for kmp-iap - A unified Kotlin Multiplatform API for implementing in-app purchases across iOS and Android platforms.
 
 ## Available APIs
 

@@ -37,12 +37,12 @@ class IAPManager {
         scope.launch {
             try {
                 // Initialize connection
-                kmpIAP.initConnection()
+                kmpIapInstance.initConnection()
                 println("Billing client connected")
-                
+
                 // Set up purchase listeners
                 setupPurchaseListeners()
-                
+
                 // Load products
                 loadProducts()
             } catch (e: Exception) {
@@ -69,12 +69,10 @@ class IAPManager {
     
     private suspend fun loadProducts() {
         try {
-            val products = kmpIAP.requestProducts(
-                ProductRequest(
-                    skus = listOf("premium_upgrade", "remove_ads"),
-                    type = ProductType.INAPP
-                )
-            )
+            val products = kmpIAP.fetchProducts {
+                skus = listOf("premium_upgrade", "remove_ads")
+                type = ProductQueryType.InApp
+            }
             println("Found ${products.size} products")
         } catch (e: Exception) {
             println("Failed to load products: ${e.message}")
@@ -90,8 +88,8 @@ class IAPManager {
             grantEntitlement(purchase.productId)
             
             // Finish transaction
-            kmpIAP.finishTransaction(
-                purchase = purchase,
+            kmpIapInstance.finishTransaction(
+                purchase.toPurchaseInput(),
                 isConsumable = isConsumableProduct(purchase.productId)
             )
         }
@@ -99,10 +97,10 @@ class IAPManager {
     
     private fun handlePurchaseError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.USER_CANCELLED -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled, no action needed
             }
-            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+            ErrorCode.AlreadyOwned -> {
                 // Item already owned, restore it
                 restorePurchases()
             }
@@ -114,12 +112,15 @@ class IAPManager {
     }
     
     suspend fun purchaseProduct(productId: String) {
-        kmpIAP.requestPurchase(
-            UnifiedPurchaseRequest(
-                sku = productId,
+        kmpIAP.requestPurchase {
+            ios {
+                sku = productId
                 quantity = 1
-            )
-        )
+            }
+            android {
+                skus = listOf(productId)
+            }
+        }
     }
     
     suspend fun restorePurchases() {
@@ -157,7 +158,7 @@ class IAPManager {
     fun cleanup() {
         scope.cancel()
         runBlocking {
-            kmpIAP.endConnection()
+            kmpIapInstance.endConnection()
         }
     }
 }
@@ -173,14 +174,17 @@ object UserSettings {
 
 ```kotlin
 // Use obfuscated account IDs for enhanced security
-kmpIAP.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "premium_upgrade",
-        quantity = 1,
-        obfuscatedAccountIdAndroid = "user_account_123",
+kmpIAP.requestPurchase {
+    ios {
+        sku = "premium_upgrade"
+        quantity = 1
+    }
+    android {
+        skus = listOf("premium_upgrade")
+        obfuscatedAccountIdAndroid = "user_account_123"
         obfuscatedProfileIdAndroid = "profile_456"
-    )
-)
+    }
+}
 
 // Acknowledge a purchase (for non-consumables)
 kmpIAP.acknowledgePurchaseAndroid(purchase.purchaseToken)
@@ -200,19 +204,19 @@ kmpIAP.deepLinkToSubscriptions(
 scope.launch {
     kmpIAP.purchaseErrorListener.collect { error ->
         when (error.code) {
-            ErrorCode.E_SERVICE_UNAVAILABLE.name -> {
+            ErrorCode.ServiceUnavailable -> {
                 // Google Play services unavailable
                 showDialog("Please update Google Play services")
             }
-            ErrorCode.E_BILLING_UNAVAILABLE.name -> {
+            ErrorCode.BillingUnavailable -> {
                 // Billing API version not supported
                 showDialog("In-app purchases not supported on this device")
             }
-            ErrorCode.E_ITEM_UNAVAILABLE.name -> {
+            ErrorCode.ItemUnavailable -> {
                 // Product not found or not available for purchase
                 showDialog("This item is currently unavailable")
             }
-            ErrorCode.E_DEVELOPER_ERROR.name -> {
+            ErrorCode.DeveloperError -> {
                 // Invalid arguments provided to the API
                 println("Developer error: Check product configuration")
             }

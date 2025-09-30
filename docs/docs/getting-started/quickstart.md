@@ -62,9 +62,9 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // v1.0.0-rc - DSL API
-            val products = kmpIapInstance.requestProducts {
+            val products = kmpIapInstance.fetchProducts {
                 skus = listOf("product_1", "product_2")
-                type = ProductType.INAPP
+                type = ProductQueryType.InApp
             }
             println("Loaded ${products.size} products")
         } catch (e: Exception) {
@@ -75,15 +75,16 @@ class IAPManager {
     suspend fun purchaseProduct(productId: String) {
         try {
             // v1.0.0-rc - DSL API
-            val purchase = kmpIapInstance.requestPurchase {
+            kmpIapInstance.requestPurchase {
                 ios {
                     sku = productId
+                    quantity = 1
                 }
                 android {
                     skus = listOf(productId)
                 }
             }
-            println("Purchase initiated for: ${purchase.productId}")
+            // Purchase will be handled via purchaseUpdatedListener
         } catch (e: Exception) {
             println("Purchase failed: ${e.message}")
         }
@@ -99,7 +100,7 @@ class IAPManager {
 
             // Finish the transaction
             kmpIapInstance.finishTransaction(
-                purchase = purchase,
+                purchase = purchase.toPurchaseInput(),
                 isConsumable = isConsumableProduct(purchase.productId)
             )
         }
@@ -117,24 +118,23 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
-    private val kmpIAP = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
 
     suspend fun initialize() {
         try {
             // Initialize connection using instance
-            kmpIAP.initConnection()
+            kmpIapInstance.initConnection()
 
             // Listen to purchase updates
             scope.launch {
-                kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                     handlePurchaseUpdate(purchase)
                 }
             }
 
             // Listen to errors
             scope.launch {
-                kmpIAP.purchaseErrorListener.collect { error ->
+                kmpIapInstance.purchaseErrorListener.collect { error ->
                     handlePurchaseError(error)
                 }
             }
@@ -146,9 +146,9 @@ class IAPManager {
     suspend fun loadProducts() {
         try {
             // Load in-app products - v1.0.0-rc DSL API
-            val products = kmpIAP.requestProducts {
+            val products = kmpIapInstance.fetchProducts {
                 skus = listOf("remove_ads", "premium_upgrade")
-                type = ProductType.INAPP
+                type = ProductQueryType.InApp
             }
 
             products.forEach { product ->
@@ -162,9 +162,10 @@ class IAPManager {
     suspend fun purchaseProduct(productId: String) {
         try {
             // Request purchase - v1.0.0-rc DSL API
-            val purchase = kmpIAP.requestPurchase {
+            kmpIapInstance.requestPurchase {
                 ios {
                     sku = productId
+                    quantity = 1
                 }
                 android {
                     skus = listOf(productId)
@@ -188,8 +189,8 @@ class IAPManager {
             deliverProduct(purchase.productId)
 
             // Finish the transaction
-            kmpIAP.finishTransaction(
-                purchase = purchase,
+            kmpIapInstance.finishTransaction(
+                purchase = purchase.toPurchaseInput(),
                 isConsumable = true // true for consumables, false for subscriptions
             )
         }
@@ -197,10 +198,10 @@ class IAPManager {
 
     private fun handlePurchaseError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
+            ErrorCode.UserCancelled -> {
                 println("User cancelled the purchase")
             }
-            ErrorCode.E_ITEM_UNAVAILABLE.name -> {
+            ErrorCode.ProductNotAvailable -> {
                 println("Item is not available")
             }
             else -> {
@@ -215,7 +216,7 @@ class IAPManager {
     }
 
     fun disconnect() {
-        kmpIAP.endConnection()
+        kmpIapInstance.endConnection()
         scope.cancel()
     }
 }
@@ -226,36 +227,35 @@ class IAPManager {
 For cases where you need more control (like testing or dependency injection):
 
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.types.*
 
-class IAPService(private val kmpIAP: KmpIAP = KmpIAP()) {
+class IAPService {
 
     suspend fun initialize() {
-        // Initialize with your own instance
-        kmpIAP.initConnection()
+        // Initialize connection
+        kmpIapInstance.initConnection()
 
         // Set up listeners
         launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 // Handle purchase
+                kmpIapInstance.finishTransaction(purchase.toPurchaseInput(), isConsumable = true)
             }
         }
     }
 
     suspend fun purchaseItem(productId: String) {
         // v1.0.0-rc - DSL API
-        val purchase = kmpIAP.requestPurchase {
+        kmpIapInstance.requestPurchase {
             ios {
                 sku = productId
+                quantity = 1
             }
             android {
                 skus = listOf(productId)
             }
         }
-
-        // Validate and finish transaction
-        kmpIAP.finishTransaction(purchase, isConsumable = true)
     }
 }
 ```
@@ -272,23 +272,21 @@ import io.github.hyochan.kmpiap.types.*
 
 @Composable
 fun StoreScreen() {
-    // Create instance for this screen
-    val kmpIAP = remember { KmpIAP() }
-
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         // Initialize connection
-        kmpIAP.initConnection()
+        kmpIapInstance.initConnection()
 
         // Load products
         isLoading = true
         try {
             // v1.0.0-rc - DSL API
-            products = kmpIAP.requestProducts {
+            products = kmpIapInstance.fetchProducts {
                 skus = listOf("product_1", "product_2")
-                type = ProductType.INAPP
+                type = ProductQueryType.InApp
             }
         } finally {
             isLoading = false
@@ -296,9 +294,9 @@ fun StoreScreen() {
 
         // Listen for purchases
         launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 // Handle successful purchase
-                kmpIAP.finishTransaction(purchase, isConsumable = true)
+                kmpIapInstance.finishTransaction(purchase.toPurchaseInput(), isConsumable = true)
             }
         }
     }
@@ -310,9 +308,10 @@ fun StoreScreen() {
                     // Purchase product
                     scope.launch {
                         // v1.0.0-rc - DSL API
-                        kmpIAP.requestPurchase {
+                        kmpIapInstance.requestPurchase {
                             ios {
                                 sku = product.id
+                                quantity = 1
                             }
                             android {
                                 skus = listOf(product.id)

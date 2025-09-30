@@ -5,7 +5,7 @@ title: Offer Code Redemption
 
 # Offer Code Redemption
 
-Guide to implementing promotional offer codes and subscription management with kmp-iap v1.0.0-beta.2, covering iOS and Android platforms.
+Guide to implementing promotional offer codes and subscription management with kmp-iap, covering iOS and Android platforms.
 
 ## Overview
 

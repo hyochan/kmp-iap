@@ -65,7 +65,7 @@ class IAPServiceImpl(
     
     override suspend fun initialize(): Boolean {
         return try {
-            KmpIAP.initConnection()
+            kmpIapInstance.initConnection()
             true
         } catch (e: PurchaseError) {
             println("IAP initialization failed: ${e.message}")
@@ -76,14 +76,14 @@ class IAPServiceImpl(
     private fun observeStates() {
         // Observe purchase updates
         scope.launch {
-            KmpIAP.currentPurchase.collectLatest { purchase ->
-                purchase?.let { handlePurchaseUpdate(it) }
+            kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
+                handlePurchaseUpdate(purchase)
             }
         }
-        
+
         // Observe errors
         scope.launch {
-            KmpIAP.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 _purchaseUpdates.emit(
                     PurchaseUpdate(
                         item = null,
@@ -139,17 +139,22 @@ class IAPServiceImpl(
     
     override suspend fun getProducts(productIds: List<String>): List<Product> {
         return try {
-            KmpIAP.getProducts(productIds)
+            kmpIapInstance.fetchProducts {
+                skus = productIds
+                type = ProductQueryType.InApp
+            }
         } catch (e: PurchaseError) {
             println("Failed to get products: ${e.message}")
             emptyList()
         }
     }
-    
+
     override suspend fun getSubscriptions(subscriptionIds: List<String>): List<Product> {
         return try {
-            // In KMP-IAP, subscriptions are also products
-            KmpIAP.getProducts(subscriptionIds)
+            kmpIapInstance.fetchProducts {
+                skus = subscriptionIds
+                type = ProductQueryType.Subscription
+            }
         } catch (e: PurchaseError) {
             println("Failed to get subscriptions: ${e.message}")
             emptyList()
@@ -157,17 +162,31 @@ class IAPServiceImpl(
     }
     
     override suspend fun purchaseProduct(productId: String) {
-        KmpIAP.requestPurchase(
-            sku = productId
-        )
+        kmpIapInstance.requestPurchase {
+            ios {
+                sku = productId
+                quantity = 1
+            }
+            android {
+                skus = listOf(productId)
+            }
+        }
     }
-    
+
     override suspend fun purchaseSubscription(productId: String) {
-        KmpIAP.requestPurchase(sku = productId)
+        kmpIapInstance.requestPurchase {
+            ios {
+                sku = productId
+                quantity = 1
+            }
+            android {
+                skus = listOf(productId)
+            }
+        }
     }
     
     override suspend fun getAvailablePurchases(): List<Purchase> {
-        return KmpIAP.availablePurchases.value
+        return kmpIapInstance.getAvailablePurchases()
     }
     
     override suspend fun restorePurchases() {
@@ -245,12 +264,12 @@ class IAPServiceImpl(
     
     private suspend fun completeTransaction(purchase: Purchase) {
         val isConsumable = isConsumableProduct(purchase.productId)
-        
-        val success = KmpIAP.finishTransaction(
-            purchase = purchase,
+
+        val success = kmpIapInstance.finishTransaction(
+            purchase = purchase.toPurchaseInput(),
             isConsumable = isConsumable
         )
-        
+
         if (success) {
             println("Transaction completed: ${purchase.productId}")
         } else {
@@ -263,7 +282,7 @@ class IAPServiceImpl(
     }
     
     override fun dispose() {
-        KmpIAP.dispose()
+        kmpIapInstance.endConnection()
     }
 }
 

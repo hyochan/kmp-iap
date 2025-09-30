@@ -31,7 +31,7 @@ Add kmp-iap to your project's dependencies:
 ```kotlin
 val commonMain by getting {
     dependencies {
-        implementation("io.github.hyochan:kmp-iap:1.0.0-rc.2")
+        implementation("io.github.hyochan:kmp-iap:1.0.0-rc.3")
     }
 }
 ```
@@ -41,7 +41,7 @@ Or if using version catalogs:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kmp-iap = "1.0.0-rc.2"
+kmp-iap = "1.0.0-rc.3"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
@@ -202,27 +202,20 @@ suspend fun testConnection() {
 
     try {
         // Initialize connection
-        val connected = kmpIapInstance.initConnection()
-        println("Connection status: $connected")
-
-        if (!connected) {
-            println("Failed to connect to store")
-            return
-        }
+        kmpIapInstance.initConnection()
+        println("Connection initialized")
 
         // Connection successful, test product fetching
-        val products = kmpIAP.requestProducts(
-            ProductRequest(
-                skus = listOf("test_product_id"),
-                type = ProductType.INAPP
-            )
-        )
+        val products = kmpIapInstance.fetchProducts {
+            skus = listOf("test_product_id")
+            type = ProductQueryType.InApp
+        }
         println("Found ${products.size} products")
 
     } catch (e: PurchaseError) {
         println("Connection test failed: $e")
     } finally {
-        kmpIAP.endConnection()
+        kmpIapInstance.endConnection()
     }
 }
 ```

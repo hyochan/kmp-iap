@@ -11,7 +11,7 @@ import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
 <AdFitTopFixed />
 
 :::info Version
-This documentation is for **kmp-iap v1.0.0-rc** with simplified API design.
+This documentation is for **kmp-iap v1.0.0-rc.3** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
@@ -59,10 +59,10 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-rc
+- **Current Version**: 1.0.0-rc.3
 - **Kotlin Compatibility**: Kotlin 2.1.10+
-- **iOS Requirements**: iOS 11.0+
-- **Android Requirements**: API level 24+
+- **iOS Requirements**: iOS 15.0+ (via [openiap-apple](https://github.com/hyodotdev/openiap-apple))
+- **Android Requirements**: API level 24+ (via [openiap-google](https://github.com/hyodotdev/openiap-google))
 
 ## ⚡ Quick Start
 
@@ -71,7 +71,7 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.2")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.3")
 }
 ```
 
@@ -79,36 +79,40 @@ dependencies {
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.*
 
-// Use the global singleton instance
+// Initialize connection
 kmpIapInstance.initConnection()
 
-// Get products
-val products = kmpIapInstance.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
-    )
-)
+// Get products using DSL
+val products = kmpIapInstance.fetchProducts {
+    skus = listOf("product_id")
+    type = ProductQueryType.InApp
+}
 
-// Request purchase
-val purchase = kmpIapInstance.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
+// Request purchase using DSL
+val purchase = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "product_id"
         quantity = 1
-    )
-)
+    }
+    android {
+        skus = listOf("product_id")
+    }
+}
 
 // Finish transaction after validation
-kmpIapInstance.finishTransaction(purchase, isConsumable = true)
+kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)
 ```
 
 ### Option 2: Create Your Own Instance (Recommended for Testing)
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.*
 
 // Create your own instance
 val kmpIAP = KmpIAP()
@@ -116,24 +120,28 @@ val kmpIAP = KmpIAP()
 // Initialize connection
 kmpIAP.initConnection()
 
-// Get products
-val products = kmpIAP.requestProducts(
-    ProductRequest(
-        skus = listOf("product_id"),
-        type = ProductType.INAPP
-    )
-)
+// Get products using DSL
+val products = kmpIAP.fetchProducts {
+    skus = listOf("product_id")
+    type = ProductQueryType.InApp
+}
 
-// Request purchase
-val purchase = kmpIAP.requestPurchase(
-    UnifiedPurchaseRequest(
-        sku = "product_id",
+// Request purchase using DSL
+val purchase = kmpIAP.requestPurchase {
+    ios {
+        sku = "product_id"
         quantity = 1
-    )
-)
+    }
+    android {
+        skus = listOf("product_id")
+    }
+}
 
 // Finish transaction after validation
-kmpIAP.finishTransaction(purchase, isConsumable = true)
+kmpIAP.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)
 ```
 
 ## 🚀 Start Building Today
