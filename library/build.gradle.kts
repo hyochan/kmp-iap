@@ -161,8 +161,6 @@ kotlin {
         }
         val androidMain by getting {
             dependencies {
-                implementation(libs.billing)
-                implementation(libs.billing.ktx)
                 implementation("io.github.hyochan.openiap:openiap-google:$googleVersion")
             }
         }

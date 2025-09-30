@@ -83,8 +83,20 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         }
                     }
                     is PurchaseAndroid -> {
-                        // Android purchases - show non-acknowledged
-                        return@filter purchase.isAcknowledgedAndroid != true
+                        // Determine if it's a subscription
+                        val isSubscription = purchase.productId.contains("premium") ||
+                                           purchase.productId.contains("subscription") ||
+                                           purchase.productId.contains("sub_")
+
+                        if (isSubscription) {
+                            // Subscriptions: show if purchased state (regardless of acknowledgment)
+                            // Auto-renewing subscriptions should always show
+                            val isPurchased = purchase.purchaseState == PurchaseState.Purchased
+                            return@filter isPurchased && (purchase.autoRenewingAndroid == true || purchase.isAcknowledgedAndroid == true)
+                        } else {
+                            // Consumables: show only non-acknowledged purchases
+                            return@filter purchase.isAcknowledgedAndroid != true
+                        }
                     }
                     else -> return@filter true
                 }
