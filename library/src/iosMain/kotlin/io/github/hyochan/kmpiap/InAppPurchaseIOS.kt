@@ -7,790 +7,792 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import platform.Foundation.*
-import platform.StoreKit.*
-import platform.UIKit.*
+import cocoapods.openiap.*
 import platform.darwin.NSObject
-import platform.darwin.dispatch_async
-import platform.darwin.dispatch_get_main_queue
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 @OptIn(ExperimentalForeignApi::class)
-
-// Separate Objective-C observer class
-private class PaymentObserver : NSObject(), SKPaymentTransactionObserverProtocol, SKProductsRequestDelegateProtocol {
-    var purchaseHandler: ((SKPaymentTransaction) -> Unit)? = null
-    var failureHandler: ((SKPaymentTransaction) -> Unit)? = null
-    var restoreHandler: ((SKPaymentTransaction) -> Unit)? = null
-    var deferredHandler: ((SKPaymentTransaction) -> Unit)? = null
-    var restoreCompletionHandler: (() -> Unit)? = null
-    var restoreFailureHandler: ((NSError) -> Unit)? = null
-    var promotedProductHandler: ((String, SKProduct) -> Unit)? = null
-    var productsResponseHandler: ((SKProductsRequest, List<SKProduct>, Set<*>) -> Unit)? = null
-    var productRequestFailureHandler: ((SKProductsRequest, NSError) -> Unit)? = null
-    
-    // Track processed transactions to avoid duplicate logs
-    private val processedTransactions = mutableSetOf<String>()
-    
-    // SKPaymentTransactionObserver methods
-    override fun paymentQueue(queue: SKPaymentQueue, updatedTransactions: List<*>) {
-        @Suppress("UNCHECKED_CAST")
-        val transactions = updatedTransactions as List<SKPaymentTransaction>
-        
-        transactions.forEach { transaction ->
-            val transactionKey = "${transaction.payment.productIdentifier}_${transaction.transactionState}_${transaction.transactionIdentifier ?: "notx"}"
-            val shouldLog = !processedTransactions.contains(transactionKey)
-            
-            when (transaction.transactionState) {
-                SKPaymentTransactionState.SKPaymentTransactionStatePurchasing -> {
-                    // Transaction is being processed (Purchasing)
-                    if (shouldLog) {
-                        processedTransactions.add(transactionKey)
-                        // Only log purchasing state for actual new purchases, not restorations
-                    }
-                }
-                SKPaymentTransactionState.SKPaymentTransactionStatePurchased -> {
-                    // Purchased
-                    purchaseHandler?.invoke(transaction)
-                }
-                SKPaymentTransactionState.SKPaymentTransactionStateFailed -> {
-                    // Failed
-                    failureHandler?.invoke(transaction)
-                }
-                SKPaymentTransactionState.SKPaymentTransactionStateRestored -> {
-                    // Restored
-                    restoreHandler?.invoke(transaction)
-                }
-                SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> {
-                    // Deferred
-                    deferredHandler?.invoke(transaction)
-                }
-                else -> {
-                    // Unknown state - log for debugging
-                    println("[KMP-IAP] Unknown transaction state: ${transaction.transactionState}")
-                }
-            }
-        }
-    }
-    
-    override fun paymentQueueRestoreCompletedTransactionsFinished(queue: SKPaymentQueue) {
-        restoreCompletionHandler?.invoke()
-    }
-    
-    override fun paymentQueue(queue: SKPaymentQueue, restoreCompletedTransactionsFailedWithError: NSError) {
-        restoreFailureHandler?.invoke(restoreCompletedTransactionsFailedWithError)
-    }
-    
-    @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
-    override fun paymentQueue(queue: SKPaymentQueue, shouldAddStorePayment: SKPayment, forProduct: SKProduct): Boolean {
-        // Handle promoted purchases
-        promotedProductHandler?.invoke(forProduct.productIdentifier, forProduct)
-        return true
-    }
-    
-    // SKProductsRequestDelegate methods
-    override fun productsRequest(request: SKProductsRequest, didReceiveResponse: SKProductsResponse) {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            val products = didReceiveResponse.products as? List<SKProduct> ?: emptyList()
-            val invalidIds = didReceiveResponse.invalidProductIdentifiers as? Set<*> ?: emptySet<Any>()
-            productsResponseHandler?.invoke(request, products, invalidIds)
-        } catch (e: Exception) {
-            productsResponseHandler?.invoke(request, emptyList(), setOf<Any>())
-        }
-    }
-    
-    override fun requestDidFinish(request: SKRequest) {
-        // Handled by productsResponseHandler
-    }
-    
-    override fun request(request: SKRequest, didFailWithError: NSError) {
-        if (request is SKProductsRequest) {
-            productRequestFailureHandler?.invoke(request, didFailWithError)
-        }
-    }
-}
-
 internal class InAppPurchaseIOS : KmpInAppPurchase {
+    // OpenIAP module instance - use constructor, not shared()
+    private val openIapModule = OpenIapModule()
+
     // Event flows
-    private val _purchaseUpdatedListener = MutableSharedFlow<Purchase>(
+    private val _purchaseUpdatedFlow = MutableSharedFlow<Purchase>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedFlow.asSharedFlow()
+
+    private val _purchaseErrorFlow = MutableSharedFlow<PurchaseError>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorFlow.asSharedFlow()
+
+    private val _promotedProductFlow = MutableSharedFlow<String?>(
+        replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
-    override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdatedListener.asSharedFlow()
-    
-    private val _purchaseErrorListener = MutableSharedFlow<PurchaseError>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    override val purchaseErrorListener: Flow<PurchaseError> = _purchaseErrorListener.asSharedFlow()
-    
-    // Connection state - exposed for backward compatibility
-    private val _connectionStateListener = MutableSharedFlow<ConnectionResult>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val connectionStateListener: Flow<ConnectionResult> = _connectionStateListener.asSharedFlow()
-    
-    private val _promotedProductListener = MutableSharedFlow<String?>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    override val promotedProductListener: Flow<String?> = _promotedProductListener.asSharedFlow()
-    
-    // Private properties
-    private val productRequests = mutableMapOf<SKProductsRequest, (List<SKProduct>, Set<*>) -> Unit>()
-    private val restoredPurchases = mutableListOf<Purchase>()
-    private var restoreCompletion: (() -> Unit)? = null
+    override val promotedProductListener: Flow<String?> = _promotedProductFlow.asSharedFlow()
+
     private var isConnected = false
-    private var isRestoring = false
-    private var hasRestoredOnce = false
-    private var promotedProduct: SKProduct? = null
-    
-    // The Objective-C observer
-    private val paymentObserver = PaymentObserver()
-    
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Listener subscriptions
+    private var purchaseSubscription: NSObject? = null
+    private var errorSubscription: NSObject? = null
+    private var promotedProductSubscription: NSObject? = null
+
     init {
-        // Setup observer callbacks
-        paymentObserver.purchaseHandler = { transaction ->
-            handlePurchasedTransaction(transaction)
+        // Register listeners
+        setupListeners()
+    }
+
+    private fun setupListeners() {
+        // Purchase updated listener
+        purchaseSubscription = openIapModule.addPurchaseUpdatedListener { dictionary ->
+            println("[KMP-IAP iOS] Purchase updated received: $dictionary")
+            val purchase = convertAnyToPurchase(dictionary)
+            if (purchase != null) {
+                coroutineScope.launch {
+                    _purchaseUpdatedFlow.emit(purchase)
+                }
+            }
         }
-        
-        paymentObserver.failureHandler = { transaction ->
-            handleFailedTransaction(transaction)
-        }
-        
-        paymentObserver.restoreHandler = { transaction ->
-            handleRestoredTransaction(transaction)
-        }
-        
-        paymentObserver.deferredHandler = { transaction ->
-            _purchaseErrorListener.tryEmit(
-                PurchaseError(
-                    code = ErrorCode.Pending,
-                    message = "Purchase is deferred and waiting for approval",
-                )
+
+        // Purchase error listener
+        errorSubscription = openIapModule.addPurchaseErrorListener { dictionary ->
+            println("[KMP-IAP iOS] Purchase error received: $dictionary")
+            val map = (dictionary as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@addPurchaseErrorListener
+            val codeString = map["code"] as? String ?: "unknown"
+            val errorCode = ErrorCode.entries.find { it.rawValue == codeString } ?: ErrorCode.Unknown
+            val error = PurchaseError(
+                code = errorCode,
+                message = map["message"] as? String ?: "",
+                productId = map["productId"] as? String
             )
+            coroutineScope.launch {
+                _purchaseErrorFlow.emit(error)
+            }
         }
-        
-        paymentObserver.restoreCompletionHandler = {
-            isRestoring = false
-            restoreCompletion?.invoke()
+
+        // Promoted product listener
+        promotedProductSubscription = openIapModule.addPromotedProductListener { sku ->
+            println("[KMP-IAP iOS] Promoted product received: $sku")
+            coroutineScope.launch {
+                _promotedProductFlow.emit(sku)
+            }
         }
-        
-        paymentObserver.restoreFailureHandler = { error ->
-            isRestoring = false
-            _purchaseErrorListener.tryEmit(
-                PurchaseError(
-                    code = ErrorCode.Unknown,
-                    message = "Restore failed: ${error.localizedDescription}"
-                )
-            )
-            restoreCompletion?.invoke()
-        }
-        
-        paymentObserver.promotedProductHandler = { productId, product ->
-            promotedProduct = product
-            _promotedProductListener.tryEmit(productId)
-        }
-        
-        paymentObserver.productsResponseHandler = { request, products, invalidIds ->
-            productRequests[request]?.invoke(products, invalidIds)
-            productRequests.remove(request)
-        }
-        
-        paymentObserver.productRequestFailureHandler = { request, error ->
-            productRequests.remove(request)
-            _purchaseErrorListener.tryEmit(
-                PurchaseError(
-                    code = ErrorCode.ServiceError,
-                    message = "Failed to load products: ${error.localizedDescription}"
-                )
-            )
-        }
-    }
-    
-    override fun getVersion(): String {
-        return "KMP-IAP v1.0.0-alpha02 (iOS)"
-    }
-    
-    override suspend fun initConnection(): Boolean {
-        // Clean up any existing state from hot reload
-        cleanupState()
-        
-        // Add transaction observer
-        SKPaymentQueue.defaultQueue().addTransactionObserver(paymentObserver)
-        isConnected = true
-        hasRestoredOnce = false
-        _connectionStateListener.emit(ConnectionResult(connected = true, message = "Connected to App Store"))
-        return true
-    }
-    
-    override suspend fun endConnection(): Boolean {
-        SKPaymentQueue.defaultQueue().removeTransactionObserver(paymentObserver)
-        isConnected = false
-        cleanupState()
-        _connectionStateListener.emit(ConnectionResult(connected = false, message = "Disconnected from App Store"))
-        return true
-    }
-    
-    override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult {
-        val products = loadProducts(params)
-        return FetchProductsResultProducts(products)
     }
 
-    private suspend fun loadProducts(params: ProductRequest): List<Product> {
-        ensureConnection()
-        return suspendCancellableCoroutine { continuation ->
-            try {
-                val request = SKProductsRequest(productIdentifiers = params.skus.toSet())
+    override fun getVersion(): String = "KMP-IAP v1.0.0-rc.2 (iOS)"
 
-                productRequests[request] = { products, _ ->
-                    productRequests.remove(request)
+    override fun getStore(): Store = Store.APP_STORE
 
-                    try {
-                        val productList = products.map { skProduct ->
-                            skProduct.toProduct()
-                        }
+    override suspend fun canMakePayments(): Boolean {
+        // OpenIAP will check this during initConnection
+        return isConnected
+    }
 
-                        if (continuation.isActive) {
-                            continuation.resume(productList)
-                        }
-                    } catch (e: Exception) {
-                        if (continuation.isActive) {
-                            continuation.resumeWithException(e)
+    // -------------------------------------------------------------------------
+    // MutationResolver Implementation
+    // -------------------------------------------------------------------------
+
+    override suspend fun initConnection(): Boolean = suspendCoroutine { continuation ->
+        openIapModule.initConnectionWithCompletion { success, error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else {
+                isConnected = success
+                continuation.resume(success)
+            }
+        }
+    }
+
+    override suspend fun endConnection(): Boolean = suspendCoroutine { continuation ->
+        // Remove all listeners
+        purchaseSubscription?.let { openIapModule.removeListener(it) }
+        errorSubscription?.let { openIapModule.removeListener(it) }
+        promotedProductSubscription?.let { openIapModule.removeListener(it) }
+
+        openIapModule.endConnectionWithCompletion { success, error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else {
+                isConnected = false
+                continuation.resume(success)
+            }
+        }
+    }
+
+    override suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult? =
+        suspendCoroutine { continuation ->
+            when (val request = params.request) {
+                is RequestPurchaseProps.Request.Purchase -> {
+                    val sku = request.value.ios?.sku ?: run {
+                        continuation.resumeWithException(Exception("SKU is required for iOS purchase"))
+                        return@suspendCoroutine
+                    }
+                    val quantity = request.value.ios?.quantity ?: 1
+
+                    openIapModule.requestPurchaseWithSku(
+                        sku,
+                        quantity = quantity.toLong(),
+                        type = null
+                    ) { result, error ->
+                        if (error != null) {
+                            continuation.resumeWithException(Exception(error.localizedDescription))
+                        } else if (result != null) {
+                            val purchase = convertAnyToPurchase(result)
+                            if (purchase != null) {
+                                continuation.resume(RequestPurchaseResultPurchase(purchase))
+                            } else {
+                                continuation.resume(null)
+                            }
+                        } else {
+                            continuation.resume(null)
                         }
                     }
                 }
+                is RequestPurchaseProps.Request.Subscription -> {
+                    val sku = request.value.ios?.sku ?: run {
+                        continuation.resumeWithException(Exception("SKU is required for iOS subscription"))
+                        return@suspendCoroutine
+                    }
+                    val offer = request.value.ios?.withOffer?.let { discountOffer ->
+                        mapOf<Any?, Any?>(
+                            "identifier" to discountOffer.identifier,
+                            "keyIdentifier" to discountOffer.keyIdentifier,
+                            "nonce" to discountOffer.nonce,
+                            "signature" to discountOffer.signature,
+                            "timestamp" to discountOffer.timestamp
+                        )
+                    }
 
-                request.delegate = paymentObserver
-                request.start()
-
-                continuation.invokeOnCancellation {
-                    request.cancel()
-                    productRequests.remove(request)
-                }
-            } catch (e: Exception) {
-                if (continuation.isActive) {
-                    continuation.resumeWithException(e)
-                }
-            }
-        }
-    }
-    
-    override suspend fun requestPurchase(request: RequestPurchaseProps): RequestPurchaseResult? {
-        ensureConnection()
-
-        val purchase = when (val req = request.request) {
-            is RequestPurchaseProps.Request.Purchase -> handlePurchaseRequest(req.value)
-            is RequestPurchaseProps.Request.Subscription -> handleSubscriptionRequest(req.value)
-        }
-        return RequestPurchaseResultPurchase(purchase)
-    }
-
-    private suspend fun handlePurchaseRequest(props: RequestPurchasePropsByPlatforms): Purchase {
-        val sku = props.ios?.sku ?: props.android?.skus?.firstOrNull()
-            ?: failWithPurchase(ErrorCode.EmptySkuList, "SKU list is empty")
-
-        val quantity = props.ios?.quantity ?: 1
-        val appAccountToken = props.ios?.appAccountToken
-
-        val skProduct = fetchSkProduct(sku)
-            ?: failWithPurchase(ErrorCode.ItemUnavailable, "Failed to fetch product: $sku")
-
-        return launchStoreKitPayment(skProduct, quantity, appAccountToken, isAutoRenewing = false)
-    }
-
-    private suspend fun handleSubscriptionRequest(props: RequestSubscriptionPropsByPlatforms): Purchase {
-        val sku = props.ios?.sku ?: props.android?.skus?.firstOrNull()
-            ?: failWithPurchase(ErrorCode.EmptySkuList, "SKU list is empty")
-
-        val quantity = props.ios?.quantity ?: 1
-        val appAccountToken = props.ios?.appAccountToken
-
-        val skProduct = fetchSkProduct(sku)
-            ?: failWithPurchase(ErrorCode.ItemUnavailable, "Failed to fetch subscription: $sku")
-
-        return launchStoreKitPayment(skProduct, quantity, appAccountToken, isAutoRenewing = true)
-    }
-
-    private fun failWithPurchase(code: ErrorCode, message: String): Nothing {
-        val error = PurchaseError(code = code, message = message)
-        _purchaseErrorListener.tryEmit(error)
-        throw PurchaseException(error)
-    }
-
-    private suspend fun fetchSkProduct(sku: String): SKProduct? = suspendCancellableCoroutine { continuation ->
-        val request = SKProductsRequest(productIdentifiers = setOf(sku))
-        productRequests[request] = { skProducts, _ ->
-            if (continuation.isActive) {
-                continuation.resume(skProducts.firstOrNull())
-            }
-        }
-        request.delegate = paymentObserver
-        request.start()
-    }
-
-    private fun launchStoreKitPayment(
-        product: SKProduct,
-        quantity: Int,
-        appAccountToken: String?,
-        isAutoRenewing: Boolean
-    ): PurchaseIOS {
-        return try {
-            val payment = SKMutablePayment.paymentWithProduct(product)
-            payment.setQuantity(quantity.toLong())
-            appAccountToken?.let(payment::setApplicationUsername)
-
-            val queue = SKPaymentQueue.defaultQueue()
-            dispatch_async(dispatch_get_main_queue()) {
-                runCatching { queue.addPayment(payment) }
-            }
-
-            val instant = Clock.System.now()
-            val epochSeconds = instant.epochSeconds
-            PurchaseIOS(
-                id = product.productIdentifier,
-                ids = listOf(product.productIdentifier),
-                isAutoRenewing = isAutoRenewing,
-                platform = IapPlatform.Ios,
-                productId = product.productIdentifier,
-                purchaseState = PurchaseState.Pending,
-                purchaseToken = null,
-                quantity = quantity,
-                transactionDate = epochSeconds.toDouble(),
-                transactionId = "pending-${epochSeconds}-${product.productIdentifier}"
-            )
-        } catch (e: Exception) {
-            val error = PurchaseError(
-                code = ErrorCode.Unknown,
-                message = "Failed to create payment: ${e.message}",
-            )
-            _purchaseErrorListener.tryEmit(error)
-            throw PurchaseException(error)
-        }
-    }
-    
-    override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> {
-        ensureConnection()
-        return suspendCancellableCoroutine { continuation ->
-            isRestoring = true
-            SKPaymentQueue.defaultQueue().restoreCompletedTransactions()
-            
-            restoredPurchases.clear()
-            restoreCompletion = {
-                isRestoring = false
-                if (continuation.isActive) {
-                    // Deduplicate purchases by product ID, keeping only the most recent one
-                    val deduplicatedPurchases = restoredPurchases
-                        .groupBy { it.productId }
-                        .mapValues { (_, purchases) ->
-                            // Keep the purchase with the latest transaction date
-                            purchases.maxByOrNull { it.transactionDate ?: 0.0 } ?: purchases.first()
+                    openIapModule.requestSubscriptionWithSku(
+                        sku,
+                        offer = offer
+                    ) { result, error ->
+                        if (error != null) {
+                            continuation.resumeWithException(Exception(error.localizedDescription))
+                        } else if (result != null) {
+                            val purchase = convertAnyToPurchase(result)
+                            if (purchase != null) {
+                                continuation.resume(RequestPurchaseResultPurchase(purchase))
+                            } else {
+                                continuation.resume(null)
+                            }
+                        } else {
+                            continuation.resume(null)
                         }
-                        .values
-                        .toList()
-                    
-                    continuation.resume(deduplicatedPurchases)
+                    }
                 }
-                restoreCompletion = null
+            }
+        }
+
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean {
+        throw UnsupportedOperationException("requestPurchaseOnPromotedProductIOS not implemented in OpenIAP")
+    }
+
+    override suspend fun restorePurchases(): Unit = suspendCoroutine { continuation ->
+        openIapModule.restorePurchasesWithCompletion { error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else {
+                continuation.resume(Unit)
             }
         }
     }
 
-    override suspend fun restorePurchases() {
-        getAvailablePurchases(null)
-    }
-    
-    suspend fun getPurchaseHistories(options: PurchaseOptions?): List<Purchase> {
-        // iOS doesn't have a separate purchase history API
-        // Return available purchases directly
-        return getAvailablePurchases(options)
-    }
-    
-    override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?) {
-        ensureConnection()
-        val transactionId = purchase.id
+    override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
+        suspendCoroutine { continuation ->
+            val transactionId = purchase.id
+            val productId = purchase.productId
 
-        // Find the transaction from the queue instead of using cache
-        val queue = SKPaymentQueue.defaultQueue()
-        val transactions = queue.transactions() ?: emptyList<Any>()
-
-        val transaction = transactions.firstOrNull { trans ->
-            val skTransaction = trans as? SKPaymentTransaction
-            skTransaction?.transactionIdentifier == transactionId
-        } as? SKPaymentTransaction
-
-        if (transaction == null) {
-            // Transaction not found in queue - it's likely already finished
-            // For restored purchases, this is normal and should be considered success
-            println("[KMP-IAP] Transaction not found in queue (likely already finished): $transactionId")
-            return
-        }
-
-        queue.finishTransaction(transaction)
-        println("[KMP-IAP] Transaction finished: $transactionId")
-    }
-    
-    override suspend fun getStorefrontIOS(): String {
-        if (NSClassFromString("SKStorefront") == null) {
-            return "US"
-        }
-        
-        val storefront = SKPaymentQueue.defaultQueue().storefront ?: return "US"
-        return storefront.countryCode
-    }
-    
-    @OptIn(ExperimentalForeignApi::class)
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean {
-        ensureConnection()
-        if (NSClassFromString("SKPaymentQueue") != null) {
-            val queue = SKPaymentQueue.defaultQueue()
-            if (queue.respondsToSelector(NSSelectorFromString("presentCodeRedemptionSheet"))) {
-                queue.performSelector(NSSelectorFromString("presentCodeRedemptionSheet"))
-                return true
+            openIapModule.finishTransactionWithPurchaseId(
+                transactionId,
+                productId = productId,
+                isConsumable = isConsumable ?: false
+            ) { error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else {
+                    continuation.resume(Unit)
+                }
             }
         }
-        return false
-    }
-    
-    override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> {
-        ensureConnection()
-        val url = NSURL(string = "https://apps.apple.com/account/subscriptions")
-        if (url != null && UIApplication.sharedApplication.canOpenURL(url)) {
-            UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any?>()) { _ -> }
-        }
-        return emptyList()
-    }
-    
-    // New methods from updated interface
-    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult {
-        // NOTE: This implementation performs a client-side presence check only.
-        // Real receipt validation should be delegated to your backend or the configured
-        // OpenIAP resolver to avoid false positives.
-        ensureConnection()
-        val receiptData = readReceiptData()
-            ?: failWithPurchase(ErrorCode.ReceiptFailed, "App Store receipt not found")
 
-        val purchases = getAvailablePurchases(null)
-        val matchingPurchase = purchases.firstOrNull { it.productId == options.sku }
-        val isValid = matchingPurchase != null
+    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?): Unit {
+        throw UnsupportedOperationException("deepLinkToSubscriptions not implemented in OpenIAP")
+    }
 
-        if (!isValid) {
-            _purchaseErrorListener.tryEmit(
-                PurchaseError(
-                    code = ErrorCode.ReceiptFailed,
-                    message = "No matching purchase for SKU ${options.sku}"
-                )
-            )
+    override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { success, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else {
+                    continuation.resume(success)
+                }
+            }
         }
 
+    override suspend fun beginRefundRequestIOS(sku: String): String? {
+        throw UnsupportedOperationException("beginRefundRequestIOS not implemented in OpenIAP")
+    }
+
+    override suspend fun clearTransactionIOS(): Boolean = suspendCoroutine { continuation ->
+        openIapModule.clearTransactionIOSWithCompletion { success, error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else {
+                continuation.resume(success)
+            }
+        }
+    }
+
+    override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> =
+        suspendCoroutine { continuation ->
+            openIapModule.showManageSubscriptionsIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    val purchases = convertAnyListToPurchaseIOSList(result)
+                    continuation.resume(purchases)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
+
+    override suspend fun syncIOS(): Boolean {
+        throw UnsupportedOperationException("syncIOS not implemented in OpenIAP")
+    }
+
+    override suspend fun validateReceipt(options: ReceiptValidationProps): ReceiptValidationResult {
+        // Call the iOS-specific version and return the result directly
+        return validateReceiptIOS(options)
+    }
+
+    // -------------------------------------------------------------------------
+    // QueryResolver Implementation
+    // -------------------------------------------------------------------------
+
+    override suspend fun fetchProducts(params: ProductRequest): FetchProductsResult =
+        suspendCoroutine { continuation ->
+            val skus = params.skus
+            val type = params.type?.rawValue
+
+            println("[KMP-IAP iOS] Fetching products with skus: $skus, type: $type")
+            println("[KMP-IAP iOS] openIapModule: $openIapModule")
+
+            openIapModule.fetchProductsWithSkus(skus, type = type) { result, error ->
+                println("[KMP-IAP iOS] fetchProducts callback - result: $result, error: ${error?.localizedDescription}")
+
+                if (error != null) {
+                    println("[KMP-IAP iOS] Error fetching products: ${error.localizedDescription}")
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    println("[KMP-IAP iOS] Result type: ${result::class.simpleName}")
+                    println("[KMP-IAP iOS] Result: $result")
+
+                    // Convert [Any] to products or subscriptions based on type
+                    when (params.type) {
+                        ProductQueryType.Subs -> {
+                            val subscriptions = convertAnyListToProductSubscriptions(result)
+                            println("[KMP-IAP iOS] Converted to ${subscriptions.size} subscriptions")
+                            continuation.resume(FetchProductsResultSubscriptions(subscriptions))
+                        }
+                        else -> {
+                            val products = convertAnyListToProducts(result)
+                            println("[KMP-IAP iOS] Converted to ${products.size} products")
+                            continuation.resume(FetchProductsResultProducts(products))
+                        }
+                    }
+                } else {
+                    println("[KMP-IAP iOS] No result and no error, returning empty list")
+                    continuation.resume(FetchProductsResultProducts(emptyList()))
+                }
+            }
+        }
+
+    override suspend fun getAvailablePurchases(options: PurchaseOptions?): List<Purchase> =
+        suspendCoroutine { continuation ->
+            openIapModule.getAvailablePurchasesWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    val purchases = convertAnyListToPurchases(result)
+                    continuation.resume(purchases)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
+
+    override suspend fun getStorefront(): String {
+        return getStorefrontIOS()
+    }
+
+    override suspend fun getStorefrontIOS(): String = suspendCoroutine { continuation ->
+        openIapModule.getStorefrontIOSWithCompletion { result, error ->
+            if (error != null) {
+                continuation.resume("US") // Default fallback
+            } else {
+                continuation.resume(result ?: "US")
+            }
+        }
+    }
+
+    override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> =
+        suspendCoroutine { continuation ->
+            openIapModule.getPendingTransactionsIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                } else if (result != null) {
+                    val purchases = convertAnyListToPurchaseIOSList(result)
+                    continuation.resume(purchases)
+                } else {
+                    continuation.resume(emptyList())
+                }
+            }
+        }
+
+    override suspend fun getReceiptDataIOS(): String? = suspendCoroutine { continuation ->
+        openIapModule.getReceiptDataIOSWithCompletion { result, error ->
+            if (error != null) {
+                continuation.resume(null)
+            } else {
+                continuation.resume(result)
+            }
+        }
+    }
+
+    override suspend fun getPromotedProductIOS(): ProductIOS? = suspendCoroutine { continuation ->
+        openIapModule.getPromotedProductIOSWithCompletion { result, error ->
+            if (error != null) {
+                continuation.resumeWithException(Exception(error.localizedDescription))
+            } else if (result != null) {
+                val product = convertAnyToProductIOS(result)
+                continuation.resume(product)
+            } else {
+                continuation.resume(null)
+            }
+        }
+    }
+
+    override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> =
+        suspendCoroutine { continuation ->
+            openIapModule.getActiveSubscriptionsWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@getActiveSubscriptionsWithCompletion
+                }
+
+                val subscriptions = (result as? List<*>)?.mapNotNull { item ->
+                    val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
+                    try {
+                        ActiveSubscription.fromJson(map)
+                    } catch (e: Exception) {
+                        println("[KMP-IAP iOS] Failed to parse ActiveSubscription: ${e.message}")
+                        null
+                    }
+                } ?: emptyList()
+
+                continuation.resume(subscriptions)
+            }
+        }
+
+    override suspend fun getAppTransactionIOS(): AppTransaction? =
+        suspendCoroutine { continuation ->
+            // Note: getAppTransactionIOS requires iOS 16.0+
+            // The @available annotation on the Swift side handles version checking
+            openIapModule.getAppTransactionIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@getAppTransactionIOSWithCompletion
+                }
+
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
+                val appTransaction = map?.let {
+                    try {
+                        AppTransaction.fromJson(it)
+                    } catch (e: Exception) {
+                        println("[KMP-IAP iOS] Failed to parse AppTransaction: ${e.message}")
+                        null
+                    }
+                }
+
+                continuation.resume(appTransaction)
+            }
+        }
+
+    override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? =
+        suspendCoroutine { continuation ->
+            openIapModule.currentEntitlementIOSWithSku(sku) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@currentEntitlementIOSWithSku
+                }
+
+                val purchase = convertAnyToPurchaseIOS(result)
+                continuation.resume(purchase)
+            }
+        }
+
+    override suspend fun getTransactionJwsIOS(sku: String): String? =
+        suspendCoroutine { continuation ->
+            openIapModule.getTransactionJwsIOSWithSku(sku) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@getTransactionJwsIOSWithSku
+                }
+
+                continuation.resume(result as? String)
+            }
+        }
+
+    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.hasActiveSubscriptionsWithCompletion { hasActive, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@hasActiveSubscriptionsWithCompletion
+                }
+
+                continuation.resume(hasActive)
+            }
+        }
+
+    override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.isEligibleForIntroOfferIOSWithGroupID(groupID) { isEligible, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@isEligibleForIntroOfferIOSWithGroupID
+                }
+
+                continuation.resume(isEligible)
+            }
+        }
+
+    override suspend fun isTransactionVerifiedIOS(sku: String): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.isTransactionVerifiedIOSWithSku(sku) { isVerified, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@isTransactionVerifiedIOSWithSku
+                }
+
+                continuation.resume(isVerified)
+            }
+        }
+
+    override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? =
+        suspendCoroutine { continuation ->
+            openIapModule.latestTransactionIOSWithSku(sku) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@latestTransactionIOSWithSku
+                }
+
+                val purchase = convertAnyToPurchaseIOS(result)
+                continuation.resume(purchase)
+            }
+        }
+
+    override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> =
+        suspendCoroutine { continuation ->
+            openIapModule.subscriptionStatusIOSWithSku(sku) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@subscriptionStatusIOSWithSku
+                }
+
+                val statuses = (result as? List<*>)?.mapNotNull { item ->
+                    val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
+                    try {
+                        SubscriptionStatusIOS.fromJson(map)
+                    } catch (e: Exception) {
+                        println("[KMP-IAP iOS] Failed to parse SubscriptionStatusIOS: ${e.message}")
+                        null
+                    }
+                } ?: emptyList()
+
+                continuation.resume(statuses)
+            }
+        }
+
+    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS {
+        // Get receipt data
+        val receiptData = getReceiptDataIOS() ?: ""
+
+        // For now, return a basic result. Full validation requires backend integration
         return ReceiptValidationResultIOS(
-            isValid = isValid,
+            isValid = false,
             jwsRepresentation = "",
-            latestTransaction = matchingPurchase,
+            latestTransaction = null,
             receiptData = receiptData
         )
     }
-    
-    suspend fun finishTransactionIOS(transactionId: String) {
-        ensureConnection()
 
-        // Find the transaction from the queue instead of using cache
-        val queue = SKPaymentQueue.defaultQueue()
-        val transactions = queue.transactions() ?: return
-        
-        val transaction = transactions.firstOrNull { trans ->
-            val skTransaction = trans as? SKPaymentTransaction
-            skTransaction?.transactionIdentifier == transactionId
-        } as? SKPaymentTransaction ?: return
-        
-        queue.finishTransaction(transaction)
-    }
-    
-    override suspend fun clearTransactionIOS(): Boolean {
-        ensureConnection()
-        val queue = SKPaymentQueue.defaultQueue()
-        val transactions = queue.transactions() ?: return false
-        transactions.forEach { transaction ->
-            queue.finishTransaction(transaction as SKPaymentTransaction)
-        }
-        return true
-    }
-    
-    suspend fun clearProductsIOS() {
-        // No cache to clear anymore
-    }
-    
-    override suspend fun getPromotedProductIOS(): ProductIOS? {
-        ensureConnection()
-        return promotedProduct?.toProduct() as? ProductIOS
+    // -------------------------------------------------------------------------
+    // SubscriptionResolver Implementation
+    // -------------------------------------------------------------------------
+
+    override suspend fun purchaseUpdated(): Purchase {
+        throw UnsupportedOperationException("Use purchaseUpdatedListener Flow instead")
     }
 
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean {
-        ensureConnection()
-        val product = promotedProduct ?: return false
-        val queue = SKPaymentQueue.defaultQueue()
-        return runCatching {
-            val payment = SKMutablePayment.paymentWithProduct(product)
-            dispatch_async(dispatch_get_main_queue()) {
-                queue.addPayment(payment)
+    override suspend fun purchaseError(): PurchaseError {
+        throw UnsupportedOperationException("Use purchaseErrorListener Flow instead")
+    }
+
+    override suspend fun promotedProductIOS(): String {
+        throw UnsupportedOperationException("Use promotedProductListener Flow instead")
+    }
+
+    // -------------------------------------------------------------------------
+    // Conversion Helpers
+    // -------------------------------------------------------------------------
+
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyToPurchase(data: Any?): Purchase? {
+        return convertAnyToPurchaseIOS(data)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyToPurchaseIOS(data: Any?): PurchaseIOS? {
+        if (data == null) return null
+
+        return try {
+            // OpenIAP returns NSDictionary which can be cast to Map
+            val dict = (data as? Map<*, *>) ?: return null
+            val map = dict.mapKeys { it.key.toString() }
+
+            val platform = map["platform"] as? String
+            if (platform == "ios" || platform == "iOS") {
+                PurchaseIOS(
+                    appAccountToken = map["appAccountToken"] as? String,
+                    appBundleIdIOS = map["appBundleIdIOS"] as? String,
+                    countryCodeIOS = map["countryCodeIOS"] as? String,
+                    currencyCodeIOS = map["currencyCodeIOS"] as? String,
+                    currencySymbolIOS = map["currencySymbolIOS"] as? String,
+                    environmentIOS = map["environmentIOS"] as? String,
+                    expirationDateIOS = (map["expirationDateIOS"] as? Number)?.toDouble(),
+                    id = map["id"] as? String ?: "",
+                    ids = (map["ids"] as? List<*>)?.mapNotNull { it as? String },
+                    isAutoRenewing = map["isAutoRenewing"] as? Boolean ?: false,
+                    isUpgradedIOS = map["isUpgradedIOS"] as? Boolean,
+                    offerIOS = null, // Complex object, handle separately if needed
+                    originalTransactionDateIOS = (map["originalTransactionDateIOS"] as? Number)?.toDouble(),
+                    originalTransactionIdentifierIOS = map["originalTransactionIdentifierIOS"] as? String,
+                    ownershipTypeIOS = map["ownershipTypeIOS"] as? String,
+                    platform = IapPlatform.Ios,
+                    productId = map["productId"] as? String ?: "",
+                    purchaseState = (map["purchaseState"] as? String)?.let {
+                        PurchaseState.fromJson(it)
+                    } ?: PurchaseState.Unknown,
+                    purchaseToken = map["purchaseToken"] as? String,
+                    quantity = (map["quantity"] as? Number)?.toInt() ?: 1,
+                    quantityIOS = (map["quantityIOS"] as? Number)?.toInt(),
+                    reasonIOS = map["reasonIOS"] as? String,
+                    reasonStringRepresentationIOS = map["reasonStringRepresentationIOS"] as? String,
+                    revocationDateIOS = (map["revocationDateIOS"] as? Number)?.toDouble(),
+                    revocationReasonIOS = map["revocationReasonIOS"] as? String,
+                    storefrontCountryCodeIOS = map["storefrontCountryCodeIOS"] as? String,
+                    subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
+                    transactionDate = (map["transactionDate"] as? Number)?.toDouble() ?: 0.0,
+                    transactionId = map["transactionId"] as? String ?: "",
+                    transactionReasonIOS = map["transactionReasonIOS"] as? String,
+                    webOrderLineItemIdIOS = map["webOrderLineItemIdIOS"] as? String
+                )
+            } else {
+                null
             }
-            true
-        }.getOrDefault(false)
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to Purchase: ${e.message}")
+            null
+        }
     }
 
-    override suspend fun syncIOS(): Boolean {
-        ensureConnection()
-        return false
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyListToPurchases(data: Any?): List<Purchase> {
+        if (data == null) return emptyList()
+
+        return try {
+            val list = data as? List<*> ?: return emptyList()
+            list.mapNotNull { convertAnyToPurchase(it) }
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to Purchase list: ${e.message}")
+            emptyList()
+        }
     }
 
-    override suspend fun beginRefundRequestIOS(sku: String): String? {
-        ensureConnection()
-        return null
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyListToPurchaseIOSList(data: Any?): List<PurchaseIOS> {
+        if (data == null) return emptyList()
+
+        return try {
+            val list = data as? List<*> ?: return emptyList()
+            list.mapNotNull { item ->
+                convertAnyToPurchaseIOS(item)
+            }
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to PurchaseIOS list: ${e.message}")
+            emptyList()
+        }
     }
-    
+
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyListToProducts(data: Any?): List<Product> {
+        if (data == null) {
+            println("[KMP-IAP] convertAnyListToProducts: data is null")
+            return emptyList()
+        }
+
+        println("[KMP-IAP] convertAnyListToProducts: data type = ${data::class.simpleName}")
+
+        return try {
+            val list = data as? List<*>
+            if (list == null) {
+                println("[KMP-IAP] convertAnyListToProducts: failed to cast to List, data = $data")
+                return emptyList()
+            }
+
+            println("[KMP-IAP] convertAnyListToProducts: list size = ${list.size}")
+
+            list.mapNotNull { item ->
+                println("[KMP-IAP] convertAnyListToProducts: processing item type = ${item?.let { it::class.simpleName }}")
+
+                val dict = (item as? Map<*, *>)
+                if (dict == null) {
+                    println("[KMP-IAP] convertAnyListToProducts: item is not a Map, it's $item")
+                    return@mapNotNull null
+                }
+
+                val map = dict.mapKeys { it.key.toString() }
+                println("[KMP-IAP] convertAnyListToProducts: map keys = ${map.keys}")
+
+                ProductIOS(
+                    currency = map["currency"] as? String ?: "",
+                    debugDescription = map["debugDescription"] as? String,
+                    description = map["description"] as? String ?: "",
+                    displayName = map["displayName"] as? String,
+                    displayNameIOS = map["displayNameIOS"] as? String ?: "",
+                    displayPrice = map["displayPrice"] as? String ?: "",
+                    id = map["id"] as? String ?: "",
+                    isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
+                    jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
+                    platform = IapPlatform.Ios,
+                    price = (map["price"] as? Number)?.toDouble(),
+                    subscriptionInfoIOS = null, // Complex object, handle separately if needed
+                    title = map["title"] as? String ?: "",
+                    type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
+                        ?: ProductType.InApp,
+                    typeIOS = (map["typeIOS"] as? String)?.let {
+                        ProductTypeIOS.fromJson(it)
+                    } ?: ProductTypeIOS.Consumable
+                )
+            }
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to Product list: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyListToProductSubscriptions(data: Any?): List<ProductSubscription> {
+        if (data == null) return emptyList()
+
+        return try {
+            val list = data as? List<*> ?: return emptyList()
+            list.mapNotNull { item ->
+                val dict = (item as? Map<*, *>) ?: return@mapNotNull null
+                val map = dict.mapKeys { it.key.toString() }
+
+                ProductSubscriptionIOS(
+                    currency = map["currency"] as? String ?: "",
+                    debugDescription = map["debugDescription"] as? String,
+                    description = map["description"] as? String ?: "",
+                    discountsIOS = null, // Complex array
+                    displayName = map["displayName"] as? String,
+                    displayNameIOS = map["displayNameIOS"] as? String ?: "",
+                    displayPrice = map["displayPrice"] as? String ?: "",
+                    id = map["id"] as? String ?: "",
+                    introductoryPriceAsAmountIOS = map["introductoryPriceAsAmountIOS"] as? String,
+                    introductoryPriceIOS = map["introductoryPriceIOS"] as? String,
+                    introductoryPriceNumberOfPeriodsIOS = map["introductoryPriceNumberOfPeriodsIOS"] as? String,
+                    introductoryPricePaymentModeIOS = null, // Complex enum
+                    introductoryPriceSubscriptionPeriodIOS = null, // Complex enum
+                    isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
+                    jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
+                    platform = IapPlatform.Ios,
+                    price = (map["price"] as? Number)?.toDouble(),
+                    subscriptionInfoIOS = null, // Complex object
+                    subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
+                    subscriptionPeriodUnitIOS = null, // Complex enum
+                    title = map["title"] as? String ?: "",
+                    type = ProductType.Subs,
+                    typeIOS = ProductTypeIOS.AutoRenewableSubscription
+                )
+            }
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to ProductSubscription list: ${e.message}")
+            emptyList()
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyToProductIOS(data: Any?): ProductIOS? {
+        if (data == null) return null
+
+        return try {
+            val dict = (data as? Map<*, *>) ?: return null
+            val map = dict.mapKeys { it.key.toString() }
+
+            ProductIOS(
+                currency = map["currency"] as? String ?: "",
+                debugDescription = map["debugDescription"] as? String,
+                description = map["description"] as? String ?: "",
+                displayName = map["displayName"] as? String,
+                displayNameIOS = map["displayNameIOS"] as? String ?: "",
+                displayPrice = map["displayPrice"] as? String ?: "",
+                id = map["id"] as? String ?: "",
+                isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
+                jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
+                platform = IapPlatform.Ios,
+                price = (map["price"] as? Number)?.toDouble(),
+                subscriptionInfoIOS = null, // Complex object
+                title = map["title"] as? String ?: "",
+                type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
+                    ?: ProductType.InApp,
+                typeIOS = (map["typeIOS"] as? String)?.let {
+                    ProductTypeIOS.fromJson(it)
+                } ?: ProductTypeIOS.Consumable
+            )
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to ProductIOS: ${e.message}")
+            null
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Android-specific stubs (not implemented on iOS)
+    // -------------------------------------------------------------------------
+
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean {
-        // No-op on iOS
-        return false
+        throw UnsupportedOperationException("Android method not available on iOS")
     }
 
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
-        // No-op on iOS
-        return false
+        throw UnsupportedOperationException("Android method not available on iOS")
     }
-    
-    override suspend fun deepLinkToSubscriptions(options: DeepLinkOptions?) {
-        showManageSubscriptionsIOS()
-    }
-    
-    override suspend fun currentEntitlementIOS(sku: String): PurchaseIOS? = latestTransactionIOS(sku)
-
-    override suspend fun getActiveSubscriptions(subscriptionIds: List<String>?): List<ActiveSubscription> = emptyList()
-
-    override suspend fun getAppTransactionIOS(): AppTransaction? = null
-
-    override suspend fun getPendingTransactionsIOS(): List<PurchaseIOS> {
-        ensureConnection()
-        val queue = SKPaymentQueue.defaultQueue()
-        val transactions = queue.transactions() ?: emptyList<Any>()
-        return transactions.mapNotNull { (it as? SKPaymentTransaction)?.toPurchase() as? PurchaseIOS }
-    }
-
-    override suspend fun getReceiptDataIOS(): String? = readReceiptData()
-
-    override suspend fun getTransactionJwsIOS(sku: String): String? = null
-
-    override suspend fun hasActiveSubscriptions(subscriptionIds: List<String>?): Boolean =
-        getActiveSubscriptions(subscriptionIds).isNotEmpty()
-
-    override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false
-
-    override suspend fun isTransactionVerifiedIOS(sku: String): Boolean = false
-
-    override suspend fun latestTransactionIOS(sku: String): PurchaseIOS? {
-        ensureConnection()
-        return getAvailablePurchases(null)
-            .filterIsInstance<PurchaseIOS>()
-            .firstOrNull { it.productId == sku }
-    }
-
-    override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
-
-    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS {
-        val result = validateReceipt(options)
-        return result as? ReceiptValidationResultIOS
-            ?: ReceiptValidationResultIOS(
-                isValid = false,
-                jwsRepresentation = "",
-                receiptData = readReceiptData() ?: ""
-            )
-    }
-
-    override suspend fun promotedProductIOS(): String = promotedProductListener.first() ?: ""
-
-    override suspend fun purchaseError(): PurchaseError = purchaseErrorListener.first()
-
-    override suspend fun purchaseUpdated(): Purchase = purchaseUpdatedListener.first()
-
-    suspend fun isPurchaseValid(purchase: Purchase): Boolean =
-        purchase.purchaseToken?.isNotEmpty() == true || purchase.id.isNotEmpty()
-    
-    
-    // Internal iOS receipt validation - not in interface
-    private suspend fun validateReceiptIos(
-        receiptBody: Map<String, String>,
-        isTest: Boolean
-    ): Map<String, Any>? = null
-    
-    // Not applicable for iOS - not in interface
-    private suspend fun validateReceiptAndroid(
-        packageName: String,
-        productId: String,
-        productToken: String,
-        accessToken: String,
-        isSub: Boolean
-    ): Map<String, Any>? = null
-    
-    override fun getStore(): Store = Store.APP_STORE
-    
-    override suspend fun canMakePayments(): Boolean {
-        return SKPaymentQueue.canMakePayments()
-    }
-    
-    // Private helper methods
-    private fun cleanupState() {
-        // Clear all pending requests and caches to avoid race conditions
-        productRequests.forEach { (request, _) ->
-            request.cancel()
-        }
-        productRequests.clear()
-        // No transaction cache to clear anymore
-        restoredPurchases.clear()
-        restoreCompletion = null
-        hasRestoredOnce = false
-        promotedProduct = null
-    }
-
-    private fun readReceiptData(): String? {
-        val receiptUrl = NSBundle.mainBundle.appStoreReceiptURL ?: return null
-        val data = NSData.dataWithContentsOfURL(receiptUrl) ?: return null
-        return data.base64EncodedStringWithOptions(0u)
-    }
-    
-    private suspend fun ensureConnection() {
-        if (!isConnected) {
-            throw PurchaseException(
-                PurchaseError(
-                    code = ErrorCode.ServiceError,
-                    message = "IAP connection not initialized. Call initConnection() first."
-                )
-            )
-        }
-    }
-
-    private fun handlePurchasedTransaction(transaction: SKPaymentTransaction) {
-        if (!isRestoring) {
-            val purchase = transaction.toPurchase()
-            // Don't cache transactions - they should be handled immediately
-            _purchaseUpdatedListener.tryEmit(purchase)
-        }
-    }
-    
-    private fun handleFailedTransaction(transaction: SKPaymentTransaction) {
-        val nsError = transaction.error as? NSError
-        val errorCode = if (nsError?.domain == SKErrorDomain) {
-            when (nsError.code.toLong()) {
-                0L -> ErrorCode.Unknown          // SKErrorUnknown
-                1L -> ErrorCode.DeveloperError   // SKErrorClientInvalid
-                2L -> ErrorCode.UserCancelled    // SKErrorPaymentCancelled
-                3L -> ErrorCode.DeveloperError   // SKErrorPaymentInvalid
-                4L -> ErrorCode.UserError        // SKErrorPaymentNotAllowed
-                5L -> ErrorCode.ItemUnavailable  // SKErrorStoreProductNotAvailable
-                else -> ErrorCode.Unknown
-            }
-        } else {
-            ErrorCode.Unknown
-        }
-
-        _purchaseErrorListener.tryEmit(
-            PurchaseError(
-                code = errorCode,
-                message = nsError?.localizedDescription ?: "Purchase failed",
-            )
-        )
-
-        SKPaymentQueue.defaultQueue().finishTransaction(transaction)
-    }
-    
-    private fun handleRestoredTransaction(transaction: SKPaymentTransaction) {
-        val purchase = transaction.toPurchase()
-        restoredPurchases.add(purchase)
-        // Don't cache transactions - finish them immediately
-        
-        // Also finish restored transactions to prevent them from being reported again
-        SKPaymentQueue.defaultQueue().finishTransaction(transaction)
-    }
-}
-
-// Extension functions
-private fun SKProduct.toProduct(): Product {
-    val isSubscription = runCatching {
-        subscriptionPeriod != null || subscriptionGroupIdentifier != null
-    }.getOrDefault(false)
-    val typeIOSValue = if (isSubscription) {
-        ProductTypeIOS.AutoRenewableSubscription
-    } else {
-        ProductTypeIOS.NonConsumable
-    }
-    return ProductIOS(
-        currency = runCatching { priceLocale.currencyCode }.getOrNull() ?: "USD",
-        description = runCatching { localizedDescription }.getOrNull() ?: "",
-        displayNameIOS = runCatching { localizedTitle }.getOrNull() ?: productIdentifier,
-        displayPrice = runCatching { localizedPrice() }.getOrNull() ?: price.toString(),
-        id = productIdentifier,
-        isFamilyShareableIOS = runCatching { isFamilyShareable }.getOrNull() ?: false,
-        jsonRepresentationIOS = "{}",
-        platform = IapPlatform.Ios,
-        price = price.doubleValue,
-        subscriptionInfoIOS = null,
-        title = runCatching { localizedTitle }.getOrNull() ?: productIdentifier,
-        type = if (isSubscription) ProductType.Subs else ProductType.InApp,
-        typeIOS = typeIOSValue
-    )
-}
-
-private fun SKProduct.localizedPrice(): String {
-    return try {
-        val formatter = NSNumberFormatter()
-        formatter.numberStyle = NSNumberFormatterCurrencyStyle
-        formatter.locale = priceLocale
-        formatter.stringFromNumber(price) ?: price.toString()
-    } catch (e: Exception) {
-        price.toString()
-    }
-}
-private fun SKProductPeriodUnit?.toUnitEnum(): SubscriptionPeriodIOS? = when (this?.value?.toInt()) {
-    0 -> SubscriptionPeriodIOS.Day
-    1 -> SubscriptionPeriodIOS.Week
-    2 -> SubscriptionPeriodIOS.Month
-    3 -> SubscriptionPeriodIOS.Year
-    else -> null
-}
-
-private fun SKPaymentTransaction.toPurchase(): Purchase {
-    val state = when (transactionState) {
-        SKPaymentTransactionState.SKPaymentTransactionStatePurchasing -> PurchaseState.Pending
-        SKPaymentTransactionState.SKPaymentTransactionStatePurchased -> PurchaseState.Purchased
-        SKPaymentTransactionState.SKPaymentTransactionStateFailed -> PurchaseState.Failed
-        SKPaymentTransactionState.SKPaymentTransactionStateRestored -> PurchaseState.Restored
-        SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> PurchaseState.Deferred
-        else -> PurchaseState.Unknown
-    }
-
-    val ids = payment?.productIdentifier?.let { listOf(it) }
-
-    return PurchaseIOS(
-        id = transactionIdentifier ?: payment?.productIdentifier ?: "unknown",
-        ids = ids,
-        isAutoRenewing = false,
-        originalTransactionDateIOS = originalTransaction?.transactionDate?.timeIntervalSince1970,
-        originalTransactionIdentifierIOS = originalTransaction?.transactionIdentifier,
-        platform = IapPlatform.Ios,
-        productId = payment?.productIdentifier ?: "",
-        purchaseState = state,
-        purchaseToken = transactionIdentifier,
-        quantity = payment?.quantity?.toInt() ?: 1,
-        transactionDate = transactionDate?.timeIntervalSince1970 ?: 0.0,
-        transactionId = transactionIdentifier ?: payment?.productIdentifier ?: "unknown",
-        transactionReasonIOS = when (transactionState) {
-            SKPaymentTransactionState.SKPaymentTransactionStateRestored -> "RESTORED"
-            SKPaymentTransactionState.SKPaymentTransactionStateDeferred -> "DEFERRED"
-            else -> "PURCHASE"
-        }
-    )
 }

@@ -26,3 +26,6 @@ node_modules/
 docs/build/
 docs/.docusaurus/
 docs/.cache-loader/
+native/InAppPurchaseBridge/.build/
+native/InAppPurchaseBridge/DerivedData/
+native/openiap-apple/

@@ -30,6 +30,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            // Set bundle ID to match the iOS app
+            binaryOption("bundleId", "dev.hyo.martie")
         }
     }
 

@@ -695,6 +695,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
+    override suspend fun getStorefront(): String {
+        // Android doesn't have a storefront concept like iOS
+        // Return a default value or country code based on locale
+        return java.util.Locale.getDefault().country
+    }
+
     // ---------------------------------------------------------------------
     // Activity lifecycle
     // ---------------------------------------------------------------------

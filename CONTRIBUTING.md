@@ -109,8 +109,61 @@ kmp-iap/
 ├── example/          # Example application
 │   ├── composeApp/   # Compose Multiplatform app
 │   └── iosApp/       # iOS app
+├── native/           # Native dependencies (gitignored)
+│   └── openiap-apple/      # Local copy for development
 └── CLAUDE.md         # Coding conventions
 ```
+
+## OpenIAP Apple Module
+
+The iOS implementation depends on the [openiap-apple](https://github.com/hyodotdev/openiap-apple) library, which is a Swift package that provides StoreKit 2 functionality.
+
+### How It Works
+
+1. **CocoaPods Integration**: The library uses CocoaPods to integrate openiap-apple via Git tags
+   - Configured in `library/build.gradle.kts`
+   - Podspec references: `https://github.com/hyodotdev/openiap-apple.git`
+   - Version managed via Git tags (e.g., `1.2.5`)
+
+2. **Build Process**:
+   ```bash
+   # The Gradle build automatically:
+   # 1. Downloads openiap-apple via CocoaPods
+   # 2. Generates Kotlin/Native cinterop bindings
+   # 3. Builds the iOS framework
+
+   ./gradlew :library:build
+   ```
+
+3. **Local Development Copy**:
+   - `native/openiap-apple/` contains a local copy for reference
+   - This directory is in `.gitignore` (line 31)
+   - **Do not commit changes here** - changes should go to the [openiap-apple repository](https://github.com/hyodotdev/openiap-apple)
+
+### Updating OpenIAP Apple Version
+
+When a new version of openiap-apple is released:
+
+1. Update the version in `library/build.gradle.kts`:
+   ```kotlin
+   cocoapods {
+       pod("openiap") {
+           version = "1.2.5"  // Update this
+           extraOpts += listOf("-compiler-option", "-fmodules")
+       }
+   }
+   ```
+
+2. Update `native/InAppPurchaseBridge/Package.swift` if using Swift Package Manager:
+   ```swift
+   .package(url: "https://github.com/hyodotdev/openiap-apple.git", from: "1.2.5")
+   ```
+
+3. Clean and rebuild:
+   ```bash
+   ./gradlew clean
+   ./gradlew :library:build
+   ```
 
 ## Debugging Tips
 

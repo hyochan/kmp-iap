@@ -50,6 +50,14 @@ jobs:
           ./gradlew :library:build
           ./gradlew :library:allTests
 
+      - name: Build iOS frameworks
+        run: |
+          ./gradlew :library:podGenIos
+          ./gradlew :library:podInstallSyntheticIos
+          ./gradlew :library:podBuildOpeniapIos
+          ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
+          ./gradlew :library:linkPodDebugFrameworkIosArm64
+
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}

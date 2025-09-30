@@ -91,6 +91,7 @@ plugins {
     alias(libs.plugins.vanniktechMavenPublish)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlinxSerialization)
+    kotlin("native.cocoapods")
     signing
 }
 
@@ -105,9 +106,27 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
+
+    // iOS targets
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+
+    // CocoaPods configuration
+    cocoapods {
+        version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha02"
+        summary = "KMP IAP Library"
+        homepage = "https://github.com/hyochan/kmp-iap"
+        ios.deploymentTarget = "15.0"
+
+        // Add openiap-apple pod dependency with @objc support (using Git URL for development)
+        pod("openiap") {
+            source = git("https://github.com/hyodotdev/openiap-apple.git") {
+                tag = "1.2.6"
+            }
+            moduleName = "OpenIAP"
+        }
+    }
 
     sourceSets {
         val commonMain by getting {
