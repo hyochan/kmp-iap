@@ -9,7 +9,7 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
 1. **IAP (In-App Purchase)**:
 
    - When final suffix: Use `IAP` (e.g., `KmpIAP`)
-   - When followed by other words: Use `Iap` (e.g., `KmpIapInstance`, `IapManager`)
+   - When followed by other words: Use `Iap` (e.g., `kmpIapInstance`, `IapManager`)
 
 2. **ID (Identifier)**:
 
@@ -33,14 +33,13 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
 ```kotlin
 // Class and enum names
 class KmpIAP()                    // ✅ Correct - IAP is final
-class KmpIapInstance              // ✅ Correct - IAP followed by Instance
 class PurchaseIOS                 // ✅ Correct - iOS platform specific
-enum class TransactionStateIOS    // ✅ Correct - Platform suffix
-enum class DiscountTypeIOS        // ✅ Correct - Platform suffix
+enum class ProductTypeIOS         // ✅ Correct - Platform suffix
+enum class PaymentModeIOS         // ✅ Correct - Platform suffix
 
 // Variable and field names
-val kmpIAP = KmpIAP()             // ✅ Correct
-val kmpIapInstance: KmpIapInstance // ✅ Correct
+val kmpIAP = KmpIAP()             // ✅ Correct - Constructor pattern
+val kmpIapInstance: KmpIAP        // ✅ Correct - Global instance variable (not a separate class)
 val quantityIOS: Int              // ✅ Correct - Field with iOS suffix
 val environmentIOS: String        // ✅ Correct - Field with iOS suffix
 ```
