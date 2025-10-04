@@ -7,22 +7,30 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import com.android.billingclient.api.AcknowledgePurchaseParams
+import com.android.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
+import com.android.billingclient.api.ExternalOfferReportingDetails
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
+import com.android.billingclient.api.UserChoiceBillingListener
 import io.github.hyochan.kmpiap.clearProductCache
 import io.github.hyochan.kmpiap.ensureConnectedOrFail
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.ConnectionResult
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
 import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResultIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseNoticeResultIOS
+import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+import io.github.hyochan.kmpiap.openiap.UserChoiceBillingDetails
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
@@ -84,6 +92,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private var activityCallbacksDisposer: (() -> Unit)? = null
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
+    private var alternativeBillingMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None
 
     // ---------------------------------------------------------------------
     // Event streams
@@ -100,6 +109,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val _promotedProductListener = MutableSharedFlow<String?>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     override val promotedProductListener: Flow<String?> = _promotedProductListener.asSharedFlow()
 
+    private val _userChoiceBillingListener = MutableSharedFlow<UserChoiceBillingDetails>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val userChoiceBillingListener: Flow<UserChoiceBillingDetails> = _userChoiceBillingListener.asSharedFlow()
+
     private fun failWith(error: PurchaseError): Nothing =
         emitFailureAndThrow(_purchaseErrorListener, error)
 
@@ -111,8 +123,13 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Mutation handlers
     // ---------------------------------------------------------------------
-    private val initConnectionHandler: MutationInitConnectionHandler = {
+    private val initConnectionHandler: MutationInitConnectionHandler = { config ->
         withContext(Dispatchers.IO) {
+            // Save alternative billing mode
+            config?.alternativeBillingModeAndroid?.let { mode ->
+                alternativeBillingMode = mode
+            }
+
             if (context == null) {
                 val disposer = tryCaptureApplication(
                     callback = this@InAppPurchaseAndroid,
@@ -161,6 +178,25 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         .setListener { billingResult, purchases ->
                             handlePurchaseUpdate(billingResult, purchases)
                         }
+
+                    // Configure alternative billing if specified
+                    when (alternativeBillingMode) {
+                        AlternativeBillingModeAndroid.UserChoice -> {
+                            builder.enableUserChoiceBilling { userChoiceDetails ->
+                                val details = UserChoiceBillingDetails(
+                                    externalTransactionToken = userChoiceDetails.externalTransactionToken,
+                                    products = emptyList() // Will be populated from purchase flow
+                                )
+                                _userChoiceBillingListener.tryEmit(details)
+                            }
+                        }
+                        AlternativeBillingModeAndroid.AlternativeOnly -> {
+                            builder.enableAlternativeBillingOnly()
+                        }
+                        AlternativeBillingModeAndroid.None -> {
+                            // Standard billing, no changes needed
+                        }
+                    }
 
                     billingClient = enablePendingPurchasesCompat(builder).build()
                     billingClient?.startConnection(listener)
@@ -360,7 +396,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Interface implementation
     // ---------------------------------------------------------------------
-    override suspend fun initConnection(): Boolean = initConnectionHandler()
+    override suspend fun initConnection(config: InitConnectionConfig?): Boolean = initConnectionHandler(config)
 
     override suspend fun endConnection(): Boolean = endConnectionHandler()
 
@@ -699,6 +735,96 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         // Android doesn't have a storefront concept like iOS
         // Return a default value or country code based on locale
         return java.util.Locale.getDefault().country
+    }
+
+    // ---------------------------------------------------------------------
+    // iOS External Purchase Methods (stubs for Android)
+    // ---------------------------------------------------------------------
+
+    override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS {
+        failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = "External purchase links are iOS only"))
+    }
+
+    override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS {
+        failWith(PurchaseError(code = ErrorCode.FeatureNotSupported, message = "External purchase notice sheet is iOS only"))
+    }
+
+    override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean {
+        return false // Not supported on Android
+    }
+
+    override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {
+        return _userChoiceBillingListener.first()
+    }
+
+    // ---------------------------------------------------------------------
+    // Alternative Billing Methods (Android only)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Check if alternative billing is available for this user/device (Android only).
+     * Step 1 of alternative billing flow.
+     */
+    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
+        return withContext(Dispatchers.IO) {
+            val client = billingClient ?: run {
+                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
+            }
+
+            suspendCancellableCoroutine { continuation ->
+                client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
+                    val success = billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                    continuation.resume(success)
+                }
+            }
+        }
+    }
+
+    /**
+     * Show alternative billing information dialog to user (Android only).
+     * Step 2 of alternative billing flow.
+     * Must be called BEFORE processing payment in your payment system.
+     */
+    override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
+        return withContext(Dispatchers.Main) {
+            val client = billingClient ?: run {
+                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
+            }
+            val activity = currentActivity ?: run {
+                failWith(PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available"))
+            }
+
+            suspendCancellableCoroutine { continuation ->
+                client.showAlternativeBillingOnlyInformationDialog(activity) { billingResult ->
+                    val success = billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                    continuation.resume(success)
+                }
+            }
+        }
+    }
+
+    /**
+     * Create external transaction token for Google Play reporting (Android only).
+     * Step 3 of alternative billing flow.
+     * Must be called AFTER successful payment in your payment system.
+     * Token must be reported to Google Play backend within 24 hours.
+     */
+    override suspend fun createAlternativeBillingTokenAndroid(): String? {
+        return withContext(Dispatchers.IO) {
+            val client = billingClient ?: run {
+                failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
+            }
+
+            suspendCancellableCoroutine { continuation ->
+                client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, alternativeBillingDetails ->
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                        continuation.resume(alternativeBillingDetails?.externalTransactionToken)
+                    } else {
+                        continuation.resume(null)
+                    }
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------------

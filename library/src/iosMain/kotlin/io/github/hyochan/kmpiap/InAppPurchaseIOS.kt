@@ -104,7 +104,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     // MutationResolver Implementation
     // -------------------------------------------------------------------------
 
-    override suspend fun initConnection(): Boolean = suspendCoroutine { continuation ->
+    override suspend fun initConnection(config: InitConnectionConfig?): Boolean = suspendCoroutine { continuation ->
+        // iOS doesn't use alternative billing config, it's Android only
         openIapModule.initConnectionWithCompletion { success, error ->
             if (error != null) {
                 continuation.resumeWithException(Exception(error.localizedDescription))
@@ -794,5 +795,83 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         throw UnsupportedOperationException("Android method not available on iOS")
+    }
+
+    // -------------------------------------------------------------------------
+    // Android Alternative Billing Methods (stubs for iOS)
+    // -------------------------------------------------------------------------
+
+    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
+        return false // Not supported on iOS
+    }
+
+    override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
+        throw UnsupportedOperationException("Android alternative billing not available on iOS")
+    }
+
+    override suspend fun createAlternativeBillingTokenAndroid(): String? {
+        return null // Not supported on iOS
+    }
+
+    override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {
+        throw UnsupportedOperationException("Android user choice billing not available on iOS")
+    }
+
+    // -------------------------------------------------------------------------
+    // iOS External Purchase Methods
+    // -------------------------------------------------------------------------
+    // TODO: Implement these methods in OpenIAP iOS native module
+
+    override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS {
+        // TODO: Implement proper StoreKit 2 external purchase link in OpenIAP iOS module
+        // For now, open URL directly in Safari as a workaround using modern API
+        return suspendCoroutine { continuation ->
+            val nsUrl = NSURL.URLWithString(url)
+            if (nsUrl == null) {
+                continuation.resume(
+                    ExternalPurchaseLinkResultIOS(
+                        success = false,
+                        error = "Invalid URL: $url"
+                    )
+                )
+                return@suspendCoroutine
+            }
+
+            val application = platform.UIKit.UIApplication.sharedApplication
+
+            // Use modern API: open(_:options:completionHandler:)
+            application.openURL(
+                url = nsUrl,
+                options = emptyMap<Any?, Any?>(),
+                completionHandler = { success: Boolean ->
+                    continuation.resume(
+                        if (success) {
+                            ExternalPurchaseLinkResultIOS(
+                                success = true,
+                                error = null
+                            )
+                        } else {
+                            ExternalPurchaseLinkResultIOS(
+                                success = false,
+                                error = "Failed to open URL: $url"
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    }
+
+    override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS {
+        // TODO: Implement in OpenIAP iOS module
+        return ExternalPurchaseNoticeResultIOS(
+            result = ExternalPurchaseNoticeAction.Dismissed,
+            error = "External purchase notice feature not yet implemented in native iOS module"
+        )
+    }
+
+    override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean {
+        // TODO: Implement in OpenIAP iOS module
+        return false
     }
 }

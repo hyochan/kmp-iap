@@ -583,26 +583,28 @@ fun PurchaseCard(
             .clickable {
                 // Log purchase details to console in JSON format
                 println("\n========== PURCHASE DETAILS (JSON) ==========")
-                val json = Json { 
+                val json = Json {
                     prettyPrint = true
                     encodeDefaults = true
                 }
-                
-                // Serialize based on concrete type since Purchase is an interface
-                val jsonString = when (purchase) {
-                    is PurchaseAndroid -> json.encodeToString(purchase)
-                    is PurchaseIOS -> json.encodeToString(purchase)
-                    else -> {
-                        val platform = purchase.platform.toJson()
-                        """
-                        {
-                          "id": "${purchase.id}",
-                          "productId": "${purchase.productId}",
-                          "transactionDate": ${purchase.transactionDate},
-                          "platform": "$platform"
+
+                // Use toJson() method from Purchase interface
+                val purchaseMap = purchase.toJson()
+                val jsonString = buildString {
+                    appendLine("{")
+                    purchaseMap.entries.forEachIndexed { index, (key, value) ->
+                        append("  \"$key\": ")
+                        when (value) {
+                            is String -> append("\"$value\"")
+                            is Number -> append(value)
+                            is Boolean -> append(value)
+                            null -> append("null")
+                            else -> append("\"$value\"")
                         }
-                        """.trimIndent()
+                        if (index < purchaseMap.size - 1) append(",")
+                        appendLine()
                     }
+                    append("}")
                 }
                 println(jsonString)
                 println("Is Subscription: $isSubscription")

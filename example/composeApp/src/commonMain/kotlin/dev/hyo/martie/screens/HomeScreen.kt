@@ -136,7 +136,14 @@ fun HomeScreen(navController: NavController) {
             subtitle = "Redeem promotional codes",
             onClick = { navController.navigate(Screen.OfferCode.route) }
         )
-        
+
+        NavigationCard(
+            icon = Icons.Default.AccountCircle,
+            title = "Alternative Billing",
+            subtitle = "Test alternative billing methods (iOS & Android)",
+            onClick = { navController.navigate(Screen.AlternativeBilling.route) }
+        )
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
