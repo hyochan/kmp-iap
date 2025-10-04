@@ -75,7 +75,7 @@ content = re.sub(
 
 # Properties that need override
 product_props = r'(currency|debugDescription|description|displayName|displayPrice|id|platform|price|title|type)'
-purchase_props = r'(ids|isAutoRenewing|productId|purchaseState|purchaseToken|quantity|transactionDate)'
+purchase_props = r'(currentPlanId|id|ids|isAutoRenewing|productId|purchaseState|purchaseToken|quantity|transactionDate)'
 
 # Pattern to match data class declarations with ProductCommon or PurchaseCommon
 # and add override to properties in the constructor
