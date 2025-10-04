@@ -840,22 +840,21 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val application = platform.UIKit.UIApplication.sharedApplication
 
             // Use modern API: open(_:options:completionHandler:)
+            // Note: openURL only indicates Safari opened, NOT that billing completed
+            // Always return success=false until native StoreKit support is implemented
             application.openURL(
                 url = nsUrl,
                 options = emptyMap<Any?, Any?>(),
-                completionHandler = { success: Boolean ->
+                completionHandler = { urlOpened: Boolean ->
                     continuation.resume(
-                        if (success) {
-                            ExternalPurchaseLinkResultIOS(
-                                success = true,
-                                error = null
-                            )
-                        } else {
-                            ExternalPurchaseLinkResultIOS(
-                                success = false,
-                                error = "Failed to open URL: $url"
-                            )
-                        }
+                        ExternalPurchaseLinkResultIOS(
+                            success = false,
+                            error = if (urlOpened) {
+                                "External purchase link opened in Safari; completion status is unknown until native support is implemented."
+                            } else {
+                                "Failed to open URL: $url"
+                            }
+                        )
                     )
                 }
             )

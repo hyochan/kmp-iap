@@ -590,22 +590,7 @@ fun PurchaseCard(
 
                 // Use toJson() method from Purchase interface
                 val purchaseMap = purchase.toJson()
-                val jsonString = buildString {
-                    appendLine("{")
-                    purchaseMap.entries.forEachIndexed { index, (key, value) ->
-                        append("  \"$key\": ")
-                        when (value) {
-                            is String -> append("\"$value\"")
-                            is Number -> append(value)
-                            is Boolean -> append(value)
-                            null -> append("null")
-                            else -> append("\"$value\"")
-                        }
-                        if (index < purchaseMap.size - 1) append(",")
-                        appendLine()
-                    }
-                    append("}")
-                }
+                val jsonString = json.encodeToString(purchaseMap)
                 println(jsonString)
                 println("Is Subscription: $isSubscription")
                 println("Is Acknowledged: $isAcknowledged")

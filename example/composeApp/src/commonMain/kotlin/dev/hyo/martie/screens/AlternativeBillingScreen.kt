@@ -73,13 +73,10 @@ fun AlternativeBillingScreen(navController: NavController) {
     var products by remember { mutableStateOf<List<ProductCommon>>(emptyList()) }
     var currentPlatform by remember { mutableStateOf("") }
 
-    // Detect platform
+    // Detect platform and initialize connection
     LaunchedEffect(Unit) {
         currentPlatform = getPlatformName()
-    }
 
-    // Initialize connection
-    LaunchedEffect(Unit) {
         try {
             val config = if (currentPlatform == "Android") {
                 InitConnectionConfig(alternativeBillingModeAndroid = billingMode)
@@ -207,24 +204,49 @@ fun AlternativeBillingScreen(navController: NavController) {
             }
 
             isProcessing = true
-            purchaseResult = "🌐 Opening external purchase link..."
 
             try {
+                // For iOS 18.2+, present notice sheet first if available
+                if (kmpIapInstance.canPresentExternalPurchaseNoticeIOS()) {
+                    purchaseResult = "📋 Presenting external purchase notice..."
+
+                    val noticeResult = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
+
+                    if (noticeResult.error != null) {
+                        purchaseResult = "❌ Notice error: ${noticeResult.error}"
+                        isProcessing = false
+                        return@launch
+                    }
+
+                    if (noticeResult.result == "dismissed") {
+                        purchaseResult = "ℹ️ User dismissed external purchase notice"
+                        isProcessing = false
+                        return@launch
+                    }
+
+                    // User chose to continue
+                }
+
+                purchaseResult = "🌐 Opening external purchase link..."
+
                 val result = kmpIapInstance.presentExternalPurchaseLinkIOS(externalUrl)
 
-                if (result.error != null) {
-                    purchaseResult = "❌ Error: ${result.error}"
-                } else if (result.success) {
-                    purchaseResult = """
-                        ✅ External purchase link opened successfully
+                purchaseResult = if (result.error?.contains("opened in Safari") == true) {
+                    """
+                        🌐 External purchase link opened in Safari
 
                         Product: ${product.id}
                         URL: $externalUrl
 
-                        User was redirected to external website.
-
-                        Note: Complete purchase on your website and implement server-side validation.
+                        ⚠️ Important:
+                        - User was redirected to external website
+                        - Complete purchase on your website
+                        - Implement server-side validation
+                        - Use deep linking to return user to app
+                        - Purchase completion must be verified via backend
                     """.trimIndent()
+                } else {
+                    "❌ Error: ${result.error}"
                 }
             } catch (e: Exception) {
                 purchaseResult = "❌ Error: ${e.message}"
@@ -298,19 +320,11 @@ fun AlternativeBillingScreen(navController: NavController) {
             purchaseResult = "Showing user choice dialog..."
 
             try {
-                kmpIapInstance.requestPurchase(
-                    RequestPurchaseProps(
-                        request = RequestPurchaseProps.Request.Purchase(
-                            RequestPurchasePropsByPlatforms(
-                                android = RequestPurchaseAndroidProps(
-                                    skus = listOf(product.id)
-                                )
-                            )
-                        ),
-                        type = ProductQueryType.InApp,
-                        useAlternativeBilling = true
-                    )
-                )
+                kmpIapInstance.requestPurchase {
+                    android {
+                        skus = listOf(product.id)
+                    }
+                }
 
                 purchaseResult = """
                     🔄 User choice dialog shown

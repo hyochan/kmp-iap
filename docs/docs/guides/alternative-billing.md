@@ -242,32 +242,36 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 // Initialize with user choice mode
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+)
+kmpIapInstance.initConnection(config)
+
+// Listen for user choice events
 scope.launch {
-    val config = InitConnectionConfig(
-        alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-    )
-    kmpIapInstance.initConnection(config)
-
-    // Listen for user choice events
-    kmpIapInstance.userChoiceBillingAndroid().collect { details ->
+    kmpIapInstance.userChoiceBillingListener.collect { details ->
         println("User selected alternative billing")
-        println("Product IDs: ${details.products}")
+        println("Products: ${details.products}")
+        println("Token: ${details.externalTransactionToken}")
 
-        // Handle alternative billing flow
+        // Process payment with your system
         // ... your payment processing logic ...
+
+        // Report token to Google (token is provided in details)
+        reportToGoogleBackend(details.externalTransactionToken)
     }
 }
 
 suspend fun handleUserChoicePurchase(productId: String) {
     try {
         // Request purchase - Google will show selection dialog
-        val purchase = kmpIapInstance.requestPurchase {
+        kmpIapInstance.requestPurchase {
             android {
                 skus = listOf(productId)
             }
         }
 
-        // If user selects Google Play: purchase object is returned
+        // If user selects Google Play: purchaseUpdatedListener fires
         // If user selects alternative: userChoiceBillingListener fires
         println("Purchase requested")
     } catch (e: Exception) {
@@ -288,15 +292,14 @@ scope.launch {
     kmpIapInstance.userChoiceBillingListener.collect { details ->
         println("User chose alternative billing")
         println("Products: ${details.products}")
+        println("Token: ${details.externalTransactionToken}")
 
         // Process payment with your system
         processAlternativePayment(details.products)
 
-        // After successful payment, create and report token
-        val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
-        if (token != null) {
-            reportToGoogleBackend(token)
-        }
+        // Report token to Google (token is already provided in details)
+        // No need to call createAlternativeBillingTokenAndroid() for UserChoice mode
+        reportToGoogleBackend(details.externalTransactionToken)
     }
 }
 ```

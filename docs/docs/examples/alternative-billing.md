@@ -21,9 +21,14 @@ import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.ProductCommon
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun IOSAlternativeBilling(product: ProductCommon) {
+    val scope = rememberCoroutineScope()
+
     Button(
         onClick = {
             scope.launch {
@@ -65,10 +70,14 @@ import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.ProductCommon
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun AndroidAlternativeBillingOnly(product: ProductCommon) {
+    val scope = rememberCoroutineScope()
+
     Button(
         onClick = {
             scope.launch {
@@ -128,11 +137,15 @@ import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.openiap.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 
 @Composable
 fun AndroidUserChoiceBilling(product: ProductCommon) {
+    val scope = rememberCoroutineScope()
     // Initialize with user choice mode
     LaunchedEffect(Unit) {
         val config = InitConnectionConfig(
@@ -161,7 +174,7 @@ fun AndroidUserChoiceBilling(product: ProductCommon) {
             scope.launch {
                 try {
                     // Google will show selection dialog automatically
-                    val purchase = kmpIapInstance.requestPurchase {
+                    kmpIapInstance.requestPurchase {
                         android {
                             skus = listOf(product.id)
                         }
@@ -552,8 +565,9 @@ LaunchedEffect(Unit) {
 suspend fun isAlternativeBillingSupported(): Boolean {
     return when (getPlatformName()) {
         "iOS" -> {
-            // Check iOS version (16.0+)
-            true // Implement actual version check
+            // NOTE: This is a placeholder. A real implementation should check the OS version (iOS 16.0+).
+            // You can use Platform.osVersion or similar APIs to check the iOS version.
+            true
         }
         "Android" -> {
             kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()

@@ -125,10 +125,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     private val initConnectionHandler: MutationInitConnectionHandler = { config ->
         withContext(Dispatchers.IO) {
-            // Save alternative billing mode
-            config?.alternativeBillingModeAndroid?.let { mode ->
-                alternativeBillingMode = mode
-            }
+            // Set alternative billing mode (reset to None if no config supplied)
+            alternativeBillingMode = config?.alternativeBillingModeAndroid ?: AlternativeBillingModeAndroid.None
 
             if (context == null) {
                 val disposer = tryCaptureApplication(
@@ -185,7 +183,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                             builder.enableUserChoiceBilling { userChoiceDetails ->
                                 val details = UserChoiceBillingDetails(
                                     externalTransactionToken = userChoiceDetails.externalTransactionToken,
-                                    products = emptyList() // Will be populated from purchase flow
+                                    products = userChoiceDetails.products.map { it.productId }
                                 )
                                 _userChoiceBillingListener.tryEmit(details)
                             }
@@ -754,6 +752,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {
+        if (alternativeBillingMode != AlternativeBillingModeAndroid.UserChoice) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "userChoiceBillingAndroid requires UserChoice alternative billing mode"
+                )
+            )
+        }
         return _userChoiceBillingListener.first()
     }
 
@@ -764,6 +770,9 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     /**
      * Check if alternative billing is available for this user/device (Android only).
      * Step 1 of alternative billing flow.
+     *
+     * For AlternativeOnly mode: Uses isAlternativeBillingOnlyAvailableAsync
+     * For UserChoice mode: Uses isFeatureSupported with ALTERNATIVE_BILLING feature
      */
     override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
         return withContext(Dispatchers.IO) {
@@ -771,11 +780,19 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
             }
 
-            suspendCancellableCoroutine { continuation ->
-                client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
-                    val success = billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                    continuation.resume(success)
+            when (alternativeBillingMode) {
+                AlternativeBillingModeAndroid.AlternativeOnly -> {
+                    suspendCancellableCoroutine { continuation ->
+                        client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
+                            continuation.resume(billingResult.responseCode == BillingClient.BillingResponseCode.OK)
+                        }
+                    }
                 }
+                AlternativeBillingModeAndroid.UserChoice -> {
+                    val result = client.isFeatureSupported(BillingClient.FeatureType.ALTERNATIVE_BILLING)
+                    result.responseCode == BillingClient.BillingResponseCode.OK
+                }
+                else -> false
             }
         }
     }
@@ -784,8 +801,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * Show alternative billing information dialog to user (Android only).
      * Step 2 of alternative billing flow.
      * Must be called BEFORE processing payment in your payment system.
+     *
+     * Note: This is only applicable for AlternativeOnly mode.
+     * For UserChoice mode, Google automatically shows selection dialog.
      */
     override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
+        // Only applicable for AlternativeOnly mode
+        if (alternativeBillingMode != AlternativeBillingModeAndroid.AlternativeOnly) {
+            failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "showAlternativeBillingDialogAndroid is only for AlternativeOnly mode"))
+        }
+
         return withContext(Dispatchers.Main) {
             val client = billingClient ?: run {
                 failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
@@ -808,8 +833,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      * Step 3 of alternative billing flow.
      * Must be called AFTER successful payment in your payment system.
      * Token must be reported to Google Play backend within 24 hours.
+     *
+     * Note: This is only applicable for AlternativeOnly mode.
+     * For UserChoice mode, the token is provided in UserChoiceBillingDetails.
      */
     override suspend fun createAlternativeBillingTokenAndroid(): String? {
+        // Only applicable for AlternativeOnly mode
+        if (alternativeBillingMode != AlternativeBillingModeAndroid.AlternativeOnly) {
+            failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "createAlternativeBillingTokenAndroid is only for AlternativeOnly mode. For UserChoice mode, get token from UserChoiceBillingDetails"))
+        }
+
         return withContext(Dispatchers.IO) {
             val client = billingClient ?: run {
                 failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
