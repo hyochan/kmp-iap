@@ -86,14 +86,17 @@ Configure iOS external purchase entitlements in your iOS project:
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Countries where external purchases are supported (ISO 3166-1 alpha-2) -->
+    <!-- Countries where external purchases are supported (ISO 3166-1 alpha-2 uppercase) -->
     <key>SKExternalPurchase</key>
-    <array>
-        <string>kr</string>
-        <string>nl</string>
-        <string>de</string>
-        <string>fr</string>
-    </array>
+    <dict>
+        <key>AllowedCountries</key>
+        <array>
+            <string>KR</string>
+            <string>NL</string>
+            <string>DE</string>
+            <string>FR</string>
+        </array>
+    </dict>
 </dict>
 </plist>
 ```

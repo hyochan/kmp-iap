@@ -789,6 +789,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     }
                 }
                 AlternativeBillingModeAndroid.UserChoice -> {
+                    // User Choice Billing doesn't have a specific feature type constant
+                    // It's enabled via enableUserChoiceBilling() and is available if alternative billing is supported
                     val result = client.isFeatureSupported(BillingClient.FeatureType.ALTERNATIVE_BILLING_ONLY)
                     result.responseCode == BillingClient.BillingResponseCode.OK
                 }
