@@ -23,6 +23,7 @@ import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.*
+import io.github.hyochan.kmpiap.requestPurchase
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -218,7 +219,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                         return@launch
                     }
 
-                    if (noticeResult.result == "dismissed") {
+                    if (noticeResult.result == ExternalPurchaseNoticeAction.Dismissed) {
                         purchaseResult = "ℹ️ User dismissed external purchase notice"
                         isProcessing = false
                         return@launch
@@ -321,6 +322,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 
             try {
                 kmpIapInstance.requestPurchase {
+                    type = ProductType.InApp
                     android {
                         skus = listOf(product.id)
                     }

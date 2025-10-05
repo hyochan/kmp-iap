@@ -98,7 +98,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             return@filter purchase.isAcknowledgedAndroid != true
                         }
                     }
-                    else -> return@filter true
                 }
             }
             .sortedByDescending { it.transactionDate }
@@ -465,7 +464,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         val isAcknowledged = when (purchase) {
                             is PurchaseAndroid -> purchase.isAcknowledgedAndroid == true
                             is PurchaseIOS -> purchase.purchaseState == PurchaseState.Restored
-                            else -> false
                         }
 
                         PurchaseCard(
@@ -564,7 +562,6 @@ fun needsFinishButton(purchase: Purchase): Boolean {
             // For Android: show button if not acknowledged
             purchase.isAcknowledgedAndroid != true
         }
-        else -> false
     }
 }
 
@@ -658,7 +655,6 @@ fun PurchaseCard(
                     val statusText = when (purchase) {
                         is PurchaseAndroid -> "✓ Acknowledged"
                         is PurchaseIOS -> "✓ Finished"
-                        else -> "✓ Processed"
                     }
                     Text(
                         text = statusText,
@@ -692,7 +688,6 @@ fun PurchaseCard(
                             val statusText = when (purchase) {
                                 is PurchaseAndroid -> "Already Acknowledged"
                                 is PurchaseIOS -> "Already Finished"
-                                else -> "Already Processed"
                             }
                             Text(
                                 text = statusText,
@@ -720,7 +715,6 @@ fun PurchaseCard(
                                 when (purchase) {
                                     is PurchaseAndroid -> "Acknowledge Subscription"
                                     is PurchaseIOS -> "Finish Transaction"
-                                    else -> "Process Subscription"
                                 }
                             } else {
                                 "Consume Purchase"

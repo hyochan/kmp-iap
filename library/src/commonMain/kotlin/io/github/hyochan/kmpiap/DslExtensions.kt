@@ -90,7 +90,7 @@ private fun RequestPurchaseResult?.failToFindPurchase(): Nothing =
 
 fun Purchase.toPurchaseInput(): PurchaseInput = this
 
-private fun ProductSubscription.toProduct(): Product? = when (this) {
+private fun ProductSubscription.toProduct(): Product = when (this) {
     is ProductSubscriptionAndroid -> ProductAndroid(
         currency = currency,
         debugDescription = debugDescription,
@@ -123,5 +123,4 @@ private fun ProductSubscription.toProduct(): Product? = when (this) {
         type = type,
         typeIOS = typeIOS
     )
-    else -> null
 }

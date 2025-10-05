@@ -183,7 +183,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                             builder.enableUserChoiceBilling { userChoiceDetails ->
                                 val details = UserChoiceBillingDetails(
                                     externalTransactionToken = userChoiceDetails.externalTransactionToken,
-                                    products = userChoiceDetails.products.map { it.productId }
+                                    products = userChoiceDetails.products.map { it.id }
                                 )
                                 _userChoiceBillingListener.tryEmit(details)
                             }
@@ -789,7 +789,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     }
                 }
                 AlternativeBillingModeAndroid.UserChoice -> {
-                    val result = client.isFeatureSupported(BillingClient.FeatureType.ALTERNATIVE_BILLING)
+                    val result = client.isFeatureSupported(BillingClient.FeatureType.ALTERNATIVE_BILLING_ONLY)
                     result.responseCode == BillingClient.BillingResponseCode.OK
                 }
                 else -> false

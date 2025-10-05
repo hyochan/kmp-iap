@@ -820,57 +820,62 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     // -------------------------------------------------------------------------
     // iOS External Purchase Methods
     // -------------------------------------------------------------------------
-    // TODO: Implement these methods in OpenIAP iOS native module
 
-    override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS {
-        // TODO: Implement proper StoreKit 2 external purchase link in OpenIAP iOS module
-        // For now, open URL directly in Safari as a workaround using modern API
-        return suspendCoroutine { continuation ->
-            val nsUrl = NSURL.URLWithString(url)
-            if (nsUrl == null) {
-                continuation.resume(
-                    ExternalPurchaseLinkResultIOS(
-                        success = false,
-                        error = "Invalid URL: $url"
-                    )
-                )
-                return@suspendCoroutine
-            }
-
-            val application = platform.UIKit.UIApplication.sharedApplication
-
-            // Use modern API: open(_:options:completionHandler:)
-            // Note: openURL only indicates Safari opened, NOT that billing completed
-            // Always return success=false until native StoreKit support is implemented
-            application.openURL(
-                url = nsUrl,
-                options = emptyMap<Any?, Any?>(),
-                completionHandler = { urlOpened: Boolean ->
+    override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.presentExternalPurchaseLinkIOSWithUrl(url) { result, error ->
+                if (error != null) {
                     continuation.resume(
                         ExternalPurchaseLinkResultIOS(
                             success = false,
-                            error = if (urlOpened) {
-                                "External purchase link opened in Safari; completion status is unknown until native support is implemented."
-                            } else {
-                                "Failed to open URL: $url"
-                            }
+                            error = error.localizedDescription
                         )
                     )
+                    return@presentExternalPurchaseLinkIOSWithUrl
                 }
-            )
+
+                val resultDict = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                continuation.resume(
+                    ExternalPurchaseLinkResultIOS(
+                        success = resultDict["success"] as? Boolean ?: false,
+                        error = resultDict["error"] as? String
+                    )
+                )
+            }
         }
-    }
 
-    override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS {
-        // TODO: Implement in OpenIAP iOS module
-        return ExternalPurchaseNoticeResultIOS(
-            result = ExternalPurchaseNoticeAction.Dismissed,
-            error = "External purchase notice feature not yet implemented in native iOS module"
-        )
-    }
+    override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.presentExternalPurchaseNoticeSheetIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resume(
+                        ExternalPurchaseNoticeResultIOS(
+                            result = ExternalPurchaseNoticeAction.Dismissed,
+                            error = error.localizedDescription
+                        )
+                    )
+                    return@presentExternalPurchaseNoticeSheetIOSWithCompletion
+                }
 
-    override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean {
-        // TODO: Implement in OpenIAP iOS module
-        return false
-    }
+                val resultDict = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                val action = when (resultDict["result"] as? String) {
+                    "continue" -> ExternalPurchaseNoticeAction.Continue
+                    else -> ExternalPurchaseNoticeAction.Dismissed
+                }
+
+                continuation.resume(
+                    ExternalPurchaseNoticeResultIOS(
+                        result = action,
+                        error = resultDict["error"] as? String
+                    )
+                )
+            }
+        }
+
+    override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.canPresentExternalPurchaseNoticeIOSWithCompletion { canPresent, error ->
+                continuation.resume(error == null && canPresent)
+            }
+        }
 }
