@@ -88,19 +88,9 @@ private fun RequestPurchaseResult?.failToFindPurchase(): Nothing =
         )
     )
 
-fun Purchase.toPurchaseInput(): PurchaseInput = PurchaseInput(
-    id = id,
-    ids = ids,
-    isAutoRenewing = isAutoRenewing,
-    platform = platform,
-    productId = productId,
-    purchaseState = purchaseState,
-    purchaseToken = purchaseToken,
-    quantity = quantity,
-    transactionDate = transactionDate
-)
+fun Purchase.toPurchaseInput(): PurchaseInput = this
 
-private fun ProductSubscription.toProduct(): Product? = when (this) {
+private fun ProductSubscription.toProduct(): Product = when (this) {
     is ProductSubscriptionAndroid -> ProductAndroid(
         currency = currency,
         debugDescription = debugDescription,
@@ -133,5 +123,4 @@ private fun ProductSubscription.toProduct(): Product? = when (this) {
         type = type,
         typeIOS = typeIOS
     )
-    else -> null
 }

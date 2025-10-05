@@ -495,19 +495,6 @@ fun SubscriptionCard(
                 val jsonString = when (subscription) {
                     is ProductAndroid -> json.encodeToString(subscription)
                     is ProductIOS -> json.encodeToString(subscription)
-                    else -> {
-                        // Fallback to manual JSON if unknown type
-                        """
-                        {
-                          "id": "${subscription.id}",
-                          "title": "${subscription.title}",
-                          "description": "${subscription.description}",
-                          "displayPrice": "${subscription.displayPrice}",
-                          "type": "${subscription.type}",
-                          "platform": "${subscription.platform}"
-                        }
-                        """.trimIndent()
-                    }
                 }
                 println(jsonString)
                 println("Is Subscribed: $isSubscribed")

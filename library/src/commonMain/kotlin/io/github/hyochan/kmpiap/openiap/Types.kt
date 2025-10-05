@@ -10,6 +10,40 @@ package io.github.hyochan.kmpiap.openiap
 
 // MARK: - Enums
 
+/**
+ * Alternative billing mode for Android
+ * Controls which billing system is used
+ */
+public enum class AlternativeBillingModeAndroid(val rawValue: String) {
+    /**
+     * Standard Google Play billing (default)
+     */
+    None("none"),
+    /**
+     * User choice billing - user can select between Google Play or alternative
+     * Requires Google Play Billing Library 7.0+
+     */
+    UserChoice("user-choice"),
+    /**
+     * Alternative billing only - no Google Play billing option
+     * Requires Google Play Billing Library 6.2+
+     */
+    AlternativeOnly("alternative-only");
+    companion object {
+        fun fromJson(value: String): AlternativeBillingModeAndroid = when (value) {
+            "none" -> AlternativeBillingModeAndroid.None
+            "NONE" -> AlternativeBillingModeAndroid.None
+            "user-choice" -> AlternativeBillingModeAndroid.UserChoice
+            "USER_CHOICE" -> AlternativeBillingModeAndroid.UserChoice
+            "alternative-only" -> AlternativeBillingModeAndroid.AlternativeOnly
+            "ALTERNATIVE_ONLY" -> AlternativeBillingModeAndroid.AlternativeOnly
+            else -> throw IllegalArgumentException("Unknown AlternativeBillingModeAndroid value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ErrorCode(val rawValue: String) {
     Unknown("unknown"),
     UserCancelled("user-cancelled"),
@@ -156,10 +190,38 @@ public enum class ErrorCode(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * User actions on external purchase notice sheet (iOS 18.2+)
+ */
+public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
+    /**
+     * User chose to continue to external purchase
+     */
+    Continue("continue"),
+    /**
+     * User dismissed the notice sheet
+     */
+    Dismissed("dismissed");
+    companion object {
+        fun fromJson(value: String): ExternalPurchaseNoticeAction = when (value) {
+            "continue" -> ExternalPurchaseNoticeAction.Continue
+            "CONTINUE" -> ExternalPurchaseNoticeAction.Continue
+            "Continue" -> ExternalPurchaseNoticeAction.Continue
+            "dismissed" -> ExternalPurchaseNoticeAction.Dismissed
+            "DISMISSED" -> ExternalPurchaseNoticeAction.Dismissed
+            "Dismissed" -> ExternalPurchaseNoticeAction.Dismissed
+            else -> throw IllegalArgumentException("Unknown ExternalPurchaseNoticeAction value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class IapEvent(val rawValue: String) {
     PurchaseUpdated("purchase-updated"),
     PurchaseError("purchase-error"),
-    PromotedProductIos("promoted-product-ios");
+    PromotedProductIos("promoted-product-ios"),
+    UserChoiceBillingAndroid("user-choice-billing-android");
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
@@ -171,6 +233,9 @@ public enum class IapEvent(val rawValue: String) {
             "promoted-product-ios" -> IapEvent.PromotedProductIos
             "PROMOTED_PRODUCT_IOS" -> IapEvent.PromotedProductIos
             "PromotedProductIOS" -> IapEvent.PromotedProductIos
+            "user-choice-billing-android" -> IapEvent.UserChoiceBillingAndroid
+            "USER_CHOICE_BILLING_ANDROID" -> IapEvent.UserChoiceBillingAndroid
+            "UserChoiceBillingAndroid" -> IapEvent.UserChoiceBillingAndroid
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
     }
@@ -385,6 +450,13 @@ public interface ProductCommon {
 }
 
 public interface PurchaseCommon {
+    /**
+     * The current plan identifier. This is:
+     * - On Android: the basePlanId (e.g., "premium", "premium-year")
+     * - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
+     * This provides a unified way to identify which specific plan/tier the user is subscribed to.
+     */
+    val currentPlanId: String?
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
@@ -403,12 +475,24 @@ public interface PurchaseCommon {
 
 public data class ActiveSubscription(
     val autoRenewingAndroid: Boolean? = null,
+    val basePlanIdAndroid: String? = null,
+    /**
+     * The current plan identifier. This is:
+     * - On Android: the basePlanId (e.g., "premium", "premium-year")
+     * - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly")
+     * This provides a unified way to identify which specific plan/tier the user is subscribed to.
+     */
+    val currentPlanId: String? = null,
     val daysUntilExpirationIOS: Double? = null,
     val environmentIOS: String? = null,
     val expirationDateIOS: Double? = null,
     val isActive: Boolean,
     val productId: String,
     val purchaseToken: String? = null,
+    /**
+     * Required for subscription upgrade/downgrade on Android
+     */
+    val purchaseTokenAndroid: String? = null,
     val transactionDate: Double,
     val transactionId: String,
     val willExpireSoon: Boolean? = null
@@ -418,12 +502,15 @@ public data class ActiveSubscription(
         fun fromJson(json: Map<String, Any?>): ActiveSubscription {
             return ActiveSubscription(
                 autoRenewingAndroid = json["autoRenewingAndroid"] as Boolean?,
+                basePlanIdAndroid = json["basePlanIdAndroid"] as String?,
+                currentPlanId = json["currentPlanId"] as String?,
                 daysUntilExpirationIOS = (json["daysUntilExpirationIOS"] as Number?)?.toDouble(),
                 environmentIOS = json["environmentIOS"] as String?,
                 expirationDateIOS = (json["expirationDateIOS"] as Number?)?.toDouble(),
                 isActive = json["isActive"] as Boolean,
                 productId = json["productId"] as String,
                 purchaseToken = json["purchaseToken"] as String?,
+                purchaseTokenAndroid = json["purchaseTokenAndroid"] as String?,
                 transactionDate = (json["transactionDate"] as Number).toDouble(),
                 transactionId = json["transactionId"] as String,
                 willExpireSoon = json["willExpireSoon"] as Boolean?,
@@ -434,12 +521,15 @@ public data class ActiveSubscription(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ActiveSubscription",
         "autoRenewingAndroid" to autoRenewingAndroid,
+        "basePlanIdAndroid" to basePlanIdAndroid,
+        "currentPlanId" to currentPlanId,
         "daysUntilExpirationIOS" to daysUntilExpirationIOS,
         "environmentIOS" to environmentIOS,
         "expirationDateIOS" to expirationDateIOS,
         "isActive" to isActive,
         "productId" to productId,
         "purchaseToken" to purchaseToken,
+        "purchaseTokenAndroid" to purchaseTokenAndroid,
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
         "willExpireSoon" to willExpireSoon,
@@ -605,6 +695,66 @@ public data class EntitlementIOS(
         "jsonRepresentation" to jsonRepresentation,
         "sku" to sku,
         "transactionId" to transactionId,
+    )
+}
+
+/**
+ * Result of presenting an external purchase link (iOS 18.2+)
+ */
+public data class ExternalPurchaseLinkResultIOS(
+    /**
+     * Optional error message if the presentation failed
+     */
+    val error: String? = null,
+    /**
+     * Whether the user completed the external purchase flow
+     */
+    val success: Boolean
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseLinkResultIOS {
+            return ExternalPurchaseLinkResultIOS(
+                error = json["error"] as String?,
+                success = json["success"] as Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalPurchaseLinkResultIOS",
+        "error" to error,
+        "success" to success,
+    )
+}
+
+/**
+ * Result of presenting external purchase notice sheet (iOS 18.2+)
+ */
+public data class ExternalPurchaseNoticeResultIOS(
+    /**
+     * Optional error message if the presentation failed
+     */
+    val error: String? = null,
+    /**
+     * Notice result indicating user action
+     */
+    val result: ExternalPurchaseNoticeAction
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ExternalPurchaseNoticeResultIOS {
+            return ExternalPurchaseNoticeResultIOS(
+                error = json["error"] as String?,
+                result = ExternalPurchaseNoticeAction.fromJson(json["result"] as String),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ExternalPurchaseNoticeResultIOS",
+        "error" to error,
+        "result" to result.toJson(),
     )
 }
 
@@ -973,6 +1123,7 @@ public data class ProductSubscriptionIOS(
 
 public data class PurchaseAndroid(
     val autoRenewingAndroid: Boolean? = null,
+    override val currentPlanId: String? = null,
     val dataAndroid: String? = null,
     val developerPayloadAndroid: String? = null,
     override val id: String,
@@ -996,6 +1147,7 @@ public data class PurchaseAndroid(
         fun fromJson(json: Map<String, Any?>): PurchaseAndroid {
             return PurchaseAndroid(
                 autoRenewingAndroid = json["autoRenewingAndroid"] as Boolean?,
+                currentPlanId = json["currentPlanId"] as String?,
                 dataAndroid = json["dataAndroid"] as String?,
                 developerPayloadAndroid = json["developerPayloadAndroid"] as String?,
                 id = json["id"] as String,
@@ -1020,6 +1172,7 @@ public data class PurchaseAndroid(
     override fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "PurchaseAndroid",
         "autoRenewingAndroid" to autoRenewingAndroid,
+        "currentPlanId" to currentPlanId,
         "dataAndroid" to dataAndroid,
         "developerPayloadAndroid" to developerPayloadAndroid,
         "id" to id,
@@ -1070,6 +1223,7 @@ public data class PurchaseIOS(
     val countryCodeIOS: String? = null,
     val currencyCodeIOS: String? = null,
     val currencySymbolIOS: String? = null,
+    override val currentPlanId: String? = null,
     val environmentIOS: String? = null,
     val expirationDateIOS: Double? = null,
     override val id: String,
@@ -1106,6 +1260,7 @@ public data class PurchaseIOS(
                 countryCodeIOS = json["countryCodeIOS"] as String?,
                 currencyCodeIOS = json["currencyCodeIOS"] as String?,
                 currencySymbolIOS = json["currencySymbolIOS"] as String?,
+                currentPlanId = json["currentPlanId"] as String?,
                 environmentIOS = json["environmentIOS"] as String?,
                 expirationDateIOS = (json["expirationDateIOS"] as Number?)?.toDouble(),
                 id = json["id"] as String,
@@ -1143,6 +1298,7 @@ public data class PurchaseIOS(
         "countryCodeIOS" to countryCodeIOS,
         "currencyCodeIOS" to currencyCodeIOS,
         "currencySymbolIOS" to currencySymbolIOS,
+        "currentPlanId" to currentPlanId,
         "environmentIOS" to environmentIOS,
         "expirationDateIOS" to expirationDateIOS,
         "id" to id,
@@ -1460,6 +1616,37 @@ public data class SubscriptionStatusIOS(
     )
 }
 
+/**
+ * User Choice Billing event details (Android)
+ * Fired when a user selects alternative billing in the User Choice Billing dialog
+ */
+public data class UserChoiceBillingDetails(
+    /**
+     * Token that must be reported to Google Play within 24 hours
+     */
+    val externalTransactionToken: String,
+    /**
+     * List of product IDs selected by the user
+     */
+    val products: List<String>
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): UserChoiceBillingDetails {
+            return UserChoiceBillingDetails(
+                externalTransactionToken = json["externalTransactionToken"] as String,
+                products = (json["products"] as List<*>).map { it as String },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "UserChoiceBillingDetails",
+        "externalTransactionToken" to externalTransactionToken,
+        "products" to products.map { it },
+    )
+}
+
 public typealias VoidResult = Unit
 
 // MARK: - Input Objects
@@ -1557,6 +1744,29 @@ public data class DiscountOfferInputIOS(
     )
 }
 
+/**
+ * Connection initialization configuration
+ */
+public data class InitConnectionConfig(
+    /**
+     * Alternative billing mode for Android
+     * If not specified, defaults to NONE (standard Google Play billing)
+     */
+    val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
+            return InitConnectionConfig(
+                alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as String?)?.let { AlternativeBillingModeAndroid.fromJson(it) },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "alternativeBillingModeAndroid" to alternativeBillingModeAndroid?.toJson(),
+    )
+}
+
 public data class ProductRequest(
     val skus: List<String>,
     val type: ProductQueryType? = null
@@ -1576,45 +1786,7 @@ public data class ProductRequest(
     )
 }
 
-public data class PurchaseInput(
-    val id: String,
-    val ids: List<String>? = null,
-    val isAutoRenewing: Boolean,
-    val platform: IapPlatform,
-    val productId: String,
-    val purchaseState: PurchaseState,
-    val purchaseToken: String? = null,
-    val quantity: Int,
-    val transactionDate: Double
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): PurchaseInput {
-            return PurchaseInput(
-                id = json["id"] as String,
-                ids = (json["ids"] as List<*>?)?.map { it as String },
-                isAutoRenewing = json["isAutoRenewing"] as Boolean,
-                platform = IapPlatform.fromJson(json["platform"] as String),
-                productId = json["productId"] as String,
-                purchaseState = PurchaseState.fromJson(json["purchaseState"] as String),
-                purchaseToken = json["purchaseToken"] as String?,
-                quantity = (json["quantity"] as Number).toInt(),
-                transactionDate = (json["transactionDate"] as Number).toDouble(),
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "id" to id,
-        "ids" to ids?.map { it },
-        "isAutoRenewing" to isAutoRenewing,
-        "platform" to platform.toJson(),
-        "productId" to productId,
-        "purchaseState" to purchaseState.toJson(),
-        "purchaseToken" to purchaseToken,
-        "quantity" to quantity,
-        "transactionDate" to transactionDate,
-    )
-}
+public typealias PurchaseInput = Purchase
 
 public data class PurchaseOptions(
     /**
@@ -1773,7 +1945,8 @@ public data class RequestPurchaseIosProps(
 
 public data class RequestPurchaseProps(
     val request: Request,
-    val type: ProductQueryType
+    val type: ProductQueryType,
+    val useAlternativeBilling: Boolean? = null
 ) {
     init {
         when (request) {
@@ -1785,19 +1958,20 @@ public data class RequestPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseProps {
             val rawType = (json["type"] as String?)?.let { ProductQueryType.fromJson(it) }
+            val useAlternativeBilling = json["useAlternativeBilling"] as Boolean?
             val purchaseJson = json["requestPurchase"] as Map<String, Any?>?
             if (purchaseJson != null) {
                 val request = Request.Purchase(RequestPurchasePropsByPlatforms.fromJson(purchaseJson))
                 val finalType = rawType ?: ProductQueryType.InApp
                 require(finalType == ProductQueryType.InApp) { "type must be IN_APP when requestPurchase is provided" }
-                return RequestPurchaseProps(request = request, type = finalType)
+                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)
             }
             val subscriptionJson = json["requestSubscription"] as Map<String, Any?>?
             if (subscriptionJson != null) {
                 val request = Request.Subscription(RequestSubscriptionPropsByPlatforms.fromJson(subscriptionJson))
                 val finalType = rawType ?: ProductQueryType.Subs
                 require(finalType == ProductQueryType.Subs) { "type must be SUBS when requestSubscription is provided" }
-                return RequestPurchaseProps(request = request, type = finalType)
+                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)
             }
             throw IllegalArgumentException("RequestPurchaseProps requires requestPurchase or requestSubscription")
         }
@@ -1807,10 +1981,12 @@ public data class RequestPurchaseProps(
         is Request.Purchase -> mapOf(
             "requestPurchase" to request.value.toJson(),
             "type" to type.toJson(),
+            "useAlternativeBilling" to useAlternativeBilling,
         )
         is Request.Subscription -> mapOf(
             "requestSubscription" to request.value.toJson(),
             "type" to type.toJson(),
+            "useAlternativeBilling" to useAlternativeBilling,
         )
     }
 
@@ -2026,6 +2202,14 @@ public interface MutationResolver {
      */
     suspend fun beginRefundRequestIOS(sku: String): String?
     /**
+     * Check if alternative billing is available for this user/device
+     * Step 1 of alternative billing flow
+     * 
+     * Returns true if available, false otherwise
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
+    /**
      * Clear pending transactions from the StoreKit payment queue
      */
     suspend fun clearTransactionIOS(): Boolean
@@ -2033,6 +2217,16 @@ public interface MutationResolver {
      * Consume a purchase token so it can be repurchased
      */
     suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
+    /**
+     * Create external transaction token for Google Play reporting
+     * Step 3 of alternative billing flow
+     * Must be called AFTER successful payment in your payment system
+     * Token must be reported to Google Play backend within 24 hours
+     * 
+     * Returns token string, or null if creation failed
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun createAlternativeBillingTokenAndroid(): String?
     /**
      * Open the native subscription management surface
      */
@@ -2048,11 +2242,19 @@ public interface MutationResolver {
     /**
      * Establish the platform billing connection
      */
-    suspend fun initConnection(): Boolean
+    suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
     /**
      * Present the App Store code redemption sheet
      */
     suspend fun presentCodeRedemptionSheetIOS(): Boolean
+    /**
+     * Present external purchase custom link with StoreKit UI (iOS 18.2+)
+     */
+    suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
+    /**
+     * Present external purchase notice sheet (iOS 18.2+)
+     */
+    suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
     /**
      * Initiate a purchase flow; rely on events for final state
      */
@@ -2065,6 +2267,15 @@ public interface MutationResolver {
      * Restore completed purchases across platforms
      */
     suspend fun restorePurchases(): Unit
+    /**
+     * Show alternative billing information dialog to user
+     * Step 2 of alternative billing flow
+     * Must be called BEFORE processing payment in your payment system
+     * 
+     * Returns true if user accepted, false if user canceled
+     * Throws OpenIapError.NotPrepared if billing client not ready
+     */
+    suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
      * Open subscription management UI and return changed purchases (iOS 15+)
      */
@@ -2083,6 +2294,10 @@ public interface MutationResolver {
  * GraphQL root query operations.
  */
 public interface QueryResolver {
+    /**
+     * Check if external purchase notice sheet can be presented (iOS 18.2+)
+     */
+    suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
     /**
      * Get current StoreKit 2 entitlements (iOS 15+)
      */
@@ -2169,6 +2384,11 @@ public interface SubscriptionResolver {
      * Fires when a purchase completes successfully or a pending purchase resolves
      */
     suspend fun purchaseUpdated(): Purchase
+    /**
+     * Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
+     * Only triggered when the user selects alternative billing instead of Google Play billing
+     */
+    suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails
 }
 
 // MARK: - Root Operation Helpers
@@ -2177,16 +2397,21 @@ public interface SubscriptionResolver {
 
 public typealias MutationAcknowledgePurchaseAndroidHandler = suspend (purchaseToken: String) -> Boolean
 public typealias MutationBeginRefundRequestIOSHandler = suspend (sku: String) -> String?
+public typealias MutationCheckAlternativeBillingAvailabilityAndroidHandler = suspend () -> Boolean
 public typealias MutationClearTransactionIOSHandler = suspend () -> Boolean
 public typealias MutationConsumePurchaseAndroidHandler = suspend (purchaseToken: String) -> Boolean
+public typealias MutationCreateAlternativeBillingTokenAndroidHandler = suspend () -> String?
 public typealias MutationDeepLinkToSubscriptionsHandler = suspend (options: DeepLinkOptions?) -> Unit
 public typealias MutationEndConnectionHandler = suspend () -> Boolean
 public typealias MutationFinishTransactionHandler = suspend (purchase: PurchaseInput, isConsumable: Boolean?) -> Unit
-public typealias MutationInitConnectionHandler = suspend () -> Boolean
+public typealias MutationInitConnectionHandler = suspend (config: InitConnectionConfig?) -> Boolean
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> Boolean
+public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
+public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = suspend (params: RequestPurchaseProps) -> RequestPurchaseResult?
 public typealias MutationRequestPurchaseOnPromotedProductIOSHandler = suspend () -> Boolean
 public typealias MutationRestorePurchasesHandler = suspend () -> Unit
+public typealias MutationShowAlternativeBillingDialogAndroidHandler = suspend () -> Boolean
 public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
 public typealias MutationValidateReceiptHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResult
@@ -2194,16 +2419,21 @@ public typealias MutationValidateReceiptHandler = suspend (options: ReceiptValid
 public data class MutationHandlers(
     val acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = null,
     val beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler? = null,
+    val checkAlternativeBillingAvailabilityAndroid: MutationCheckAlternativeBillingAvailabilityAndroidHandler? = null,
     val clearTransactionIOS: MutationClearTransactionIOSHandler? = null,
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = null,
+    val createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler? = null,
     val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = null,
     val endConnection: MutationEndConnectionHandler? = null,
     val finishTransaction: MutationFinishTransactionHandler? = null,
     val initConnection: MutationInitConnectionHandler? = null,
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
+    val presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = null,
+    val presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = null,
     val requestPurchase: MutationRequestPurchaseHandler? = null,
     val requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler? = null,
     val restorePurchases: MutationRestorePurchasesHandler? = null,
+    val showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = null,
     val showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = null,
     val syncIOS: MutationSyncIOSHandler? = null,
     val validateReceipt: MutationValidateReceiptHandler? = null
@@ -2211,6 +2441,7 @@ public data class MutationHandlers(
 
 // MARK: - Query Helpers
 
+public typealias QueryCanPresentExternalPurchaseNoticeIOSHandler = suspend () -> Boolean
 public typealias QueryCurrentEntitlementIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QueryFetchProductsHandler = suspend (params: ProductRequest) -> FetchProductsResult
 public typealias QueryGetActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> List<ActiveSubscription>
@@ -2230,6 +2461,7 @@ public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> Li
 public typealias QueryValidateReceiptIOSHandler = suspend (options: ReceiptValidationProps) -> ReceiptValidationResultIOS
 
 public data class QueryHandlers(
+    val canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = null,
     val currentEntitlementIOS: QueryCurrentEntitlementIOSHandler? = null,
     val fetchProducts: QueryFetchProductsHandler? = null,
     val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler? = null,
@@ -2254,9 +2486,11 @@ public data class QueryHandlers(
 public typealias SubscriptionPromotedProductIOSHandler = suspend () -> String
 public typealias SubscriptionPurchaseErrorHandler = suspend () -> PurchaseError
 public typealias SubscriptionPurchaseUpdatedHandler = suspend () -> Purchase
+public typealias SubscriptionUserChoiceBillingAndroidHandler = suspend () -> UserChoiceBillingDetails
 
 public data class SubscriptionHandlers(
     val promotedProductIOS: SubscriptionPromotedProductIOSHandler? = null,
     val purchaseError: SubscriptionPurchaseErrorHandler? = null,
-    val purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = null
+    val purchaseUpdated: SubscriptionPurchaseUpdatedHandler? = null,
+    val userChoiceBillingAndroid: SubscriptionUserChoiceBillingAndroidHandler? = null
 )

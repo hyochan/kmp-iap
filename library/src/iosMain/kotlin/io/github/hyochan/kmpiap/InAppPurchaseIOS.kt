@@ -104,7 +104,8 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     // MutationResolver Implementation
     // -------------------------------------------------------------------------
 
-    override suspend fun initConnection(): Boolean = suspendCoroutine { continuation ->
+    override suspend fun initConnection(config: InitConnectionConfig?): Boolean = suspendCoroutine { continuation ->
+        // iOS doesn't use alternative billing config, it's Android only
         openIapModule.initConnectionWithCompletion { success, error ->
             if (error != null) {
                 continuation.resumeWithException(Exception(error.localizedDescription))
@@ -795,4 +796,86 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         throw UnsupportedOperationException("Android method not available on iOS")
     }
+
+    // -------------------------------------------------------------------------
+    // Android Alternative Billing Methods (stubs for iOS)
+    // -------------------------------------------------------------------------
+
+    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
+        return false // Not supported on iOS
+    }
+
+    override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
+        throw UnsupportedOperationException("Android alternative billing not available on iOS")
+    }
+
+    override suspend fun createAlternativeBillingTokenAndroid(): String? {
+        return null // Not supported on iOS
+    }
+
+    override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {
+        throw UnsupportedOperationException("Android user choice billing not available on iOS")
+    }
+
+    // -------------------------------------------------------------------------
+    // iOS External Purchase Methods
+    // -------------------------------------------------------------------------
+
+    override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.presentExternalPurchaseLinkIOSWithUrl(url) { result, error ->
+                if (error != null) {
+                    continuation.resume(
+                        ExternalPurchaseLinkResultIOS(
+                            success = false,
+                            error = error.localizedDescription
+                        )
+                    )
+                    return@presentExternalPurchaseLinkIOSWithUrl
+                }
+
+                val resultDict = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                continuation.resume(
+                    ExternalPurchaseLinkResultIOS(
+                        success = resultDict["success"] as? Boolean ?: false,
+                        error = resultDict["error"] as? String
+                    )
+                )
+            }
+        }
+
+    override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.presentExternalPurchaseNoticeSheetIOSWithCompletion { result, error ->
+                if (error != null) {
+                    continuation.resume(
+                        ExternalPurchaseNoticeResultIOS(
+                            result = ExternalPurchaseNoticeAction.Dismissed,
+                            error = error.localizedDescription
+                        )
+                    )
+                    return@presentExternalPurchaseNoticeSheetIOSWithCompletion
+                }
+
+                val resultDict = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                val action = when (resultDict["result"] as? String) {
+                    "continue" -> ExternalPurchaseNoticeAction.Continue
+                    else -> ExternalPurchaseNoticeAction.Dismissed
+                }
+
+                continuation.resume(
+                    ExternalPurchaseNoticeResultIOS(
+                        result = action,
+                        error = resultDict["error"] as? String
+                    )
+                )
+            }
+        }
+
+    override suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.canPresentExternalPurchaseNoticeIOSWithCompletion { canPresent, error ->
+                continuation.resume(error == null && canPresent)
+            }
+        }
 }

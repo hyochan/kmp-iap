@@ -398,6 +398,137 @@ Gets the App Store storefront information.
 suspend fun getStorefrontIOS(): String
 ```
 
+### iOS-Specific Alternative Billing
+
+#### canPresentExternalPurchaseNoticeIOS()
+
+Check if the device can present an external purchase notice sheet. Requires iOS 18.2+.
+
+```kotlin
+suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
+```
+
+**Returns**: `true` if the device supports external purchase notice sheets
+
+**Platform**: iOS 18.2+
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val canPresent = kmpIapInstance.canPresentExternalPurchaseNoticeIOS()
+if (canPresent) {
+    println("External purchase notice sheet is available")
+}
+```
+
+**Note**: This notice sheet must be presented before redirecting users to external purchase links on iOS 18.2+.
+
+---
+
+#### presentExternalPurchaseNoticeSheetIOS()
+
+Present an external purchase notice sheet to inform users about external purchases. This must be called before opening an external purchase link on iOS 18.2+.
+
+```kotlin
+suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
+```
+
+**Returns**: `ExternalPurchaseNoticeResultIOS` with result status
+
+```kotlin
+data class ExternalPurchaseNoticeResultIOS(
+    val error: String?,
+    val result: String? // "continue" or "dismissed"
+)
+```
+
+**Platform**: iOS 18.2+
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val result = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
+
+if (result.error != null) {
+    println("Failed to present notice: ${result.error}")
+} else if (result.result == "continue") {
+    // User chose to continue to external purchase
+    println("User accepted external purchase notice")
+} else if (result.result == "dismissed") {
+    // User dismissed the sheet
+    println("User dismissed notice")
+}
+```
+
+**See also**: [StoreKit External Purchase documentation](https://developer.apple.com/documentation/storekit/external-purchase)
+
+---
+
+#### presentExternalPurchaseLinkIOS()
+
+Open an external purchase link in Safari to redirect users to your website for purchase. Requires iOS 16.0+.
+
+```kotlin
+suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
+```
+
+**Parameters**:
+- `url` - The external purchase URL to open
+
+**Returns**: `ExternalPurchaseLinkResultIOS` with success status
+
+```kotlin
+data class ExternalPurchaseLinkResultIOS(
+    val error: String?,
+    val success: Boolean
+)
+```
+
+**Platform**: iOS 16.0+
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val result = kmpIapInstance.presentExternalPurchaseLinkIOS(
+    url = "https://your-site.com/checkout"
+)
+
+if (result.error != null) {
+    println("Failed to open link: ${result.error}")
+} else if (result.success) {
+    println("User redirected to external purchase website")
+}
+```
+
+**Requirements**:
+- Must configure entitlements in your iOS project
+- Requires Apple approval and proper provisioning profile with external purchase entitlements
+- URLs must be configured in Info.plist
+- iOS 16.0 or later
+
+**Configuration Example** (Info.plist):
+```xml
+<plist>
+<dict>
+    <!-- Countries where external purchases are supported -->
+    <key>SKExternalPurchase</key>
+    <array>
+        <string>kr</string>
+        <string>nl</string>
+    </array>
+</dict>
+</plist>
+```
+
+**See also**:
+- [StoreKit External Purchase documentation](https://developer.apple.com/documentation/storekit/external-purchase)
+- [Alternative Billing Guide](../guides/alternative-billing.md)
+
+---
+
 ### Android-Specific Methods
 
 #### acknowledgePurchaseAndroid()
@@ -436,6 +567,170 @@ kmpIapInstance.deepLinkToSubscriptions(
     DeepLinkOptions(skuAndroid = "premium_monthly")
 )
 ```
+
+---
+
+### Android-Specific Alternative Billing
+
+#### checkAlternativeBillingAvailabilityAndroid()
+
+Check if alternative billing is available for the current user. This must be called before showing the alternative billing dialog.
+
+```kotlin
+suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
+```
+
+**Returns**: `true` if alternative billing is available, `false` otherwise
+
+**Platform**: Android
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+if (isAvailable) {
+    println("Alternative billing is available")
+} else {
+    println("Alternative billing not available for this user")
+}
+```
+
+**Requirements**:
+- Must initialize connection with alternative billing mode
+- User must be eligible for alternative billing (determined by Google)
+
+**See also**: [Google Play Alternative Billing documentation](https://developer.android.com/google/play/billing/alternative)
+
+---
+
+#### showAlternativeBillingDialogAndroid()
+
+Show Google's required information dialog to inform users about alternative billing. This must be called after checking availability and before processing payment.
+
+```kotlin
+suspend fun showAlternativeBillingDialogAndroid(): Boolean
+```
+
+**Returns**: `true` if user accepted, `false` if user declined
+
+**Platform**: Android
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+if (userAccepted) {
+    println("User accepted alternative billing")
+    // Proceed with your payment flow
+} else {
+    println("User declined alternative billing")
+}
+```
+
+**Note**: This dialog is required by Google Play's alternative billing policy. You must show this before redirecting users to your payment system.
+
+---
+
+#### createAlternativeBillingTokenAndroid()
+
+Generate a reporting token after successfully processing payment through your payment system. This token must be reported to Google Play within 24 hours.
+
+```kotlin
+suspend fun createAlternativeBillingTokenAndroid(): String?
+```
+
+**Returns**: Token string if successful, `null` if failed
+
+**Platform**: Android
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+// After successfully processing payment in your system
+val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+
+if (token != null) {
+    println("Token created: $token")
+    // Send this token to your backend to report to Google
+    reportTokenToGooglePlay(token)
+} else {
+    println("Failed to create token")
+}
+```
+
+**Important**:
+- Token must be reported to Google Play backend within 24 hours
+- Requires server-side integration with Google Play Developer API
+- Failure to report will result in refund and possible account suspension
+
+---
+
+#### Alternative Billing Configuration
+
+Configure alternative billing mode when initializing the connection:
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
+import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+
+// Initialize with alternative billing mode
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    // Or: AlternativeBillingModeAndroid.AlternativeOnly
+)
+
+val connected = kmpIapInstance.initConnection(config)
+```
+
+**Billing Modes**:
+- `UserChoice` - Users choose between Google Play billing or your payment system
+- `AlternativeOnly` - Only your payment system is available
+- `None` - Default, no alternative billing
+
+---
+
+#### Complete Alternative Billing Flow Example
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+
+suspend fun purchaseWithAlternativeBilling(productId: String) {
+    // Step 1: Check availability
+    val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+    if (!isAvailable) {
+        throw Exception("Alternative billing not available")
+    }
+
+    // Step 2: Show required dialog
+    val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+    if (!userAccepted) {
+        throw Exception("User declined alternative billing")
+    }
+
+    // Step 3: Process payment in your system
+    val paymentResult = processPaymentInYourSystem(productId)
+    if (!paymentResult.success) {
+        throw Exception("Payment failed")
+    }
+
+    // Step 4: Create reporting token
+    val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+    if (token == null) {
+        throw Exception("Failed to create token")
+    }
+
+    // Step 5: Report to Google (must be done within 24 hours)
+    reportToGooglePlayBackend(token, productId, paymentResult)
+
+    println("Alternative billing purchase completed")
+}
+```
+
+**See also**: [Alternative Billing Guide](../guides/alternative-billing.md)
 
 ## Subscription Management
 

@@ -98,7 +98,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             return@filter purchase.isAcknowledgedAndroid != true
                         }
                     }
-                    else -> return@filter true
                 }
             }
             .sortedByDescending { it.transactionDate }
@@ -465,7 +464,6 @@ fun AvailablePurchasesScreen(navController: NavController) {
                         val isAcknowledged = when (purchase) {
                             is PurchaseAndroid -> purchase.isAcknowledgedAndroid == true
                             is PurchaseIOS -> purchase.purchaseState == PurchaseState.Restored
-                            else -> false
                         }
 
                         PurchaseCard(
@@ -564,7 +562,6 @@ fun needsFinishButton(purchase: Purchase): Boolean {
             // For Android: show button if not acknowledged
             purchase.isAcknowledgedAndroid != true
         }
-        else -> false
     }
 }
 
@@ -583,26 +580,28 @@ fun PurchaseCard(
             .clickable {
                 // Log purchase details to console in JSON format
                 println("\n========== PURCHASE DETAILS (JSON) ==========")
-                val json = Json { 
+                val json = Json {
                     prettyPrint = true
                     encodeDefaults = true
                 }
-                
-                // Serialize based on concrete type since Purchase is an interface
-                val jsonString = when (purchase) {
-                    is PurchaseAndroid -> json.encodeToString(purchase)
-                    is PurchaseIOS -> json.encodeToString(purchase)
-                    else -> {
-                        val platform = purchase.platform.toJson()
-                        """
-                        {
-                          "id": "${purchase.id}",
-                          "productId": "${purchase.productId}",
-                          "transactionDate": ${purchase.transactionDate},
-                          "platform": "$platform"
+
+                // Use toJson() method from Purchase interface
+                val purchaseMap = purchase.toJson()
+                val jsonString = buildString {
+                    appendLine("{")
+                    purchaseMap.entries.forEachIndexed { index, (key, value) ->
+                        append("  \"$key\": ")
+                        when (value) {
+                            is String -> append("\"$value\"")
+                            is Number -> append(value)
+                            is Boolean -> append(value)
+                            null -> append("null")
+                            else -> append("\"$value\"")
                         }
-                        """.trimIndent()
+                        if (index < purchaseMap.size - 1) append(",")
+                        appendLine()
                     }
+                    append("}")
                 }
                 println(jsonString)
                 println("Is Subscription: $isSubscription")
@@ -671,7 +670,6 @@ fun PurchaseCard(
                     val statusText = when (purchase) {
                         is PurchaseAndroid -> "✓ Acknowledged"
                         is PurchaseIOS -> "✓ Finished"
-                        else -> "✓ Processed"
                     }
                     Text(
                         text = statusText,
@@ -705,7 +703,6 @@ fun PurchaseCard(
                             val statusText = when (purchase) {
                                 is PurchaseAndroid -> "Already Acknowledged"
                                 is PurchaseIOS -> "Already Finished"
-                                else -> "Already Processed"
                             }
                             Text(
                                 text = statusText,
@@ -733,7 +730,6 @@ fun PurchaseCard(
                                 when (purchase) {
                                     is PurchaseAndroid -> "Acknowledge Subscription"
                                     is PurchaseIOS -> "Finish Transaction"
-                                    else -> "Process Subscription"
                                 }
                             } else {
                                 "Consume Purchase"
