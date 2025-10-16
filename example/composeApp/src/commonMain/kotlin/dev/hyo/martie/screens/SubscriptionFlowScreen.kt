@@ -344,7 +344,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = AppColors.CardBackground
+                                            containerColor = AppColors.Background
                                         ),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {

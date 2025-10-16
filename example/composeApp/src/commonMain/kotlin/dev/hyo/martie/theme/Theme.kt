@@ -17,7 +17,6 @@ object AppColors {
     val Warning = Color(0xFFFFF3CD) // Light yellow warning background
 
     // Additional UI colors
-    val CardBackground = Color(0xFFF5F5F5)
     val InfoPurple = Color(0xFF6B46C1)
     val InfoBlue = Color(0xFF2196F3)
 }
