@@ -46,6 +46,15 @@ private val SUBSCRIPTION_IDS = listOf(
     "dev.hyo.martie.premium_year"
 )
 
+/**
+ * Helper function to format epoch milliseconds to LocalDateTime string
+ */
+private fun Long.toFormattedDate(): String {
+    return Instant.fromEpochMilliseconds(this)
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .toString()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionFlowScreen(navController: NavController) {
@@ -304,8 +313,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 
                                 // Show iOS-specific info
                                 activeSub.expirationDateIOS?.let { expDate ->
-                                    val expiration = Instant.fromEpochMilliseconds(expDate.toLong())
-                                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                                    val expiration = expDate.toLong().toFormattedDate()
                                     Text(
                                         text = "  Expires: $expiration",
                                         fontSize = 12.sp,
@@ -336,7 +344,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = Color(0xFFF5F5F5)
+                                            containerColor = AppColors.CardBackground
                                         ),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
@@ -347,7 +355,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                 text = "Renewal Info (iOS)",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF6B46C1)
+                                                color = AppColors.InfoPurple
                                             )
 
                                             Spacer(modifier = Modifier.height(4.dp))
@@ -370,7 +378,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                 Text(
                                                     text = "🔵 Upgrade Pending → $upgradeId",
                                                     fontSize = 11.sp,
-                                                    color = Color(0xFF2196F3),
+                                                    color = AppColors.InfoBlue,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                             }
@@ -378,8 +386,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                             // Next Renewal Date
                                             renewalInfo.renewalDate?.let { renewalDate ->
                                                 Spacer(modifier = Modifier.height(4.dp))
-                                                val date = Instant.fromEpochMilliseconds(renewalDate.toLong())
-                                                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                                                val date = renewalDate.toLong().toFormattedDate()
                                                 Text(
                                                     text = "Next Renewal: $date",
                                                     fontSize = 10.sp,
@@ -408,8 +415,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     renewalInfo.gracePeriodExpirationDate?.let { graceDate ->
-                                                        val grace = Instant.fromEpochMilliseconds(graceDate.toLong())
-                                                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                                                        val grace = graceDate.toLong().toFormattedDate()
                                                         Text(
                                                             text = "Grace Period Ends: $grace",
                                                             fontSize = 10.sp,
@@ -485,7 +491,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                             text = "🔵 Subscription Upgrade Detected",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = Color(0xFF2196F3)
+                            color = AppColors.InfoBlue
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -501,13 +507,12 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 text = "Upgrading To: $upgradeId",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF2196F3)
+                                color = AppColors.InfoBlue
                             )
                         }
 
                         upgrading.renewalInfoIOS?.renewalDate?.let { renewalDate ->
-                            val date = Instant.fromEpochMilliseconds(renewalDate.toLong())
-                                .toLocalDateTime(TimeZone.currentSystemDefault())
+                            val date = renewalDate.toLong().toFormattedDate()
                             Text(
                                 text = "Effective Date: $date",
                                 fontSize = 12.sp,
@@ -522,8 +527,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
 
             // Cancellation Detection Section
             activeSubscriptions.firstOrNull {
-                it.renewalInfoIOS?.willAutoRenew == false &&
-                it.renewalInfoIOS?.pendingUpgradeProductId == null
+                val info = it.renewalInfoIOS
+                info?.willAutoRenew == false && info.pendingUpgradeProductId == null
             }?.let { cancelled ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -557,8 +562,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         )
 
                         cancelled.expirationDateIOS?.let { expDate ->
-                            val expiration = Instant.fromEpochMilliseconds(expDate.toLong())
-                                .toLocalDateTime(TimeZone.currentSystemDefault())
+                            val expiration = expDate.toLong().toFormattedDate()
                             Text(
                                 text = "Expires: $expiration",
                                 fontSize = 12.sp,
@@ -735,14 +739,12 @@ fun SubscriptionCard(
                     renewalInfo.pendingUpgradeProductId?.let { println("pendingUpgradeProductId: $it") }
                     renewalInfo.autoRenewPreference?.let { println("autoRenewPreference: $it") }
                     renewalInfo.renewalDate?.let {
-                        val date = Instant.fromEpochMilliseconds(it.toLong())
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                        val date = it.toLong().toFormattedDate()
                         println("renewalDate: $date")
                     }
                     renewalInfo.expirationReason?.let { println("expirationReason: $it") }
                     renewalInfo.gracePeriodExpirationDate?.let {
-                        val date = Instant.fromEpochMilliseconds(it.toLong())
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                        val date = it.toLong().toFormattedDate()
                         println("gracePeriodExpirationDate: $date")
                     }
                     renewalInfo.isInBillingRetry?.let { println("isInBillingRetry: $it") }
