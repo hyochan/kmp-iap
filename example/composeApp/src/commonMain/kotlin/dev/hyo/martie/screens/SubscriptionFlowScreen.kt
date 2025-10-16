@@ -368,7 +368,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     text = if (renewalInfo.willAutoRenew) "✅ Auto-Renew" else "⚠️ Won't Auto-Renew",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = if (renewalInfo.willAutoRenew) AppColors.Success else Color(0xFFFF9800)
+                                                    color = if (renewalInfo.willAutoRenew) AppColors.Success else AppColors.Orange
                                                 )
                                             }
 
@@ -411,7 +411,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     Text(
                                                         text = "🟣 Billing Retry in Progress",
                                                         fontSize = 11.sp,
-                                                        color = Color(0xFF9C27B0),
+                                                        color = AppColors.BillingRetryPurple,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     renewalInfo.gracePeriodExpirationDate?.let { graceDate ->
@@ -480,7 +480,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFE3F2FD)
+                        containerColor = AppColors.UpgradeBackground
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -533,7 +533,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFF3E0)
+                        containerColor = AppColors.CancellationBackground
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -544,7 +544,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                             text = "🟠 Subscription Cancelled",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            color = Color(0xFFFF9800)
+                            color = AppColors.Orange
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -567,7 +567,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 text = "Expires: $expiration",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFFF9800)
+                                color = AppColors.Orange
                             )
                         }
                     }
