@@ -40,17 +40,26 @@ import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
-private val SUBSCRIPTION_IDS = listOf("dev.hyo.martie.premium")
+private val SUBSCRIPTION_IDS = listOf(
+    "dev.hyo.martie.premium",
+    "dev.hyo.martie.premium_year"
+)
+
+/**
+ * Helper function to format epoch milliseconds to LocalDateTime string
+ */
+private fun Long.toFormattedDate(): String {
+    return Instant.fromEpochMilliseconds(this)
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .toString()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionFlowScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
-    val json = remember { Json { prettyPrint = true; ignoreUnknownKeys = true } }
-    
+
     // Create IAP instance
     val kmpIAP = remember { KmpIAP() }
     
@@ -304,8 +313,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 
                                 // Show iOS-specific info
                                 activeSub.expirationDateIOS?.let { expDate ->
-                                    val expiration = Instant.fromEpochMilliseconds(expDate.toLong())
-                                        .toLocalDateTime(TimeZone.currentSystemDefault())
+                                    val expiration = expDate.toLong().toFormattedDate()
                                     Text(
                                         text = "  Expires: $expiration",
                                         fontSize = 12.sp,
@@ -328,7 +336,120 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         color = if (days <= 7) AppColors.Error else AppColors.Secondary
                                     )
                                 }
-                                
+
+                                // Show renewalInfoIOS details
+                                activeSub.renewalInfoIOS?.let { renewalInfo ->
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = AppColors.Background
+                                        ),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Renewal Info (iOS)",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AppColors.InfoPurple
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            // Auto-Renew Status
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = if (renewalInfo.willAutoRenew) "✅ Auto-Renew" else "⚠️ Won't Auto-Renew",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (renewalInfo.willAutoRenew) AppColors.Success else AppColors.Orange
+                                                )
+                                            }
+
+                                            // Pending Upgrade Detection
+                                            renewalInfo.pendingUpgradeProductId?.let { upgradeId ->
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "🔵 Upgrade Pending → $upgradeId",
+                                                    fontSize = 11.sp,
+                                                    color = AppColors.InfoBlue,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+
+                                            // Next Renewal Date
+                                            renewalInfo.renewalDate?.let { renewalDate ->
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                val date = renewalDate.toLong().toFormattedDate()
+                                                Text(
+                                                    text = "Next Renewal: $date",
+                                                    fontSize = 10.sp,
+                                                    color = AppColors.Secondary
+                                                )
+                                            }
+
+                                            // Expiration Reason (if cancelled)
+                                            renewalInfo.expirationReason?.let { reason ->
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Expiration Reason: $reason",
+                                                    fontSize = 10.sp,
+                                                    color = AppColors.Error
+                                                )
+                                            }
+
+                                            // Billing Retry Status
+                                            if (renewalInfo.isInBillingRetry == true) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Column {
+                                                    Text(
+                                                        text = "🟣 Billing Retry in Progress",
+                                                        fontSize = 11.sp,
+                                                        color = AppColors.Purple,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    renewalInfo.gracePeriodExpirationDate?.let { graceDate ->
+                                                        val grace = graceDate.toLong().toFormattedDate()
+                                                        Text(
+                                                            text = "Grace Period Ends: $grace",
+                                                            fontSize = 10.sp,
+                                                            color = AppColors.Secondary
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            // Price Increase Status
+                                            renewalInfo.priceIncreaseStatus?.let { status ->
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Price Increase: $status",
+                                                    fontSize = 10.sp,
+                                                    color = AppColors.Secondary
+                                                )
+                                            }
+
+                                            // Auto-Renew Preference (if different from current product)
+                                            renewalInfo.autoRenewPreference?.let { preference ->
+                                                if (preference != activeSub.productId) {
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = "Will renew as: $preference",
+                                                        fontSize = 10.sp,
+                                                        color = AppColors.Secondary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // Show Android-specific info
                                 activeSub.autoRenewingAndroid?.let { autoRenew ->
                                     Text(
@@ -337,7 +458,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         color = AppColors.Secondary
                                     )
                                 }
-                                
+
                                 if (activeSub.willExpireSoon == true) {
                                     Text(
                                         text = "  ⚠️ Expiring soon!",
@@ -353,7 +474,108 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 
                 Spacer(modifier = Modifier.height(20.dp))
             }
-            
+
+            // Upgrade Detection Section
+            activeSubscriptions.firstOrNull { it.renewalInfoIOS?.pendingUpgradeProductId != null }?.let { upgrading ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppColors.UpgradeBackground
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "🔵 Subscription Upgrade Detected",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.InfoBlue
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Current Plan: ${upgrading.productId}",
+                            fontSize = 14.sp,
+                            color = AppColors.OnSurface
+                        )
+
+                        upgrading.renewalInfoIOS?.pendingUpgradeProductId?.let { upgradeId ->
+                            Text(
+                                text = "Upgrading To: $upgradeId",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AppColors.InfoBlue
+                            )
+                        }
+
+                        upgrading.renewalInfoIOS?.renewalDate?.let { renewalDate ->
+                            val date = renewalDate.toLong().toFormattedDate()
+                            Text(
+                                text = "Effective Date: $date",
+                                fontSize = 12.sp,
+                                color = AppColors.Secondary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+
+            // Cancellation Detection Section
+            activeSubscriptions.firstOrNull {
+                val info = it.renewalInfoIOS
+                info?.willAutoRenew == false && info.pendingUpgradeProductId == null
+            }?.let { cancelled ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppColors.CancellationBackground
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "🟠 Subscription Cancelled",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.Orange
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Product: ${cancelled.productId}",
+                            fontSize = 14.sp,
+                            color = AppColors.OnSurface
+                        )
+
+                        Text(
+                            text = "Status: Active but won't renew",
+                            fontSize = 14.sp,
+                            color = AppColors.Secondary
+                        )
+
+                        cancelled.expirationDateIOS?.let { expDate ->
+                            val expiration = expDate.toLong().toFormattedDate()
+                            Text(
+                                text = "Expires: $expiration",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AppColors.Orange
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+
             // Subscriptions Section
             Text(
                 text = "Available Subscriptions",
@@ -484,20 +706,53 @@ fun SubscriptionCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                // Log subscription product details to console in JSON format
-                println("\n========== SUBSCRIPTION PRODUCT (JSON) ==========")
-                val json = Json { 
-                    prettyPrint = true
-                    encodeDefaults = true
+                // Log subscription product details to console
+                println("\n========== SUBSCRIPTION PRODUCT ==========")
+                println("ID: ${subscription.id}")
+                println("Title: ${subscription.title}")
+                println("Description: ${subscription.description}")
+                println("Display Price: ${subscription.displayPrice}")
+                println("Currency: ${subscription.currency}")
+                println("Price: ${subscription.price}")
+                println("Type: ${subscription.type}")
+                println("Platform: ${subscription.platform}")
+
+                // Platform-specific details
+                when (subscription) {
+                    is ProductAndroid -> {
+                        println("--- Android Specific ---")
+                        println("One Time Purchase Offer: ${subscription.oneTimePurchaseOfferDetailsAndroid}")
+                        println("Subscription Offers: ${subscription.subscriptionOfferDetailsAndroid?.size ?: 0} offers")
+                    }
+                    is ProductIOS -> {
+                        println("--- iOS Specific ---")
+                        println("Subscription Info: ${subscription.subscriptionInfoIOS}")
+                    }
                 }
-                
-                // Serialize based on concrete type since Product is an interface
-                val jsonString = when (subscription) {
-                    is ProductAndroid -> json.encodeToString(subscription)
-                    is ProductIOS -> json.encodeToString(subscription)
-                }
-                println(jsonString)
+
                 println("Is Subscribed: $isSubscribed")
+
+                // Log renewal info if available
+                activeSubscription?.renewalInfoIOS?.let { renewalInfo ->
+                    println("\n--- Renewal Info (iOS) ---")
+                    println("willAutoRenew: ${renewalInfo.willAutoRenew}")
+                    renewalInfo.pendingUpgradeProductId?.let { println("pendingUpgradeProductId: $it") }
+                    renewalInfo.autoRenewPreference?.let { println("autoRenewPreference: $it") }
+                    renewalInfo.renewalDate?.let {
+                        val date = it.toLong().toFormattedDate()
+                        println("renewalDate: $date")
+                    }
+                    renewalInfo.expirationReason?.let { println("expirationReason: $it") }
+                    renewalInfo.gracePeriodExpirationDate?.let {
+                        val date = it.toLong().toFormattedDate()
+                        println("gracePeriodExpirationDate: $date")
+                    }
+                    renewalInfo.isInBillingRetry?.let { println("isInBillingRetry: $it") }
+                    renewalInfo.priceIncreaseStatus?.let { println("priceIncreaseStatus: $it") }
+                    renewalInfo.renewalOfferId?.let { println("renewalOfferId: $it") }
+                    renewalInfo.renewalOfferType?.let { println("renewalOfferType: $it") }
+                    println("------------------------")
+                }
                 println("====================================\n")
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
