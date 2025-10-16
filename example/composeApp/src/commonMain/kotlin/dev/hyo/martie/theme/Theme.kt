@@ -20,9 +20,9 @@ object AppColors {
     val InfoPurple = Color(0xFF6B46C1)
     val InfoBlue = Color(0xFF2196F3)
     val Orange = Color(0xFFFF9800) // Warning/cancellation orange
-    val BillingRetryPurple = Color(0xFF9C27B0) // Billing retry status
     val UpgradeBackground = Color(0xFFE3F2FD) // Light blue background for upgrades
     val CancellationBackground = Color(0xFFFFF3E0) // Light orange background for cancellations
+    // Note: Use Purple for billing retry status (same semantic color)
 }
 
 private val LightColorScheme = lightColorScheme(

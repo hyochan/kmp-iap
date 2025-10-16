@@ -411,7 +411,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     Text(
                                                         text = "🟣 Billing Retry in Progress",
                                                         fontSize = 11.sp,
-                                                        color = AppColors.BillingRetryPurple,
+                                                        color = AppColors.Purple,
                                                         fontWeight = FontWeight.Medium
                                                     )
                                                     renewalInfo.gracePeriodExpirationDate?.let { graceDate ->
