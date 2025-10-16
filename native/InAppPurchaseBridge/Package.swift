@@ -15,13 +15,13 @@ let package = Package(
             targets: ["InAppPurchaseBridge"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/hyodotdev/openiap-apple.git", from: "1.2.5")
+        .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.2.5")
     ],
     targets: [
         .target(
             name: "InAppPurchaseBridge",
             dependencies: [
-                .product(name: "OpenIAP", package: "openiap-apple")
+                .product(name: "OpenIAP", package: "openiap")
             ])
     ]
 )

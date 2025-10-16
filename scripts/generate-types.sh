@@ -8,7 +8,7 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 TAG=$(grep '"gql"' "$REPO_ROOT/openiap-versions.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
 ASSET_NAME="openiap-kotlin.zip"
-DOWNLOAD_URL="https://github.com/hyodotdev/openiap-gql/releases/download/${TAG}/${ASSET_NAME}"
+DOWNLOAD_URL="https://github.com/hyodotdev/openiap/releases/download/${TAG}/${ASSET_NAME}"
 TARGET_DIR="$REPO_ROOT/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap"
 TARGET_FILE="$TARGET_DIR/Types.kt"
 

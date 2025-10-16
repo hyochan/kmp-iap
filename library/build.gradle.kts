@@ -136,11 +136,13 @@ kotlin {
         homepage = "https://github.com/hyochan/kmp-iap"
         ios.deploymentTarget = "15.0"
 
-        // Add openiap-apple pod dependency with @objc support (using Git URL for development)
+        // Add openiap pod dependency from monorepo (packages/apple)
         pod("openiap") {
-            source = git("https://github.com/hyodotdev/openiap-apple.git") {
-                tag = appleVersion
+            version = appleVersion
+            source = git("https://github.com/hyodotdev/openiap.git") {
+                tag = "apple-v$appleVersion"
             }
+            // Podspec is at the root of the monorepo
             moduleName = "OpenIAP"
         }
     }
