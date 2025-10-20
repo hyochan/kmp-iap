@@ -84,6 +84,7 @@ jobs:
           ./gradlew :library:linkPodDebugFrameworkIosArm64
 
       - name: Publish to Maven Central
+        id: publish
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -94,7 +95,7 @@ jobs:
           ./gradlew :library:publishAllPublicationsToMavenCentral --no-daemon --no-parallel
 
       - name: Create GitHub Release (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && success()
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.VERSION }}
@@ -106,7 +107,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release artifacts
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && success()
         run: |
           mkdir -p release-artifacts
           cp library/build/outputs/aar/*.aar release-artifacts/
@@ -114,7 +115,7 @@ jobs:
           zip -r release-artifacts.zip release-artifacts/
 
       - name: Upload release artifacts
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && success()
         uses: softprops/action-gh-release@v1
         with:
           files: ./release-artifacts.zip
@@ -122,3 +123,9 @@ jobs:
           tag_name: ${{ env.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish failed - cleanup
+        if: failure()
+        run: |
+          echo "::error::Publishing to Maven Central failed. Release was not created."
+          echo "Please check the logs and try again."

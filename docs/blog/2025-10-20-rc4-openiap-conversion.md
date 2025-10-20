@@ -1,22 +1,38 @@
 ---
 slug: 1.0.0-rc.4
-title: 1.0.0-rc.4 - Alternative Billing Support
+title: 1.0.0-rc.4 - OpenIAP Monorepo Conversion & Alternative Billing
 authors: [hyochan]
-tags: [release, alternative-billing, ios, android, storekit, kotlin-multiplatform]
-date: 2025-10-05
+tags: [release, openiap, alternative-billing, monorepo, ios, android, storekit, kotlin-multiplatform]
+date: 2025-10-20
 ---
 
 # 1.0.0-rc.4 Release Notes
 
-KMP-IAP 1.0.0-rc.4 introduces **Alternative Billing** support for both iOS and Android platforms, enabling developers to offer external payment options in compliance with App Store and Google Play requirements.
-
-This release integrates StoreKit External Purchase APIs (iOS 16.0+) and Google Play Alternative Billing APIs, providing a unified Kotlin Multiplatform interface for alternative payment flows across platforms.
+KMP-IAP 1.0.0-rc.4 marks a major milestone with the **OpenIAP monorepo conversion** and introduces **Alternative Billing** support for both iOS and Android platforms.
 
 👉 [View the 1.0.0-rc.4 release](https://github.com/hyochan/kmp-iap/releases/tag/1.0.0-rc.4)
 
 <!-- truncate -->
 
-## 🚀 Highlights
+## 🎯 Major Changes
+
+### OpenIAP Monorepo Conversion
+
+KMP-IAP now fully integrates with the **[OpenIAP monorepo](https://github.com/hyodotdev/openiap)**, centralizing all in-app purchase implementations under one standardized specification. This conversion brings:
+
+- **Unified dependency management** through `openiap-versions.json`
+- **100% OpenIAP specification compliance** across all platforms
+- **Centralized version control** for iOS, Android, and GraphQL types
+- **Simplified maintenance** with single source of truth
+
+**Current OpenIAP versions:**
+- **openiap-apple**: 1.2.26 (iOS StoreKit wrapper with external purchase support)
+- **openiap-google**: 1.3.2 (Android BillingClient wrapper with alternative billing)
+- **openiap-gql**: 1.2.2 (GraphQL type definitions)
+
+All native SDKs are now maintained in the OpenIAP monorepo, ensuring consistent APIs and behavior across platforms.
+
+## 🚀 New Features
 
 ### iOS Alternative Billing (StoreKit External Purchase)
 
@@ -26,7 +42,7 @@ Three new APIs for managing external purchases on iOS:
 - **[`presentExternalPurchaseNoticeSheetIOS()`](/docs/api/core-methods#presentexternalpurchasenoticesheetios)** - Present a notice before redirecting to external purchase (iOS 18.2+)
 - **[`presentExternalPurchaseLinkIOS(url)`](/docs/api/core-methods#presentexternalpurchaselinkios)** - Open external purchase link in Safari (iOS 16.0+)
 
-**Manual Configuration Required**: Configure your iOS project's Info.plist and entitlements:
+**iOS Configuration Required:**
 
 **Info.plist:**
 ```xml
@@ -60,39 +76,7 @@ Three new APIs for managing external purchases on iOS:
 </plist>
 ```
 
-### Android Alternative Billing
-
-Three new APIs for Google Play Alternative Billing flow:
-
-- **[`checkAlternativeBillingAvailabilityAndroid()`](/docs/api/core-methods#checkalternativebillingavailabilityandroid)** - Check if alternative billing is available for the user
-- **[`showAlternativeBillingDialogAndroid()`](/docs/api/core-methods#showalternativebillingdialogandroid)** - Show Google's required information dialog
-- **[`createAlternativeBillingTokenAndroid()`](/docs/api/core-methods#createalternativebillingtokenandroid)** - Generate reporting token after successful payment
-
-**Configuration Support**: `initConnection()` now accepts an optional config parameter:
-
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
-import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
-
-// Initialize with alternative billing mode
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-    // Or: AlternativeBillingModeAndroid.AlternativeOnly
-)
-
-val connected = kmpIapInstance.initConnection(config)
-```
-
-**Two Billing Modes**:
-
-- `UserChoice` - Users choose between Google Play billing (30% fee) or your payment system (lower fee)
-- `AlternativeOnly` - Only your payment system is available (Google Play billing disabled)
-
-## 📚 Usage Examples
-
-### iOS External Purchase
-
+**Usage Example:**
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 
@@ -110,12 +94,36 @@ if (result.success) {
 
 ### Android Alternative Billing
 
-**User Choice Mode** - When using `UserChoice` mode, listen for user selection with **`userChoiceBillingListener`**:
+Three new APIs for Google Play Alternative Billing flow:
+
+- **[`checkAlternativeBillingAvailabilityAndroid()`](/docs/api/core-methods#checkalternativebillingavailabilityandroid)** - Check if alternative billing is available for the user
+- **[`showAlternativeBillingDialogAndroid()`](/docs/api/core-methods#showalternativebillingdialogandroid)** - Show Google's required information dialog
+- **[`createAlternativeBillingTokenAndroid()`](/docs/api/core-methods#createalternativebillingtokenandroid)** - Generate reporting token after successful payment
+
+**Configuration Support:**
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+
+// Initialize with alternative billing mode
+val config = InitConnectionConfig(
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    // Or: AlternativeBillingModeAndroid.AlternativeOnly
+)
+
+val connected = kmpIapInstance.initConnection(config)
+```
+
+**Two Billing Modes:**
+
+- `UserChoice` - Users choose between Google Play billing (30% fee) or your payment system (lower fee)
+- `AlternativeOnly` - Only your payment system is available (Google Play billing disabled)
+
+**User Choice Mode Example:**
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
 import kotlinx.coroutines.flow.collect
 
 // Initialize with user-choice mode
@@ -136,11 +144,8 @@ scope.launch {
 }
 ```
 
-**Alternative Only Mode** - Manual 3-step flow:
-
+**Alternative Only Mode Example:**
 ```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-
 // Step 1: Check availability
 val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
 
@@ -156,7 +161,7 @@ if (userAccepted) {
 }
 ```
 
-## 🎨 Example App
+### 🎨 Alternative Billing Demo Screen
 
 A complete alternative billing demo screen has been added to the example app:
 
@@ -168,17 +173,7 @@ A complete alternative billing demo screen has been added to the example app:
 
 Navigate to `example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/AlternativeBillingScreen.kt` to explore the implementation.
 
-## 🔧 OpenIAP Upgrades
-
-This release upgrades to the latest OpenIAP specification versions:
-
-- **openiap-apple** upgraded to **1.2.10** with StoreKit external purchase support
-- **openiap-google** upgraded to **1.2.12** with alternative billing APIs
-- **openiap-gql** upgraded to **1.0.12** with updated type definitions
-
-All implementations are now **100% OpenIAP specification compliant**.
-
-## 🐛 Bug Fixes
+## 🐛 Bug Fixes & Improvements
 
 ### Serialization Error Fix
 
@@ -196,6 +191,14 @@ val jsonString = json.encodeToString(purchase)
 val purchaseMap = purchase.toJson()
 val jsonString = buildJsonString(purchaseMap)
 ```
+
+### iOS Subscription Enhancements
+
+Added `renewalInfoIOS` field to `activeSubscription` (openiap-apple 1.2.24+), providing access to subscription renewal information including:
+- Auto-renew status
+- Expiration reason
+- Grace period status
+- Offer information
 
 ## ⚠️ Platform Requirements
 
@@ -282,9 +285,11 @@ This release includes comprehensive documentation:
 - **[Alternative Billing Guide](/docs/guides/alternative-billing)** - Complete guide for implementing alternative billing
 - **[Alternative Billing Example](/docs/examples/alternative-billing)** - Full code examples for both platforms
 - **[Core Methods - Alternative Billing APIs](/docs/api/core-methods#ios-specific-alternative-billing)** - API reference
+- **[OpenIAP Specification](https://openiap.dev)** - Official specification and terminology
 
 ## 🔗 References
 
+- [OpenIAP Monorepo](https://github.com/hyodotdev/openiap)
 - [OpenIAP Documentation](https://openiap.dev)
 - [StoreKit External Purchase](https://developer.apple.com/documentation/storekit/external-purchase)
 - [Google Play Alternative Billing](https://developer.android.com/google/play/billing/alternative)
