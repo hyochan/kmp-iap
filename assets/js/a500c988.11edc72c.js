@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[889],{7405:p=>{p.exports=JSON.parse('{"label":"monorepo","permalink":"/kmp-iap/blog/tags/monorepo","allTagsPath":"/kmp-iap/blog/tags","count":1,"unlisted":false}')}}]);
