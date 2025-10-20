@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'library'
-    spec.version                  = '1.0.0-rc.2'
+    spec.version                  = '1.0.0-rc.4'
     spec.homepage                 = 'https://github.com/hyochan/kmp-iap'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
@@ -12,7 +12,7 @@ Pod::Spec.new do |spec|
     # Read OpenIAP version from openiap-versions.json
     require 'json'
     openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
-    openiap_apple_version = '1.2.26' # fallback version
+    openiap_apple_version = '1.2.5' # fallback version
     if File.exist?(openiap_versions_file)
         openiap_versions = JSON.parse(File.read(openiap_versions_file))
         openiap_apple_version = openiap_versions['apple'] || openiap_apple_version
