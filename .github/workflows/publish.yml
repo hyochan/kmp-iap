@@ -70,9 +70,14 @@ jobs:
           ./gradlew :library:build
           ./gradlew :library:allTests
 
+      - name: Clean build artifacts
+        run: |
+          rm -rf library/build/cocoapods
+
       - name: Build iOS frameworks
         run: |
           ./gradlew :library:podGenIos
+          ./gradlew :library:updatePodspecDependency
           ./gradlew :library:podInstallSyntheticIos
           ./gradlew :library:podBuildOpeniapIos
           ./gradlew :library:linkPodDebugFrameworkIosSimulatorArm64
