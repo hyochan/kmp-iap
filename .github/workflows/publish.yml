@@ -45,6 +45,26 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "libraryVersion=$VERSION" >> local.properties
 
+      - name: Regenerate podspec with correct version
+        run: |
+          ./gradlew :library:podspec
+
+      - name: Update podspec to read openiap-versions.json dynamically
+        run: |
+          ./gradlew :library:updatePodspecDependency
+
+      - name: Update README version
+        run: |
+          ./gradlew :library:updateReadmeVersion
+
+      - name: Commit version updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md library/library.podspec
+          git diff --staged --quiet || git commit -m "chore: update version to ${{ env.VERSION }} [skip ci]"
+          git push || echo "No changes to commit"
+
       - name: Build and test
         run: |
           ./gradlew :library:build

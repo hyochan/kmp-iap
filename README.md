@@ -10,7 +10,7 @@
   
   A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
   
-  <a href="https://openiap.dev"><img src="https://openiap.dev/logo.png" alt="Open IAP" height="40" /></a>
+  <a href="https://openiap.dev"><img src="https://github.com/hyodotdev/openiap/blob/main/logo.png" alt="Open IAP" height="40" /></a>
 </div>
 
 ## 📚 Documentation
@@ -23,7 +23,7 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.3")
+    implementation("io.github.hyochan:kmp-iap:1.0.0-rc.2")
 }
 ```
 

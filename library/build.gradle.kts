@@ -196,6 +196,36 @@ val updateReadmeVersion = tasks.register("updateReadmeVersion") {
     }
 }
 
+// Task to make podspec read openiap-versions.json dynamically
+val updatePodspecDependency = tasks.register("updatePodspecDependency") {
+    dependsOn("podspec")
+    doLast {
+        val podspecFile = file("library.podspec")
+        if (!podspecFile.exists()) {
+            println("WARN: library.podspec not found")
+            return@doLast
+        }
+
+        val content = podspecFile.readText()
+        // Replace hardcoded dependency with dynamic version loading from JSON
+        val updatedContent = content.replace(
+            Regex("""spec\.dependency\s+'openiap',\s+'[^']+'"""),
+            """# Read OpenIAP version from openiap-versions.json
+    require 'json'
+    openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
+    openiap_apple_version = '1.2.5' # fallback version
+    if File.exist?(openiap_versions_file)
+        openiap_versions = JSON.parse(File.read(openiap_versions_file))
+        openiap_apple_version = openiap_versions['apple'] || openiap_apple_version
+    end
+    spec.dependency 'openiap', openiap_apple_version"""
+        )
+
+        podspecFile.writeText(updatedContent)
+        println("Updated library.podspec to read openiap version dynamically from openiap-versions.json")
+    }
+}
+
 // Automatically update README when publishing
 tasks.withType<PublishToMavenRepository> {
     dependsOn(updateReadmeVersion)

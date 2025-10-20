@@ -9,7 +9,15 @@ Pod::Spec.new do |spec|
     spec.vendored_frameworks      = 'build/cocoapods/framework/library.framework'
     spec.libraries                = 'c++'
     spec.ios.deployment_target    = '15.0'
-    spec.dependency 'openiap'
+    # Read OpenIAP version from openiap-versions.json
+    require 'json'
+    openiap_versions_file = File.join(File.dirname(__FILE__), '..', 'openiap-versions.json')
+    openiap_apple_version = '1.2.26' # fallback version
+    if File.exist?(openiap_versions_file)
+        openiap_versions = JSON.parse(File.read(openiap_versions_file))
+        openiap_apple_version = openiap_versions['apple'] || openiap_apple_version
+    end
+    spec.dependency 'openiap', openiap_apple_version
                 
     if !Dir.exist?('build/cocoapods/framework/library.framework') || Dir.empty?('build/cocoapods/framework/library.framework')
         raise "
