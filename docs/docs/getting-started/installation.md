@@ -31,7 +31,7 @@ Add kmp-iap to your project's dependencies:
 ```kotlin
 val commonMain by getting {
     dependencies {
-        implementation("io.github.hyochan:kmp-iap:1.0.0-rc.3")
+        implementation("io.github.hyochan:kmp-iap:1.0.0-rc.4")
     }
 }
 ```
@@ -41,7 +41,7 @@ Or if using version catalogs:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kmp-iap = "1.0.0-rc.3"
+kmp-iap = "1.0.0-rc.4"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
@@ -58,7 +58,74 @@ dependencies {
 
 ### iOS Configuration
 
-#### Enable In-App Purchase Capability
+kmp-iap uses the [OpenIAP framework](https://github.com/hyodotdev/openiap) on iOS. You need to add it to your iOS app using **either CocoaPods or Swift Package Manager**.
+
+:::tip Quick Decision Guide
+- **Use CocoaPods** if you want automatic dependency management through Gradle
+- **Use SPM** if you prefer modern iOS tooling and want to avoid CocoaPods
+:::
+
+#### Step 1: Choose Your Dependency Manager
+
+<details>
+<summary><strong>Option A: CocoaPods (Recommended)</strong></summary>
+
+CocoaPods is automatically managed by the Kotlin CocoaPods plugin.
+
+1. **Ensure your shared module has the CocoaPods plugin:**
+
+```kotlin
+// shared/build.gradle.kts or composeApp/build.gradle.kts
+plugins {
+    kotlin("multiplatform")
+    kotlin("native.cocoapods")
+}
+
+kotlin {
+    cocoapods {
+        version = "1.0"
+        ios.deploymentTarget = "15.0"
+        framework {
+            baseName = "ComposeApp" // or "shared"
+            isStatic = true
+        }
+    }
+}
+```
+
+2. **Run pod install:**
+
+```bash
+cd iosApp
+pod install
+```
+
+3. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
+
+```bash
+open iosApp.xcworkspace
+```
+
+The OpenIAP dependency will be automatically included.
+
+</details>
+
+<details>
+<summary><strong>Option B: Swift Package Manager</strong></summary>
+
+If you prefer SPM or don't want to use CocoaPods:
+
+1. In Xcode, go to **File** → **Add Package Dependencies**
+2. Enter repository URL: `https://github.com/hyodotdev/openiap.git`
+3. Select version **1.2.26** (or "Up to Next Major" from 1.2.26)
+4. Add to your iOS app target
+5. Verify in **Build Phases** → **Link Binary with Libraries**
+
+**Note:** With SPM, don't use the CocoaPods plugin. You'll manually update OpenIAP when kmp-iap updates.
+
+</details>
+
+#### Step 2: Enable In-App Purchase Capability
 
 1. Open your project in Xcode
 2. Select your project in the navigator
@@ -66,7 +133,7 @@ dependencies {
 4. Go to **Signing & Capabilities** tab
 5. Click **+ Capability** and add **In-App Purchase**
 
-#### Configure Info.plist (iOS 14+)
+#### Step 3: Configure Info.plist (iOS 14+)
 
 Add the following to your `iosApp/Info.plist`:
 
@@ -77,13 +144,34 @@ Add the following to your `iosApp/Info.plist`:
 </array>
 ```
 
-#### StoreKit Configuration (Optional)
+#### Step 4: StoreKit Configuration (Optional)
 
 For testing with StoreKit 2, create a `.storekit` configuration file:
 
 1. In Xcode, go to **File** → **New** → **File**
 2. Choose **StoreKit Configuration File**
 3. Add your products for testing
+
+#### Troubleshooting iOS Setup
+
+<details>
+<summary><strong>Error: Undefined symbol '_OBJC_CLASS_$__TtC7OpenIAP13OpenIapModule'</strong></summary>
+
+This error means the OpenIAP framework isn't linked. Fix it by:
+
+**If using CocoaPods:**
+1. Run `cd iosApp && pod install`
+2. Open `.xcworkspace` (NOT `.xcodeproj`)
+3. Clean build folder: **Product** → **Clean Build Folder**
+4. Rebuild
+
+**If using SPM:**
+1. Verify OpenIAP appears in **Build Phases** → **Link Binary with Libraries**
+2. Clean and rebuild
+
+See [Issue #21](https://github.com/hyochan/kmp-iap/issues/21) for more details.
+
+</details>
 
 ### Android Configuration
 
@@ -231,6 +319,16 @@ Now that you have kmp-iap installed and configured:
 ## Troubleshooting
 
 ### iOS Common Issues
+
+#### Linking Error: Undefined symbol OpenIapModule
+
+**Symptom:** Build fails with `Undefined symbols for architecture arm64: "_OBJC_CLASS_$__TtC7OpenIAP13OpenIapModule"`
+
+**Solution:**
+- **CocoaPods:** Run `pod install` and open `.xcworkspace` (not `.xcodeproj`)
+- **SPM:** Verify OpenIAP is in Build Phases → Link Binary with Libraries
+- Clean build folder and rebuild
+- See [Issue #21](https://github.com/hyochan/kmp-iap/issues/21) for details
 
 #### Permission Denied
 
