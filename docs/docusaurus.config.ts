@@ -78,6 +78,21 @@ const config: Config = {
     ],
   ],
 
+  themes: [
+    [
+      require.resolve("@easyops-cn/docusaurus-search-local"),
+      {
+        hashed: true,
+        language: ["en"],
+        indexDocs: true,
+        indexBlog: true,
+        indexPages: true,
+        docsRouteBasePath: '/docs',
+        blogRouteBasePath: '/blog',
+      },
+    ],
+  ],
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/logo.png',
@@ -89,15 +104,15 @@ const config: Config = {
       },
       items: [
         {
+          type: 'docsVersionDropdown',
+          position: 'left',
+          dropdownActiveClassDisabled: true,
+        },
+        {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
           label: 'Docs',
-        },
-        {
-          type: 'docsVersionDropdown',
-          position: 'left',
-          dropdownActiveClassDisabled: true,
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
