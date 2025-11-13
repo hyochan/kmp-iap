@@ -70,7 +70,8 @@ class InAppPurchaseTest {
             price = 9.99,
             title = "Test Subscription",
             type = ProductType.Subs,
-            typeIOS = ProductTypeIOS.AutoRenewableSubscription
+            typeIOS = ProductTypeIOS.AutoRenewableSubscription,
+            introductoryPricePaymentModeIOS = PaymentModeIOS.Empty
         )
 
         assertEquals("test_subscription", subscription.id)

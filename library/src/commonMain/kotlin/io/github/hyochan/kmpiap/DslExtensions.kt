@@ -4,8 +4,10 @@ import io.github.hyochan.kmpiap.PurchaseException
 import io.github.hyochan.kmpiap.dsl.PurchaseRequestBuilder
 import io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
+import io.github.hyochan.kmpiap.openiap.FetchProductsResultAll
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultProducts
 import io.github.hyochan.kmpiap.openiap.FetchProductsResultSubscriptions
+import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductIOS
@@ -70,6 +72,12 @@ suspend fun KmpInAppPurchase.requestPurchase(
 private fun FetchProductsResult.asProductList(): List<Product> = when (this) {
     is FetchProductsResultProducts -> value.orEmpty()
     is FetchProductsResultSubscriptions -> value.orEmpty().mapNotNull(ProductSubscription::toProduct)
+    is FetchProductsResultAll -> value.orEmpty().mapNotNull { productOrSubscription ->
+        when (productOrSubscription) {
+            is ProductOrSubscription.ProductItem -> productOrSubscription.value
+            is ProductOrSubscription.ProductSubscriptionItem -> productOrSubscription.value.toProduct()
+        }
+    }
 }
 
 private fun RequestPurchaseResult?.extractPurchase(): Purchase {

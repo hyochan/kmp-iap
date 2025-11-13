@@ -96,6 +96,12 @@ fun AlternativeBillingScreen(navController: NavController) {
                 products = when (result) {
                     is FetchProductsResultProducts -> result.value
                     is FetchProductsResultSubscriptions -> result.value
+                    is FetchProductsResultAll -> result.value?.mapNotNull { productOrSubscription ->
+                        when (productOrSubscription) {
+                            is ProductOrSubscription.ProductItem -> productOrSubscription.value
+                            is ProductOrSubscription.ProductSubscriptionItem -> productOrSubscription.value
+                        }
+                    }
                 } ?: emptyList()
             }
         } catch (e: Exception) {
@@ -186,6 +192,12 @@ fun AlternativeBillingScreen(navController: NavController) {
                     products = when (result) {
                     is FetchProductsResultProducts -> result.value
                     is FetchProductsResultSubscriptions -> result.value
+                    is FetchProductsResultAll -> result.value?.mapNotNull { productOrSubscription ->
+                        when (productOrSubscription) {
+                            is ProductOrSubscription.ProductItem -> productOrSubscription.value
+                            is ProductOrSubscription.ProductSubscriptionItem -> productOrSubscription.value
+                        }
+                    }
                 } ?: emptyList()
                 }
             } catch (e: Exception) {

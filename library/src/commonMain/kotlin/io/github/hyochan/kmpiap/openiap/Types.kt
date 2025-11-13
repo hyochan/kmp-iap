@@ -614,7 +614,7 @@ public data class DiscountIOS(
                 identifier = json["identifier"] as String,
                 localizedPrice = json["localizedPrice"] as String?,
                 numberOfPeriods = (json["numberOfPeriods"] as Number).toInt(),
-                paymentMode = PaymentModeIOS.fromJson(json["paymentMode"] as String),
+                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 price = json["price"] as String,
                 priceAmount = (json["priceAmount"] as Number).toDouble(),
                 subscriptionPeriod = json["subscriptionPeriod"] as String,
@@ -767,6 +767,8 @@ public data class ExternalPurchaseNoticeResultIOS(
 
 public sealed interface FetchProductsResult
 
+public data class FetchProductsResultAll(val value: List<ProductOrSubscription>?) : FetchProductsResult
+
 public data class FetchProductsResultProducts(val value: List<Product>?) : FetchProductsResult
 
 public data class FetchProductsResultSubscriptions(val value: List<ProductSubscription>?) : FetchProductsResult
@@ -831,11 +833,11 @@ public data class ProductAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     override val title: String,
-    override val type: ProductType
+    override val type: ProductType = ProductType.InApp
 ) : ProductCommon, Product {
 
     companion object {
@@ -910,11 +912,11 @@ public data class ProductIOS(
     override val id: String,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     override val title: String,
-    override val type: ProductType,
+    override val type: ProductType = ProductType.InApp,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, Product {
 
@@ -969,11 +971,11 @@ public data class ProductSubscriptionAndroid(
     override val id: String,
     val nameAndroid: String,
     val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     override val title: String,
-    override val type: ProductType
+    override val type: ProductType = ProductType.Subs
 ) : ProductCommon, ProductSubscription {
 
     companion object {
@@ -1056,17 +1058,17 @@ public data class ProductSubscriptionIOS(
     val introductoryPriceAsAmountIOS: String? = null,
     val introductoryPriceIOS: String? = null,
     val introductoryPriceNumberOfPeriodsIOS: String? = null,
-    val introductoryPricePaymentModeIOS: PaymentModeIOS? = null,
+    val introductoryPricePaymentModeIOS: PaymentModeIOS,
     val introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS? = null,
     val isFamilyShareableIOS: Boolean,
     val jsonRepresentationIOS: String,
-    override val platform: IapPlatform,
+    override val platform: IapPlatform = IapPlatform.Ios,
     override val price: Double? = null,
     val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     val subscriptionPeriodNumberIOS: String? = null,
     val subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = null,
     override val title: String,
-    override val type: ProductType,
+    override val type: ProductType = ProductType.Subs,
     val typeIOS: ProductTypeIOS
 ) : ProductCommon, ProductSubscription {
 
@@ -1084,7 +1086,7 @@ public data class ProductSubscriptionIOS(
                 introductoryPriceAsAmountIOS = json["introductoryPriceAsAmountIOS"] as String?,
                 introductoryPriceIOS = json["introductoryPriceIOS"] as String?,
                 introductoryPriceNumberOfPeriodsIOS = json["introductoryPriceNumberOfPeriodsIOS"] as String?,
-                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as String?)?.let { PaymentModeIOS.fromJson(it) },
+                introductoryPricePaymentModeIOS = (json["introductoryPricePaymentModeIOS"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 introductoryPriceSubscriptionPeriodIOS = (json["introductoryPriceSubscriptionPeriodIOS"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) },
                 isFamilyShareableIOS = json["isFamilyShareableIOS"] as Boolean,
                 jsonRepresentationIOS = json["jsonRepresentationIOS"] as String,
@@ -1113,7 +1115,7 @@ public data class ProductSubscriptionIOS(
         "introductoryPriceAsAmountIOS" to introductoryPriceAsAmountIOS,
         "introductoryPriceIOS" to introductoryPriceIOS,
         "introductoryPriceNumberOfPeriodsIOS" to introductoryPriceNumberOfPeriodsIOS,
-        "introductoryPricePaymentModeIOS" to introductoryPricePaymentModeIOS?.toJson(),
+        "introductoryPricePaymentModeIOS" to introductoryPricePaymentModeIOS.toJson(),
         "introductoryPriceSubscriptionPeriodIOS" to introductoryPriceSubscriptionPeriodIOS?.toJson(),
         "isFamilyShareableIOS" to isFamilyShareableIOS,
         "jsonRepresentationIOS" to jsonRepresentationIOS,
@@ -1622,7 +1624,7 @@ public data class SubscriptionOfferIOS(
             return SubscriptionOfferIOS(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
-                paymentMode = PaymentModeIOS.fromJson(json["paymentMode"] as String),
+                paymentMode = (json["paymentMode"] as String?)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
                 period = SubscriptionPeriodValueIOS.fromJson((json["period"] as Map<String, Any?>)),
                 periodCount = (json["periodCount"] as Number).toInt(),
                 price = (json["price"] as Number).toDouble(),
@@ -1651,7 +1653,7 @@ public data class SubscriptionPeriodValueIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionPeriodValueIOS {
             return SubscriptionPeriodValueIOS(
-                unit = SubscriptionPeriodIOS.fromJson(json["unit"] as String),
+                unit = (json["unit"] as String?)?.let { SubscriptionPeriodIOS.fromJson(it) } ?: SubscriptionPeriodIOS.Empty,
                 value = (json["value"] as Number).toInt(),
             )
         }
@@ -2211,6 +2213,30 @@ public sealed interface Product : ProductCommon {
                 else -> throw IllegalArgumentException("Unknown __typename for Product: ${json["__typename"]}")
             }
         }
+    }
+}
+
+public sealed interface ProductOrSubscription {
+    fun toJson(): Map<String, Any?>
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ProductOrSubscription {
+            return when (json["__typename"] as String?) {
+                "ProductAndroid" -> ProductItem(Product.fromJson(json))
+                "ProductIOS" -> ProductItem(Product.fromJson(json))
+                "ProductSubscriptionAndroid" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                "ProductSubscriptionIOS" -> ProductSubscriptionItem(ProductSubscription.fromJson(json))
+                else -> throw IllegalArgumentException("Unknown __typename for ProductOrSubscription: ${json["__typename"]}")
+            }
+        }
+    }
+
+    data class ProductItem(val value: Product) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
+    }
+
+    data class ProductSubscriptionItem(val value: ProductSubscription) : ProductOrSubscription {
+        override fun toJson() = value.toJson()
     }
 }
 

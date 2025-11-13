@@ -731,7 +731,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     introductoryPriceAsAmountIOS = map["introductoryPriceAsAmountIOS"] as? String,
                     introductoryPriceIOS = map["introductoryPriceIOS"] as? String,
                     introductoryPriceNumberOfPeriodsIOS = map["introductoryPriceNumberOfPeriodsIOS"] as? String,
-                    introductoryPricePaymentModeIOS = null, // Complex enum
+                    introductoryPricePaymentModeIOS = PaymentModeIOS.Empty, // Complex enum
                     introductoryPriceSubscriptionPeriodIOS = null, // Complex enum
                     isFamilyShareableIOS = map["isFamilyShareableIOS"] as? Boolean ?: false,
                     jsonRepresentationIOS = map["jsonRepresentationIOS"] as? String ?: "",
