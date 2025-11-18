@@ -58,6 +58,35 @@ dependencies {
 
 ### iOS Configuration
 
+#### Link the OpenIAP native module
+
+The iOS side must link against [OpenIAP](https://github.com/hyodotdev/openiap). Add the pod to your shared module so CocoaPods installs it together with your Kotlin framework:
+
+```kotlin
+// shared/build.gradle.kts
+val openIapVersion = "1.2.39" // Match the version bundled with your kmp-iap release
+
+kotlin {
+    cocoapods {
+        pod("openiap") {
+            version = openIapVersion
+            source = git("https://github.com/hyodotdev/openiap.git") {
+                tag = "apple-v$openIapVersion"
+            }
+            moduleName = "OpenIAP"
+        }
+    }
+}
+```
+
+If you edit the Podfile manually, make sure it includes the same dependency:
+
+```ruby
+pod 'OpenIAP', '1.2.39'
+```
+
+Missing this step leads to `Undefined symbol '_OBJC_CLASS_$__TtC7OpenIAP13OpenIapModule'` errors at link time.
+
 #### Enable In-App Purchase Capability
 
 1. Open your project in Xcode

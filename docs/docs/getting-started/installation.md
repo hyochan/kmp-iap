@@ -93,14 +93,40 @@ kotlin {
 }
 ```
 
-2. **Run pod install:**
+2. **Add the OpenIAP pod dependency to your shared module:**
+
+```kotlin
+// Match the OpenIAP version used by the current kmp-iap release.
+// See https://github.com/hyochan/kmp-iap/blob/main/openiap-versions.json
+val openIapVersion = "1.2.39"
+
+kotlin {
+    cocoapods {
+        pod("openiap") {
+            version = openIapVersion
+            source = git("https://github.com/hyodotdev/openiap.git") {
+                tag = "apple-v$openIapVersion"
+            }
+            moduleName = "OpenIAP"
+        }
+    }
+}
+```
+
+This generates `pod 'OpenIAP', '1.2.39'` inside the auto-generated Podfile so Xcode links the native module. If you manage the Podfile manually, add the pod there instead:
+
+```ruby
+pod 'OpenIAP', '1.2.39'
+```
+
+3. **Run pod install:**
 
 ```bash
 cd iosApp
 pod install
 ```
 
-3. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
+4. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
 
 ```bash
 open iosApp.xcworkspace
@@ -160,10 +186,11 @@ For testing with StoreKit 2, create a `.storekit` configuration file:
 This error means the OpenIAP framework isn't linked. Fix it by:
 
 **If using CocoaPods:**
-1. Run `cd iosApp && pod install`
-2. Open `.xcworkspace` (NOT `.xcodeproj`)
-3. Clean build folder: **Product** → **Clean Build Folder**
-4. Rebuild
+1. Make sure your shared module's `cocoapods` block (or Podfile) adds `pod("openiap")`/`pod 'OpenIAP'` with the same version as kmp-iap
+2. Run `cd iosApp && pod install`
+3. Open `.xcworkspace` (NOT `.xcodeproj`)
+4. Clean build folder: **Product** → **Clean Build Folder**
+5. Rebuild
 
 **If using SPM:**
 1. Verify OpenIAP appears in **Build Phases** → **Link Binary with Libraries**
