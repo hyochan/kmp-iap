@@ -92,7 +92,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: |
-          ./gradlew :library:publishAllPublicationsToMavenCentral --no-daemon --no-parallel
+          ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
       - name: Create GitHub Release (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch' && success()
