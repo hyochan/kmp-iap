@@ -61,7 +61,7 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add README.md library/library.podspec
+          git add README.md library/library.podspec openiap-versions.json docs/docs/intro.md docs/docs/getting-started/installation.md
           git diff --staged --quiet || git commit -m "chore: update version to ${{ env.VERSION }} [skip ci]"
           git push || echo "No changes to commit"
 

@@ -181,18 +181,50 @@ android {
     }
 }
 
-// Task to update README version
+// Task to update README and docs version
 val updateReadmeVersion = tasks.register("updateReadmeVersion") {
     doLast {
         val version = localProperties.getProperty("libraryVersion") ?: "1.0.0-alpha04"
-        val readmeFile = rootProject.file("README.md")
-        val content = readmeFile.readText()
-        val updatedContent = content.replace(
-            Regex("implementation\\(\"io\\.github\\.hyochan:kmp-iap:.*\"\\)"),
-            "implementation(\"io.github.hyochan:kmp-iap:$version\")"
+
+        // Update openiap-versions.json with kmp-iap version
+        val versionsFile = rootProject.file("openiap-versions.json")
+        if (versionsFile.exists()) {
+            val versionsContent = versionsFile.readText()
+            val updatedVersions = versionsContent.replace(
+                Regex("\"kmp-iap\":\\s*\"[^\"]+\""),
+                "\"kmp-iap\": \"$version\""
+            )
+            versionsFile.writeText(updatedVersions)
+            println("Updated openiap-versions.json with kmp-iap version: $version")
+        }
+
+        // Files to update
+        val filesToUpdate = listOf(
+            rootProject.file("README.md"),
+            rootProject.file("docs/docs/intro.md"),
+            rootProject.file("docs/docs/getting-started/installation.md")
         )
-        readmeFile.writeText(updatedContent)
-        println("Updated README.md with version: $version")
+
+        // Version patterns to replace
+        val replacements = listOf(
+            Regex("implementation\\(\"io\\.github\\.hyochan:kmp-iap:[^\"]+\"\\)") to
+                "implementation(\"io.github.hyochan:kmp-iap:$version\")",
+            Regex("io\\.github\\.hyochan:kmp-iap:[^\"]+") to
+                "io.github.hyochan:kmp-iap:$version",
+            Regex("kmp-iap = \"[^\"]+\"") to
+                "kmp-iap = \"$version\""
+        )
+
+        filesToUpdate.forEach { file ->
+            if (file.exists()) {
+                var content = file.readText()
+                replacements.forEach { (pattern, replacement) ->
+                    content = content.replace(pattern, replacement)
+                }
+                file.writeText(content)
+                println("Updated ${file.name} with version: $version")
+            }
+        }
     }
 }
 
