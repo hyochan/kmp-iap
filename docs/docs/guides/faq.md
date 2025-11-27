@@ -3,7 +3,11 @@ sidebar_position: 10
 title: FAQ
 ---
 
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Frequently Asked Questions
+
+<GreatFrontEndBanner />
 
 Common questions and answers about kmp-iap.
 

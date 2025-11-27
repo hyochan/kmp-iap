@@ -3,7 +3,11 @@ title: Core Methods
 sidebar_position: 3
 ---
 
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Core Methods
+
+<GreatFrontEndBanner />
 
 Essential methods for implementing in-app purchases with kmp-iap, now **100% OpenIAP specification compliant**. All methods support both iOS and Android platforms with unified APIs using Kotlin coroutines.
 

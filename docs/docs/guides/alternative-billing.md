@@ -1,4 +1,8 @@
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Alternative Billing
+
+<GreatFrontEndBanner />
 
 This guide explains how to implement alternative billing functionality in your app using kmp-iap, allowing you to use external payment systems alongside or instead of the App Store/Google Play billing.
 

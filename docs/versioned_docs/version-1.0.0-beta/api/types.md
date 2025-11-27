@@ -3,7 +3,12 @@ title: Types
 sidebar_position: 2
 ---
 
+
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Types
+
+<GreatFrontEndBanner />
 
 Comprehensive type definitions for kmp-iap v1.0.0-rc following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
 

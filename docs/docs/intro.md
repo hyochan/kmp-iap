@@ -4,11 +4,11 @@ sidebar_label: Introduction
 sidebar_position: 1
 ---
 
-import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+import GreatFrontEndTopFixed from '@site/src/uis/GreatFrontEndTopFixed';
 
 # 🛒 kmp-iap
 
-<AdFitTopFixed />
+<GreatFrontEndTopFixed />
 
 :::info Version
 This documentation is for **kmp-iap v1.0.0-rc.6** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.

@@ -4,11 +4,11 @@ sidebar_label: iOS Setup
 sidebar_position: 2
 ---
 
-import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
 
 # iOS Setup
 
-<AdFitTopFixed />
+<GreatFrontEndBanner />
 
 For complete iOS setup instructions including App Store Connect configuration, Xcode setup, and testing guidelines, please visit:
 

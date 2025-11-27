@@ -3,7 +3,12 @@ sidebar_position: 2
 title: Subscription Store
 ---
 
+
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Subscription Store Example
+
+<GreatFrontEndBanner />
 
 A complete subscription store implementation with monthly and yearly plans using kmp-iap.
 

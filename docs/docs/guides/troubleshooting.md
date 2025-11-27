@@ -3,7 +3,11 @@ sidebar_position: 9
 title: Troubleshooting
 ---
 
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Troubleshooting
+
+<GreatFrontEndBanner />
 
 Common issues and solutions when implementing in-app purchases with kmp-iap.
 

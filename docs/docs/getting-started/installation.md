@@ -4,11 +4,11 @@ sidebar_label: Installation
 sidebar_position: 1
 ---
 
-import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
 
 # Installation & Setup
 
-<AdFitTopFixed />
+<GreatFrontEndBanner />
 
 Learn how to install and configure kmp-iap in your Kotlin Multiplatform project.
 

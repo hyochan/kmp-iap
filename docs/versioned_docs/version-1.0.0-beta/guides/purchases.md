@@ -3,11 +3,11 @@ sidebar_position: 3
 title: Purchases
 ---
 
-import AdFitTopFixed from '@site/src/uis/AdFitTopFixed';
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
 
 # Purchases
 
-<AdFitTopFixed />
+<GreatFrontEndBanner />
 
 Complete guide to implementing in-app purchases with kmp-iap v1.0.0-beta.2, covering everything from basic setup to advanced purchase handling using Kotlin Multiplatform.
 

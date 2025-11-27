@@ -3,15 +3,19 @@ sidebar_position: 7
 title: Lifecycle
 ---
 
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Lifecycle
+
+<GreatFrontEndBanner />
 
 Understanding and managing the in-app purchase lifecycle is crucial for creating robust and reliable purchase experiences in Kotlin Multiplatform projects.
 
-![Purchase Lifecycle](https://hyochan.github.io/kmp-iap/assets/images/lifecycle-882aa01ea00089e05a08f19581d9b349.svg)
+![Purchase Lifecycle](https://www.openiap.dev/purchase-flow.png)
+
+*Learn more about the OpenIAP lifecycle specification: [OpenIAP Lifecycle Documentation](https://www.openiap.dev/docs/lifecycle)*
 
 The purchase lifecycle involves multiple interconnected states and transitions, from initial store connection through purchase completion and transaction finalization. Understanding this flow helps you build resilient purchase systems that handle edge cases gracefully.
-
-While this diagram is from expo-iap, kmp-iap follows the exact same design patterns and flow, making this lifecycle representation identical for both libraries.
 
 ## Lifecycle Overview
 

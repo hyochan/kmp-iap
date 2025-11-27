@@ -3,7 +3,11 @@ sidebar_position: 3
 title: Complete Implementation
 ---
 
+import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+
 # Complete Production-Ready Implementation
+
+<GreatFrontEndBanner />
 
 A comprehensive, production-ready implementation with all best practices for a robust in-app purchase system using Kotlin Multiplatform.
 
