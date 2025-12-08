@@ -73,7 +73,7 @@ typealias RequestVerifyPurchaseWithIapkitAppleProps = io.github.hyochan.kmpiap.o
 typealias RequestVerifyPurchaseWithIapkitGoogleProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 typealias RequestVerifyPurchaseWithIapkitResult = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 typealias IapkitPurchaseState = io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
-typealias IapkitStore = io.github.hyochan.kmpiap.openiap.IapkitStore
+typealias IapStore = io.github.hyochan.kmpiap.openiap.IapStore
 
 // Re-export DSL builders
 typealias ProductsRequestBuilder = io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder

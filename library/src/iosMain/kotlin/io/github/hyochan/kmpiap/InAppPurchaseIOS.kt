@@ -600,9 +600,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         }
 
                         val store = try {
-                            IapkitStore.fromJson(storeString)
+                            IapStore.fromJson(storeString)
                         } catch (e: IllegalArgumentException) {
-                            IapkitStore.Apple
+                            IapStore.Apple
                         }
 
                         RequestVerifyPurchaseWithIapkitResult(
@@ -685,6 +685,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     ownershipTypeIOS = map["ownershipTypeIOS"] as? String,
                     platform = IapPlatform.Ios,
                     productId = map["productId"] as? String ?: "",
+                    store = IapStore.Apple,
                     purchaseState = (map["purchaseState"] as? String)?.let {
                         PurchaseState.fromJson(it)
                     } ?: PurchaseState.Unknown,

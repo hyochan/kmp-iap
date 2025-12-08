@@ -13,6 +13,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.IapPlatform
+import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductAndroidOneTimePurchaseOfferDetail
@@ -218,6 +219,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         packageNameAndroid = packageName,
         platform = IapPlatform.Android,
         productId = products.firstOrNull() ?: "",
+        store = IapStore.Google,
         purchaseState = purchaseStateEnum,
         purchaseToken = purchaseToken,
         quantity = quantity,

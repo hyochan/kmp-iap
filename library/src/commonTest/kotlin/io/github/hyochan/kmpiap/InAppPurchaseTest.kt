@@ -98,6 +98,7 @@ class InAppPurchaseTest {
             purchaseToken = "token",
             quantity = 1,
             signatureAndroid = "signature",
+            store = IapStore.Google,
             transactionDate = 1234567890.0
         )
 

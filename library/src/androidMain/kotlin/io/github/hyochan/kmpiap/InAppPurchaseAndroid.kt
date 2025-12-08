@@ -74,6 +74,8 @@ import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
+import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
@@ -762,11 +764,13 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 )
             )
 
-            val results = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
+            val googleResult = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
 
-            val iapkitResult = results.firstOrNull()?.let { response ->
-                RequestVerifyPurchaseWithIapkitResult.fromJson(response.toJson())
-            }
+            val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+                isValid = googleResult.isValid,
+                state = IapkitPurchaseState.fromJson(googleResult.state.toJson()),
+                store = IapStore.fromJson(googleResult.store.toJson())
+            )
 
             VerifyPurchaseWithProviderResult(
                 iapkit = iapkitResult,

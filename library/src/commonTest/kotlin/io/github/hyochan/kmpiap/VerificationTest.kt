@@ -59,6 +59,7 @@ class VerificationTest {
             platform = IapPlatform.Ios,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
+            store = IapStore.Apple,
             isAutoRenewing = false,
             transactionDate = 1234567890.0,
             transactionId = "trans123"
@@ -262,24 +263,24 @@ class VerificationTest {
         assertEquals(IapkitPurchaseState.Inauthentic, IapkitPurchaseState.fromJson("inauthentic"))
     }
 
-    // MARK: - IapkitStore Tests
+    // MARK: - IapStore Tests
 
     @Test
-    fun testIapkitStoreApple() {
-        val store = IapkitStore.Apple
+    fun testIapStoreApple() {
+        val store = IapStore.Apple
         assertEquals("apple", store.rawValue)
     }
 
     @Test
-    fun testIapkitStoreGoogle() {
-        val store = IapkitStore.Google
+    fun testIapStoreGoogle() {
+        val store = IapStore.Google
         assertEquals("google", store.rawValue)
     }
 
     @Test
-    fun testIapkitStoreFromJson() {
-        assertEquals(IapkitStore.Apple, IapkitStore.fromJson("apple"))
-        assertEquals(IapkitStore.Google, IapkitStore.fromJson("google"))
+    fun testIapStoreFromJson() {
+        assertEquals(IapStore.Apple, IapStore.fromJson("apple"))
+        assertEquals(IapStore.Google, IapStore.fromJson("google"))
     }
 
     // MARK: - RequestVerifyPurchaseWithIapkitProps Tests
@@ -326,11 +327,11 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = true,
             state = IapkitPurchaseState.Entitled,
-            store = IapkitStore.Apple
+            store = IapStore.Apple
         )
         assertTrue(result.isValid)
         assertEquals(IapkitPurchaseState.Entitled, result.state)
-        assertEquals(IapkitStore.Apple, result.store)
+        assertEquals(IapStore.Apple, result.store)
     }
 
     @Test
@@ -338,11 +339,11 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = false,
             state = IapkitPurchaseState.Expired,
-            store = IapkitStore.Google
+            store = IapStore.Google
         )
         assertFalse(result.isValid)
         assertEquals(IapkitPurchaseState.Expired, result.state)
-        assertEquals(IapkitStore.Google, result.store)
+        assertEquals(IapStore.Google, result.store)
     }
 
     @Test
@@ -350,7 +351,7 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = false,
             state = IapkitPurchaseState.Inauthentic,
-            store = IapkitStore.Apple
+            store = IapStore.Apple
         )
         assertFalse(result.isValid)
         assertEquals(IapkitPurchaseState.Inauthentic, result.state)
@@ -361,7 +362,7 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = true,
             state = IapkitPurchaseState.ReadyToConsume,
-            store = IapkitStore.Google
+            store = IapStore.Google
         )
         assertTrue(result.isValid)
         assertEquals(IapkitPurchaseState.ReadyToConsume, result.state)
@@ -372,7 +373,7 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = true,
             state = IapkitPurchaseState.PendingAcknowledgment,
-            store = IapkitStore.Google
+            store = IapStore.Google
         )
         assertTrue(result.isValid)
         assertEquals(IapkitPurchaseState.PendingAcknowledgment, result.state)
@@ -383,7 +384,7 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult(
             isValid = true,
             state = IapkitPurchaseState.Entitled,
-            store = IapkitStore.Apple
+            store = IapStore.Apple
         )
         val json = result.toJson()
         assertEquals(true, json["isValid"])
@@ -402,7 +403,7 @@ class VerificationTest {
         val result = RequestVerifyPurchaseWithIapkitResult.fromJson(json)
         assertTrue(result.isValid)
         assertEquals(IapkitPurchaseState.Entitled, result.state)
-        assertEquals(IapkitStore.Google, result.store)
+        assertEquals(IapStore.Google, result.store)
     }
 
     // MARK: - VerifyPurchaseWithProviderProps Tests
@@ -444,14 +445,14 @@ class VerificationTest {
             iapkit = RequestVerifyPurchaseWithIapkitResult(
                 isValid = true,
                 state = IapkitPurchaseState.Entitled,
-                store = IapkitStore.Apple
+                store = IapStore.Apple
             )
         )
         assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
         assertNotNull(result.iapkit)
         assertTrue(result.iapkit!!.isValid)
         assertEquals(IapkitPurchaseState.Entitled, result.iapkit!!.state)
-        assertEquals(IapkitStore.Apple, result.iapkit!!.store)
+        assertEquals(IapStore.Apple, result.iapkit!!.store)
     }
 
     @Test
@@ -471,7 +472,7 @@ class VerificationTest {
             iapkit = RequestVerifyPurchaseWithIapkitResult(
                 isValid = true,
                 state = IapkitPurchaseState.Entitled,
-                store = IapkitStore.Apple
+                store = IapStore.Apple
             )
         )
         val json = result.toJson()
@@ -578,7 +579,7 @@ class VerificationTest {
         val original = RequestVerifyPurchaseWithIapkitResult(
             isValid = true,
             state = IapkitPurchaseState.Entitled,
-            store = IapkitStore.Apple
+            store = IapStore.Apple
         )
         val json = original.toJson()
         // Need to convert back properly
