@@ -582,14 +582,7 @@ class VerificationTest {
             store = IapStore.Apple
         )
         val json = original.toJson()
-        // Need to convert back properly
-        val restored = RequestVerifyPurchaseWithIapkitResult.fromJson(
-            mapOf(
-                "isValid" to json["isValid"],
-                "state" to json["state"],
-                "store" to json["store"]
-            )
-        )
+        val restored = RequestVerifyPurchaseWithIapkitResult.fromJson(json)
 
         assertEquals(original.isValid, restored.isValid)
         assertEquals(original.state, restored.state)

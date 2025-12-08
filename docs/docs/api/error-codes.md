@@ -497,7 +497,7 @@ class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
             ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
                 refreshPurchases()
             }
-            ErrorCode.E_RECEIPT_FAILED.name,
+            ErrorCode.E_PURCHASE_VERIFICATION_FAILED.name,
             ErrorCode.E_TRANSACTION_VALIDATION_FAILED.name -> {
                 revalidatePurchases()
             }
@@ -600,7 +600,7 @@ kmp-iap fully implements the [OpenIAP error specification](https://openiap.dev/d
 - **Consistent error codes** across all platforms
 - **Standardized error messages** for better UX
 - **Compatible with expo-iap** and other OpenIAP implementations
-- **27 standard error codes** covering all IAP scenarios
+- **30 standard error codes** covering all IAP scenarios
 
 ## Migration Notes
 
