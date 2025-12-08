@@ -839,6 +839,120 @@ if (hasPremium) {
 
 ## Validation
 
+### verifyPurchaseWithProvider()
+
+Verifies purchases using external verification services like IAPKit. This provides server-side validation without maintaining your own validation infrastructure.
+
+```kotlin
+suspend fun verifyPurchaseWithProvider(
+    options: VerifyPurchaseWithProviderProps
+): VerifyPurchaseWithProviderResult
+```
+
+**Parameters**:
+- `options` - Verification configuration including provider and credentials
+
+```kotlin
+data class VerifyPurchaseWithProviderProps(
+    val provider: PurchaseVerificationProvider,
+    val iapkit: RequestVerifyPurchaseWithIapkitProps?
+)
+
+data class RequestVerifyPurchaseWithIapkitProps(
+    val apiKey: String?,
+    val apple: RequestVerifyPurchaseWithIapkitAppleProps?,
+    val google: RequestVerifyPurchaseWithIapkitGoogleProps?
+)
+```
+
+**Returns**: `VerifyPurchaseWithProviderResult` with verification results
+
+```kotlin
+data class VerifyPurchaseWithProviderResult(
+    val provider: PurchaseVerificationProvider,
+    val iapkit: List<RequestVerifyPurchaseWithIapkitResult>
+)
+
+data class RequestVerifyPurchaseWithIapkitResult(
+    val isValid: Boolean,
+    val state: IapkitPurchaseState,
+    val store: IapkitStore
+)
+
+enum class IapkitPurchaseState {
+    Pending, Unknown, Entitled, PendingAcknowledgment,
+    Canceled, Expired, ReadyToConsume, Consumed, Inauthentic
+}
+```
+
+**Example**:
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.PurchaseVerificationProvider
+import io.github.hyochan.kmpiap.VerifyPurchaseWithProviderProps
+import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitProps
+import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitAppleProps
+import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitGoogleProps
+
+// Verify iOS purchase with IAPKit
+val result = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-iapkit-api-key",
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                jws = purchase.purchaseToken ?: ""
+            ),
+            google = null
+        )
+    )
+)
+
+// Check verification results
+result.iapkit.forEach { item ->
+    println("Is Valid: ${item.isValid}")
+    println("State: ${item.state}") // Entitled, Expired, Canceled, etc.
+    println("Store: ${item.store}") // Apple or Google
+}
+
+// Verify Android purchase
+val androidResult = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-iapkit-api-key",
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken ?: ""
+            )
+        )
+    )
+)
+```
+
+**Platform Behavior**:
+- **iOS**: Sends the JWS token to IAPKit for server-side verification
+- **Android**: Sends the purchase token for verification
+
+**Use Cases**:
+- Server-side receipt validation without maintaining your own infrastructure
+- Cross-platform purchase verification with a unified API
+- Enhanced security through external verification services
+
+:::tip Environment Variables
+Store your IAPKit API key securely using environment variables:
+```
+# .env file
+IAPKIT_API_KEY=your_iapkit_api_key_here
+```
+
+Never hardcode API keys in your source code.
+:::
+
+**Note**: You need an IAPKit API key to use this feature. Visit [iapkit.com](https://iapkit.com) to get started.
+
+---
+
 ### validateReceipt()
 
 Validates a purchase receipt (server-side validation recommended).

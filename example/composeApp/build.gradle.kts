@@ -2,6 +2,24 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import java.util.Properties
+
+// Load .env file
+fun loadEnvProperties(): Properties {
+    val properties = Properties()
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.readLines().forEach { line ->
+            if (line.isNotBlank() && !line.startsWith("#") && line.contains("=")) {
+                val (key, value) = line.split("=", limit = 2)
+                properties[key.trim()] = value.trim()
+            }
+        }
+    }
+    return properties
+}
+
+val envProperties = loadEnvProperties()
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -88,6 +106,17 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        // Load IAPKit API key from .env
+        buildConfigField(
+            "String",
+            "IAPKIT_API_KEY",
+            "\"${envProperties.getProperty("IAPKIT_API_KEY", "")}\""
+        )
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     packaging {

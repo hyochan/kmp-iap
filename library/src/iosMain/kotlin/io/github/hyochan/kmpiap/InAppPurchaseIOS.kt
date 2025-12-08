@@ -1,7 +1,8 @@
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*
-import kotlinx.cinterop.*
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +15,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 internal class InAppPurchaseIOS : KmpInAppPurchase {
     // OpenIAP module instance - use constructor, not shared()
     private val openIapModule = OpenIapModule()
@@ -276,7 +277,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("syncIOS not implemented in OpenIAP")
     }
 
-    override suspend fun validateReceipt(options: ReceiptValidationProps): ReceiptValidationResult {
+    override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult {
         // Call the iOS-specific version and return the result directly
         return validateReceiptIOS(options)
     }
@@ -530,18 +531,112 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS {
+    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
         // Get receipt data
         val receiptData = getReceiptDataIOS() ?: ""
 
         // For now, return a basic result. Full validation requires backend integration
-        return ReceiptValidationResultIOS(
+        return VerifyPurchaseResultIOS(
             isValid = false,
             jwsRepresentation = "",
             latestTransaction = null,
             receiptData = receiptData
         )
     }
+
+    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
+        // Call the iOS-specific validation method
+        return validateReceiptIOS(options)
+    }
+
+    override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult =
+        suspendCoroutine { continuation ->
+            val provider = options.provider.rawValue
+            val apiKey = options.iapkit?.apiKey
+            val jws = options.iapkit?.apple?.jws
+
+            openIapModule.verifyPurchaseWithProviderObjCWithProvider(
+                provider = provider,
+                apiKey = apiKey,
+                jws = jws
+            ) { result, error ->
+                if (error != null) {
+                    val nsError = error as NSError
+                    continuation.resumeWithException(
+                        PurchaseException(
+                            PurchaseError(
+                                code = ErrorCode.PurchaseVerificationFailed,
+                                message = nsError.localizedDescription
+                            )
+                        )
+                    )
+                    return@verifyPurchaseWithProviderObjCWithProvider
+                }
+
+                if (result == null) {
+                    continuation.resumeWithException(
+                        PurchaseException(
+                            PurchaseError(
+                                code = ErrorCode.PurchaseVerificationFailed,
+                                message = "Verification returned null result"
+                            )
+                        )
+                    )
+                    return@verifyPurchaseWithProviderObjCWithProvider
+                }
+
+                try {
+                    val iapkitResults = (result as? List<*>)?.mapNotNull { item ->
+                        val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() }
+                            ?: return@mapNotNull null
+
+                        val isValid = map["isValid"] as? Boolean ?: false
+                        val stateString = map["state"] as? String ?: "unknown"
+                        val storeString = map["store"] as? String ?: "apple"
+
+                        val state = when (stateString.lowercase().replace("_", "-")) {
+                            "entitled" -> IapkitPurchaseState.Entitled
+                            "pending-acknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
+                            "pending" -> IapkitPurchaseState.Pending
+                            "canceled" -> IapkitPurchaseState.Canceled
+                            "expired" -> IapkitPurchaseState.Expired
+                            "ready-to-consume" -> IapkitPurchaseState.ReadyToConsume
+                            "consumed" -> IapkitPurchaseState.Consumed
+                            "inauthentic" -> IapkitPurchaseState.Inauthentic
+                            else -> IapkitPurchaseState.Unknown
+                        }
+
+                        val store = when (storeString.lowercase()) {
+                            "apple" -> IapkitStore.Apple
+                            "google" -> IapkitStore.Google
+                            else -> IapkitStore.Apple
+                        }
+
+                        RequestVerifyPurchaseWithIapkitResult(
+                            isValid = isValid,
+                            state = state,
+                            store = store
+                        )
+                    } ?: emptyList()
+
+                    continuation.resume(
+                        VerifyPurchaseWithProviderResult(
+                            iapkit = iapkitResults,
+                            provider = options.provider
+                        )
+                    )
+                } catch (e: Exception) {
+                    continuation.resumeWithException(
+                        PurchaseException(
+                            PurchaseError(
+                                code = ErrorCode.PurchaseVerificationFailed,
+                                message = "Failed to parse verification result: ${e.message}"
+                            )
+                        )
+                    )
+                }
+            }
+        }
 
     // -------------------------------------------------------------------------
     // SubscriptionResolver Implementation

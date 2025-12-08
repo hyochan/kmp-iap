@@ -31,7 +31,10 @@ object ErrorCodeUtils {
         ErrorCode.TransactionValidationFailed to 23,
         ErrorCode.ActivityUnavailable to 24,
         ErrorCode.AlreadyPrepared to 25,
-        ErrorCode.ConnectionClosed to 26
+        ErrorCode.ConnectionClosed to 26,
+        ErrorCode.PurchaseVerificationFailed to 27,
+        ErrorCode.PurchaseVerificationFinished to 28,
+        ErrorCode.PurchaseVerificationFinishFailed to 29
     )
 
     private val legacyCodeMap: Map<String, ErrorCode> = buildMap {
@@ -75,6 +78,9 @@ object ErrorCodeUtils {
         alias("E_BILLING_UNAVAILABLE", "BILLING_UNAVAILABLE", target = ErrorCode.BillingUnavailable)
         alias("E_FEATURE_NOT_SUPPORTED", "FEATURE_NOT_SUPPORTED", target = ErrorCode.FeatureNotSupported)
         alias("E_EMPTY_SKU_LIST", "EMPTY_SKU_LIST", target = ErrorCode.EmptySkuList)
+        alias("E_PURCHASE_VERIFICATION_FAILED", "PURCHASE_VERIFICATION_FAILED", target = ErrorCode.PurchaseVerificationFailed)
+        alias("E_PURCHASE_VERIFICATION_FINISHED", "PURCHASE_VERIFICATION_FINISHED", target = ErrorCode.PurchaseVerificationFinished)
+        alias("E_PURCHASE_VERIFICATION_FINISH_FAILED", "PURCHASE_VERIFICATION_FINISH_FAILED", target = ErrorCode.PurchaseVerificationFinishFailed)
     }
 
     fun fromPlatformCode(platformCode: Any, platform: IapPlatform): ErrorCode {
@@ -144,5 +150,8 @@ object ErrorCodeUtils {
         ErrorCode.BillingUnavailable -> "Billing unavailable"
         ErrorCode.FeatureNotSupported -> "Feature not supported"
         ErrorCode.EmptySkuList -> "SKU list is empty"
+        ErrorCode.PurchaseVerificationFailed -> "Purchase verification failed"
+        ErrorCode.PurchaseVerificationFinished -> "Purchase verification completed"
+        ErrorCode.PurchaseVerificationFinishFailed -> "Failed to complete purchase verification"
     }
 }
