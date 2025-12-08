@@ -154,7 +154,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                             )
                                                         )
                                                     )
-                                                    val iapkitResult = result.iapkit.firstOrNull()
+                                                    val iapkitResult = result.iapkit
                                                     val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
                                                     verificationResult = "$statusEmoji IAPKit Verification:\n" +
                                                         "Valid: ${iapkitResult?.isValid ?: false}\n" +

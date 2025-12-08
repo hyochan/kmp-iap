@@ -941,7 +941,7 @@ val androidResult = kmpIapInstance.verifyPurchaseWithProvider(
 
 :::tip Environment Variables
 Store your IAPKit API key securely using environment variables:
-```
+```bash
 # .env file
 IAPKIT_API_KEY=your_iapkit_api_key_here
 ```

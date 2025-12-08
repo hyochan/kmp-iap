@@ -438,90 +438,63 @@ class VerificationTest {
     // MARK: - VerifyPurchaseWithProviderResult Tests
 
     @Test
-    fun testVerifyPurchaseWithProviderResultSingleEntry() {
+    fun testVerifyPurchaseWithProviderResultWithIapkit() {
         val result = VerifyPurchaseWithProviderResult(
             provider = PurchaseVerificationProvider.Iapkit,
-            iapkit = listOf(
-                RequestVerifyPurchaseWithIapkitResult(
-                    isValid = true,
-                    state = IapkitPurchaseState.Entitled,
-                    store = IapkitStore.Apple
-                )
+            iapkit = RequestVerifyPurchaseWithIapkitResult(
+                isValid = true,
+                state = IapkitPurchaseState.Entitled,
+                store = IapkitStore.Apple
             )
         )
         assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
-        assertEquals(1, result.iapkit.size)
-        assertTrue(result.iapkit[0].isValid)
+        assertNotNull(result.iapkit)
+        assertTrue(result.iapkit!!.isValid)
+        assertEquals(IapkitPurchaseState.Entitled, result.iapkit!!.state)
+        assertEquals(IapkitStore.Apple, result.iapkit!!.store)
     }
 
     @Test
-    fun testVerifyPurchaseWithProviderResultMultipleEntries() {
+    fun testVerifyPurchaseWithProviderResultNullIapkit() {
         val result = VerifyPurchaseWithProviderResult(
             provider = PurchaseVerificationProvider.Iapkit,
-            iapkit = listOf(
-                RequestVerifyPurchaseWithIapkitResult(
-                    isValid = true,
-                    state = IapkitPurchaseState.Entitled,
-                    store = IapkitStore.Apple
-                ),
-                RequestVerifyPurchaseWithIapkitResult(
-                    isValid = true,
-                    state = IapkitPurchaseState.PendingAcknowledgment,
-                    store = IapkitStore.Google
-                )
-            )
-        )
-        assertEquals(2, result.iapkit.size)
-        assertEquals(IapkitStore.Apple, result.iapkit[0].store)
-        assertEquals(IapkitStore.Google, result.iapkit[1].store)
-    }
-
-    @Test
-    fun testVerifyPurchaseWithProviderResultEmptyIapkit() {
-        val result = VerifyPurchaseWithProviderResult(
-            provider = PurchaseVerificationProvider.Iapkit,
-            iapkit = emptyList()
+            iapkit = null
         )
         assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
-        assertTrue(result.iapkit.isEmpty())
+        assertNull(result.iapkit)
     }
 
     @Test
     fun testVerifyPurchaseWithProviderResultToJson() {
         val result = VerifyPurchaseWithProviderResult(
             provider = PurchaseVerificationProvider.Iapkit,
-            iapkit = listOf(
-                RequestVerifyPurchaseWithIapkitResult(
-                    isValid = true,
-                    state = IapkitPurchaseState.Entitled,
-                    store = IapkitStore.Apple
-                )
+            iapkit = RequestVerifyPurchaseWithIapkitResult(
+                isValid = true,
+                state = IapkitPurchaseState.Entitled,
+                store = IapkitStore.Apple
             )
         )
         val json = result.toJson()
         assertEquals("iapkit", json["provider"])
         assertEquals("VerifyPurchaseWithProviderResult", json["__typename"])
-        val iapkitList = json["iapkit"] as List<*>
-        assertEquals(1, iapkitList.size)
+        assertNotNull(json["iapkit"])
     }
 
     @Test
     fun testVerifyPurchaseWithProviderResultFromJson() {
         val json = mapOf(
             "provider" to "iapkit",
-            "iapkit" to listOf(
-                mapOf(
-                    "isValid" to true,
-                    "state" to "entitled",
-                    "store" to "apple"
-                )
+            "iapkit" to mapOf(
+                "isValid" to true,
+                "state" to "entitled",
+                "store" to "apple"
             )
         )
         val result = VerifyPurchaseWithProviderResult.fromJson(json)
         assertEquals(PurchaseVerificationProvider.Iapkit, result.provider)
-        assertEquals(1, result.iapkit.size)
-        assertTrue(result.iapkit[0].isValid)
-        assertEquals(IapkitPurchaseState.Entitled, result.iapkit[0].state)
+        assertNotNull(result.iapkit)
+        assertTrue(result.iapkit!!.isValid)
+        assertEquals(IapkitPurchaseState.Entitled, result.iapkit!!.state)
     }
 
     // MARK: - Verification Error Code Tests

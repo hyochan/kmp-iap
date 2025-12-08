@@ -764,12 +764,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             val results = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
 
-            val mappedResults = results.map { response ->
+            val iapkitResult = results.firstOrNull()?.let { response ->
                 RequestVerifyPurchaseWithIapkitResult.fromJson(response.toJson())
             }
 
             VerifyPurchaseWithProviderResult(
-                iapkit = mappedResults,
+                iapkit = iapkitResult,
                 provider = options.provider
             )
         } catch (e: Exception) {

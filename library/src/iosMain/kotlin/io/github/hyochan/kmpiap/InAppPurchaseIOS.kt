@@ -586,10 +586,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
 
                 try {
-                    val iapkitResults = (result as? List<*>)?.mapNotNull { item ->
-                        val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() }
-                            ?: return@mapNotNull null
+                    val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() }
 
+                    val iapkitResult = if (map != null) {
                         val isValid = map["isValid"] as? Boolean ?: false
                         val stateString = map["state"] as? String ?: "unknown"
                         val storeString = map["store"] as? String ?: "apple"
@@ -611,11 +610,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                             state = state,
                             store = store
                         )
-                    } ?: emptyList()
+                    } else null
 
                     continuation.resume(
                         VerifyPurchaseWithProviderResult(
-                            iapkit = iapkitResults,
+                            iapkit = iapkitResult,
                             provider = options.provider
                         )
                     )

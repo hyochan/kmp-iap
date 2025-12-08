@@ -95,7 +95,7 @@ IAPKIT_API_KEY=your_api_key_here
 ```
 
 **iOS** (`Secrets.xcconfig`):
-```
+```properties
 IAPKIT_API_KEY = your_api_key_here
 ```
 
