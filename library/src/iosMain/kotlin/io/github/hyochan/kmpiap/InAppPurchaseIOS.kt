@@ -594,22 +594,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         val stateString = map["state"] as? String ?: "unknown"
                         val storeString = map["store"] as? String ?: "apple"
 
-                        val state = when (stateString.lowercase().replace("_", "-")) {
-                            "entitled" -> IapkitPurchaseState.Entitled
-                            "pending-acknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
-                            "pending" -> IapkitPurchaseState.Pending
-                            "canceled" -> IapkitPurchaseState.Canceled
-                            "expired" -> IapkitPurchaseState.Expired
-                            "ready-to-consume" -> IapkitPurchaseState.ReadyToConsume
-                            "consumed" -> IapkitPurchaseState.Consumed
-                            "inauthentic" -> IapkitPurchaseState.Inauthentic
-                            else -> IapkitPurchaseState.Unknown
+                        val state = try {
+                            IapkitPurchaseState.fromJson(stateString)
+                        } catch (e: IllegalArgumentException) {
+                            IapkitPurchaseState.Unknown
                         }
 
-                        val store = when (storeString.lowercase()) {
-                            "apple" -> IapkitStore.Apple
-                            "google" -> IapkitStore.Google
-                            else -> IapkitStore.Apple
+                        val store = try {
+                            IapkitStore.fromJson(storeString)
+                        } catch (e: IllegalArgumentException) {
+                            IapkitStore.Apple
                         }
 
                         RequestVerifyPurchaseWithIapkitResult(
