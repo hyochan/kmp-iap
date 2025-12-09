@@ -888,11 +888,7 @@ enum class IapkitPurchaseState {
 **Example**:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.PurchaseVerificationProvider
-import io.github.hyochan.kmpiap.VerifyPurchaseWithProviderProps
-import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitProps
-import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitAppleProps
-import io.github.hyochan.kmpiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import io.github.hyochan.kmpiap.openiap.*
 
 // Verify iOS purchase with IAPKit
 val result = kmpIapInstance.verifyPurchaseWithProvider(
@@ -901,7 +897,7 @@ val result = kmpIapInstance.verifyPurchaseWithProvider(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "your-iapkit-api-key",
             apple = RequestVerifyPurchaseWithIapkitAppleProps(
-                jws = purchase.purchaseToken ?: ""
+                jws = purchase.jwsRepresentationIOS ?: ""
             ),
             google = null
         )
@@ -909,10 +905,10 @@ val result = kmpIapInstance.verifyPurchaseWithProvider(
 )
 
 // Check verification results
-result.iapkit.forEach { item ->
-    println("Is Valid: ${item.isValid}")
-    println("State: ${item.state}") // Entitled, Expired, Canceled, etc.
-    println("Store: ${item.store}") // Apple or Google
+result.iapkit?.let { iapkit ->
+    println("Is Valid: ${iapkit.isValid}")
+    println("State: ${iapkit.state}") // Entitled, Expired, Canceled, etc.
+    println("Store: ${iapkit.store}") // Apple or Google
 }
 
 // Verify Android purchase
@@ -950,6 +946,80 @@ Never hardcode API keys in your source code.
 :::
 
 **Note**: You need an IAPKit API key to use this feature. Visit [iapkit.com](https://iapkit.com) to get started.
+
+#### Error Handling Best Practice
+
+:::warning Important
+**Verification error ≠ Invalid purchase**
+
+When `verifyPurchaseWithProvider` throws an error, it does NOT mean the purchase is invalid. Errors can occur due to:
+- Network connectivity issues
+- IAPKit server downtime
+- Misconfigured API keys
+- Temporary service errors
+
+Don't penalize customers for verification failures. Use a **"fail-open" approach**: grant access and finish the transaction when verification fails due to errors.
+:::
+
+```kotlin
+try {
+    val result = kmpIapInstance.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            provider = PurchaseVerificationProvider.Iapkit,
+            iapkit = RequestVerifyPurchaseWithIapkitProps(
+                apiKey = "your-api-key",
+                apple = null,
+                google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                    purchaseToken = purchase.purchaseToken ?: ""
+                )
+            )
+        )
+    )
+
+    result.iapkit?.let { iapkit ->
+        if (iapkit.isValid) {
+            // Verification succeeded - grant access
+            kmpIapInstance.finishTransaction(purchase, isConsumable = false)
+            grantAccess()
+        } else {
+            // Verification failed (isValid: false) - actually invalid purchase
+            // Don't call finishTransaction - allow retry
+            denyAccess()
+        }
+    }
+} catch (e: Exception) {
+    // Verification itself failed (network, server error, etc.)
+    // This doesn't mean the purchase is invalid - don't penalize the customer
+    println("Verification failed: ${e.message}")
+    kmpIapInstance.finishTransaction(purchase, isConsumable = false)  // Complete the transaction
+    grantAccess()  // Grant access (fail-open approach)
+}
+```
+
+#### Purchase Identifier Usage
+
+After verifying purchases, use the appropriate identifiers for content delivery and purchase tracking:
+
+**iOS Identifiers**
+
+| Product Type | Primary Identifier | Usage |
+|-------------|-------------------|-------|
+| Consumable | `transactionId` | Track each purchase individually for content delivery |
+| Non-consumable | `transactionId` | Single purchase tracking (equals `originalTransactionIdentifierIOS`) |
+| Subscription | `originalTransactionIdentifierIOS` | Track subscription ownership across renewals |
+
+**Android Identifiers**
+
+| Product Type | Primary Identifier | Usage |
+|-------------|-------------------|-------|
+| Consumable | `purchaseToken` | Track each purchase for content delivery |
+| Non-consumable | `purchaseToken` | Track ownership status |
+| Subscription | `purchaseToken` | Track current subscription status (each renewal has same token on Android) |
+
+**Key Points**:
+- **Idempotency**: Use `transactionId` (iOS) or `purchaseToken` (Android) to prevent duplicate content delivery
+- **iOS Subscriptions**: Each renewal creates a new `transactionId`, but `originalTransactionIdentifier` remains constant
+- **Android Subscriptions**: The `purchaseToken` remains the same across normal renewals
 
 ---
 
