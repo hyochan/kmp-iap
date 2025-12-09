@@ -375,7 +375,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     private val validateReceiptHandler: MutationValidateReceiptHandler = { _ ->
-        VerifyPurchaseResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
+        // Android doesn't support native receipt validation like iOS
+        // Use verifyPurchaseWithProvider for server-side verification
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "validateReceipt is not supported on Android. Use verifyPurchaseWithProvider for server-side verification."
+            )
+        )
     }
 
     private val deepLinkToSubscriptionsHandler: MutationDeepLinkToSubscriptionsHandler = { options ->
@@ -708,27 +715,13 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
 
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
-        // Android doesn't have native receipt verification like iOS
-        // Return a placeholder result - actual verification should be done server-side
-        return VerifyPurchaseResultAndroid(
-            autoRenewing = false,
-            betaProduct = false,
-            cancelDate = null,
-            cancelReason = null,
-            deferredDate = null,
-            deferredSku = null,
-            freeTrialEndDate = 0.0,
-            gracePeriodEndDate = 0.0,
-            parentProductId = options.sku,
-            productId = options.sku,
-            productType = "",
-            purchaseDate = 0.0,
-            quantity = 1,
-            receiptId = "",
-            renewalDate = 0.0,
-            term = "",
-            termSku = "",
-            testTransaction = false
+        // Android doesn't support native receipt verification like iOS
+        // Use verifyPurchaseWithProvider for server-side verification via IAPKit
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit."
+            )
         )
     }
 
