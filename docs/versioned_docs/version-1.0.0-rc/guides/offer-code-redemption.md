@@ -271,7 +271,7 @@ class OfferViewModel : ViewModel() {
             when (getCurrentPlatform()) {
                 IapPlatform.IOS -> {
                     // iOS: Present code redemption sheet
-                    kmpIapInstance.presentCodeRedemptionSheet()
+                    kmpIapInstance.presentCodeRedemptionSheetIOS()
                     println("iOS offer code redemption sheet presented")
                     listenForPurchases()
                 }
