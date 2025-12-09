@@ -878,12 +878,9 @@ data class RequestVerifyPurchaseWithIapkitResult(
     val state: IapkitPurchaseState,
     val store: IapStore
 )
-
-enum class IapkitPurchaseState {
-    Pending, Unknown, Entitled, PendingAcknowledgment,
-    Canceled, Expired, ReadyToConsume, Consumed, Inauthentic
-}
 ```
+
+For detailed information about `IapkitPurchaseState` values (Entitled, Pending, Expired, Canceled, etc.), see the [IAPKit Purchase States documentation](https://www.openiap.dev/docs/apis#iapkit-purchase-states).
 
 **Example**:
 ```kotlin
