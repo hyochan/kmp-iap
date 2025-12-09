@@ -60,15 +60,25 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
 import io.github.hyochan.kmpiap.openiap.AppTransaction
-import io.github.hyochan.kmpiap.openiap.ReceiptValidationProps
 import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
 import io.github.hyochan.kmpiap.openiap.PurchaseInput
 import io.github.hyochan.kmpiap.openiap.SubscriptionHandlers
-import io.github.hyochan.kmpiap.openiap.ReceiptValidationResultIOS
 import io.github.hyochan.kmpiap.Store
 import io.github.hyochan.kmpiap.PurchaseException
-import io.github.hyochan.kmpiap.ValidationOptions
-import io.github.hyochan.kmpiap.ValidationResult
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderResult
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResult
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
+import io.github.hyochan.kmpiap.openiap.PurchaseIOS
+import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
+import io.github.hyochan.kmpiap.openiap.IapStore
+import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.channels.BufferOverflow
@@ -365,7 +375,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     private val validateReceiptHandler: MutationValidateReceiptHandler = { _ ->
-        ReceiptValidationResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
+        // Android doesn't support native receipt validation like iOS
+        // Use verifyPurchaseWithProvider for server-side verification
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "validateReceipt is not supported on Android. Use verifyPurchaseWithProvider for server-side verification."
+            )
+        )
     }
 
     private val deepLinkToSubscriptionsHandler: MutationDeepLinkToSubscriptionsHandler = { options ->
@@ -437,8 +454,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
 
-    override suspend fun validateReceiptIOS(options: ReceiptValidationProps): ReceiptValidationResultIOS =
-        ReceiptValidationResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
+    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "validateReceiptIOS is an iOS-only API. Use verifyPurchaseWithProvider for server-side verification on Android."
+            )
+        )
+    }
 
     suspend fun isPurchaseValid(purchase: Purchase): Boolean = isPurchaseTokenValid(purchase)
 
@@ -696,6 +719,72 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
+
+    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
+        // Android doesn't support native receipt verification like iOS
+        // Use verifyPurchaseWithProvider for server-side verification via IAPKit
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit."
+            )
+        )
+    }
+
+    override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
+        if (options.provider != PurchaseVerificationProvider.Iapkit) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.FeatureNotSupported,
+                    message = "Verification provider ${options.provider.rawValue} is not supported on Android"
+                )
+            )
+        }
+
+        val iapkitOptions = options.iapkit ?: failWith(
+            PurchaseError(
+                code = ErrorCode.PurchaseVerificationFailed,
+                message = "IAPKit options are required for Android verification"
+            )
+        )
+        val googleOptions = iapkitOptions.google ?: failWith(
+            PurchaseError(
+                code = ErrorCode.PurchaseVerificationFailed,
+                message = "Google purchaseToken is required for Android verification"
+            )
+        )
+
+        return try {
+            val openIapProps = GoogleVerifyPurchaseWithIapkitProps(
+                apiKey = iapkitOptions.apiKey,
+                apple = null,
+                google = GoogleVerifyPurchaseWithIapkitGoogleProps(
+                    purchaseToken = googleOptions.purchaseToken
+                )
+            )
+
+            val googleResult = verifyPurchaseWithIapkitGoogle(openIapProps, "kmp-iap-android")
+
+            val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
+                isValid = googleResult.isValid,
+                state = IapkitPurchaseState.fromJson(googleResult.state.toJson()),
+                store = IapStore.fromJson(googleResult.store.toJson())
+            )
+
+            VerifyPurchaseWithProviderResult(
+                iapkit = iapkitResult,
+                provider = options.provider
+            )
+        } catch (e: Exception) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = e.message ?: "Purchase verification failed"
+                )
+            )
+        }
+    }
+
     override fun getVersion(): String = ANDROID_VERSION
     override fun getStore(): Store = Store.PLAY_STORE
     override suspend fun canMakePayments(): Boolean = true

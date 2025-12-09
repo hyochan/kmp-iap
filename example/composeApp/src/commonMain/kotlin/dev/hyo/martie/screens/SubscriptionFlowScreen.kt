@@ -18,12 +18,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import dev.hyo.martie.config.AppConfig
 import dev.hyo.martie.theme.AppColors
 import dev.hyo.martie.utils.swipeToBack
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.fetchProducts
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.toPurchaseInput
+import io.github.hyochan.kmpiap.getCurrentPlatform
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.PurchaseError
@@ -36,6 +38,15 @@ import io.github.hyochan.kmpiap.openiap.PurchaseIOS
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
+import io.github.hyochan.kmpiap.openiap.IapPlatform
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
+import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -76,7 +87,12 @@ fun SubscriptionFlowScreen(navController: NavController) {
     var hasActiveSubscription by remember { mutableStateOf(false) }
     var currentError by remember { mutableStateOf<PurchaseError?>(null) }
     var currentPurchase by remember { mutableStateOf<Purchase?>(null) }
-    
+
+    // Verification method selection
+    var verificationMethod by remember { mutableStateOf(VerificationMethod.None) }
+    var showVerificationDialog by remember { mutableStateOf(false) }
+    var verificationResult by remember { mutableStateOf<String?>(null) }
+
     // Register purchase event listeners
     LaunchedEffect(Unit) {
         launch {
@@ -99,6 +115,62 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 """.trimIndent()
 
                         scope.launch {
+                            // Verify purchase based on selected method
+                            if (verificationMethod != VerificationMethod.None) {
+                                verificationResult = "🔄 Verifying subscription..."
+                                try {
+                                    when (verificationMethod) {
+                                        VerificationMethod.Local -> {
+                                            val result = kmpIAP.verifyPurchase(
+                                                VerifyPurchaseProps(sku = purchase.productId)
+                                            )
+                                            verificationResult = when (result) {
+                                                is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
+                                                    "Valid: ${result.isValid}\n" +
+                                                    "Receipt: ${result.receiptData.take(50)}..."
+                                                is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
+                                                    "Product: ${result.productId}\n" +
+                                                    "Receipt ID: ${result.receiptId}"
+                                            }
+                                        }
+                                        VerificationMethod.IAPKit -> {
+                                            val apiKey = AppConfig.iapkitApiKey
+                                            if (apiKey.isEmpty()) {
+                                                verificationResult = "❌ IAPKit API key not configured.\n" +
+                                                    "Set IAPKIT_API_KEY in .env file."
+                                            } else {
+                                                val jwsOrToken = purchase.purchaseToken ?: ""
+                                                if (jwsOrToken.isEmpty()) {
+                                                    verificationResult = "❌ No purchase token available for verification"
+                                                } else {
+                                                    val isIos = getCurrentPlatform() == IapPlatform.Ios
+                                                    val result = kmpIAP.verifyPurchaseWithProvider(
+                                                        VerifyPurchaseWithProviderProps(
+                                                            provider = PurchaseVerificationProvider.Iapkit,
+                                                            iapkit = RequestVerifyPurchaseWithIapkitProps(
+                                                                apiKey = apiKey,
+                                                                apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
+                                                                google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null
+                                                            )
+                                                        )
+                                                    )
+                                                    val iapkitResult = result.iapkit
+                                                    val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
+                                                    verificationResult = "$statusEmoji IAPKit Verification:\n" +
+                                                        "Valid: ${iapkitResult?.isValid ?: false}\n" +
+                                                        "State: ${iapkitResult?.state?.rawValue ?: "unknown"}\n" +
+                                                        "Store: ${iapkitResult?.store?.rawValue ?: "unknown"}"
+                                                }
+                                            }
+                                        }
+                                        else -> {}
+                                    }
+                                } catch (e: Exception) {
+                                    verificationResult = "❌ Verification failed: ${e.message}"
+                                }
+                            }
+
+                            // Finish the transaction
                             try {
                                 kmpIAP.finishTransaction(
                                     purchase = purchase.toPurchaseInput(),
@@ -281,8 +353,57 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 }
             }
             
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Verification Method Selector
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Subscription Verification",
+                        fontSize = 14.sp,
+                        color = AppColors.Secondary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showVerificationDialog = true },
+                        colors = CardDefaults.cardColors(containerColor = AppColors.Background),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${verificationMethod.icon} ${verificationMethod.label}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = AppColors.OnSurface
+                            )
+                            Text(
+                                text = "Tap to change",
+                                fontSize = 12.sp,
+                                color = AppColors.Secondary
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
-            
+
             // Active Subscription Status
             if (hasActiveSubscription) {
                 Card(
@@ -690,7 +811,119 @@ fun SubscriptionFlowScreen(navController: NavController) {
                     }
                 }
             }
+
+            // Verification Result
+            verificationResult?.let { result ->
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = when {
+                            result.contains("✅") -> AppColors.Success.copy(alpha = 0.1f)
+                            result.contains("❌") -> AppColors.Error.copy(alpha = 0.1f)
+                            result.contains("🔄") -> AppColors.Primary.copy(alpha = 0.1f)
+                            else -> Color.White
+                        }
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Verification Result",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = AppColors.OnSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = result,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = AppColors.OnSurface
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    // Verification Method Selection Dialog
+    if (showVerificationDialog) {
+        AlertDialog(
+            onDismissRequest = { showVerificationDialog = false },
+            title = {
+                Text("Select Verification Method")
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Choose how to verify subscriptions after purchase",
+                        fontSize = 14.sp,
+                        color = AppColors.Secondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    VerificationMethod.entries.forEach { method ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clickable {
+                                    verificationMethod = method
+                                    verificationResult = null
+                                    showVerificationDialog = false
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (method == verificationMethod)
+                                    AppColors.Primary.copy(alpha = 0.1f)
+                                else
+                                    AppColors.Background
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = method.icon,
+                                    fontSize = 20.sp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = method.label,
+                                        fontWeight = FontWeight.Medium,
+                                        color = AppColors.OnSurface
+                                    )
+                                    Text(
+                                        text = when (method) {
+                                            VerificationMethod.None -> "Skip verification"
+                                            VerificationMethod.Local -> "Verify on device (iOS only)"
+                                            VerificationMethod.IAPKit -> "Server-side verification via IAPKit"
+                                        },
+                                        fontSize = 12.sp,
+                                        color = AppColors.Secondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVerificationDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

@@ -1,3 +1,6 @@
+// Include secrets from local file (not committed to git)
+#include? "Secrets.xcconfig"
+
 TEAM_ID=
 
 PRODUCT_NAME=kmp-iap-example

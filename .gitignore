@@ -29,3 +29,8 @@ docs/.cache-loader/
 native/InAppPurchaseBridge/.build/
 native/InAppPurchaseBridge/DerivedData/
 native/openiap-apple/
+
+# Environment files
+.env
+.env.local
+.env.*.local

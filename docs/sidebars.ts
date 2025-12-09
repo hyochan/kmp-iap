@@ -43,8 +43,8 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Examples',
       items: [
-        'examples/basic-store',
-        'examples/subscription-store',
+        'examples/purchase-flow',
+        'examples/subscription-flow',
         'examples/complete-implementation',
         'examples/alternative-billing',
       ],

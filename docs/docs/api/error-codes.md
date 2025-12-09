@@ -32,7 +32,7 @@ data class PurchaseError(
 
 ## OpenIAP Error Code Reference
 
-kmp-iap implements all 27 standard OpenIAP error codes for consistent error handling across platforms.
+kmp-iap implements all 30 standard OpenIAP error codes for consistent error handling across platforms.
 
 ### ErrorCode Enum
 
@@ -67,6 +67,9 @@ enum class ErrorCode {
     E_RECEIPT_FINISHED,               // Receipt already processed/finished
     E_RECEIPT_FINISHED_FAILED,        // Failed to finish receipt processing
     E_TRANSACTION_VALIDATION_FAILED,  // Transaction validation failed
+    E_PURCHASE_VERIFICATION_FAILED,   // Purchase verification with provider failed
+    E_PURCHASE_VERIFICATION_FINISHED, // Purchase verification completed
+    E_PURCHASE_VERIFICATION_FINISH_FAILED, // Failed to complete verification
     
     // Platform-Specific Errors
     E_PENDING,                        // Purchase is pending approval (Android)
@@ -278,41 +281,59 @@ private suspend fun handleNetworkError() {
 
 ### Validation Errors
 
-#### E_RECEIPT_FAILED
-**Description**: Receipt validation failed  
-**Platforms**: iOS, Android  
+#### E_PURCHASE_VERIFICATION_FAILED
+**Description**: Purchase verification with external provider failed
+**Platforms**: iOS, Android
 **Common Causes**:
-- Invalid receipt format
-- Signature verification failed
-- Receipt tampering detected
+- Invalid API key for verification provider
+- Network error during verification
+- Provider service unavailable
 
 ```kotlin
-// Server-side validation example
-suspend fun validatePurchase(purchase: Purchase): Boolean {
-    return try {
-        val response = api.validateReceipt(
-            receipt = purchase.transactionReceipt,
-            productId = purchase.productId
-        )
-        response.isValid
-    } catch (e: Exception) {
-        throw PurchaseError(
-            code = ErrorCode.E_RECEIPT_FAILED.name,
-            message = "Receipt validation failed"
-        )
+when (error.code) {
+    ErrorCode.E_PURCHASE_VERIFICATION_FAILED.name -> {
+        println("Verification failed - check IAPKit API key and network")
+        // Fall back to local validation or retry
     }
 }
 ```
 
-#### E_RECEIPT_FINISHED
-**Description**: Receipt already processed/finished  
-**Platforms**: iOS, Android  
-**Recovery**: Check transaction history
+#### E_PURCHASE_VERIFICATION_FINISHED
+**Description**: Purchase verification completed successfully
+**Platforms**: iOS, Android
+**Note**: This is an informational code, not an error
 
-#### E_RECEIPT_FINISHED_FAILED
-**Description**: Failed to finish receipt processing  
-**Platforms**: iOS, Android  
-**Recovery**: Retry finishing transaction
+#### E_PURCHASE_VERIFICATION_FINISH_FAILED
+**Description**: Failed to complete purchase verification process
+**Platforms**: iOS, Android
+**Recovery**: Retry verification
+
+#### E_RECEIPT_FAILED (Deprecated)
+**Description**: Receipt validation failed
+**Platforms**: iOS, Android
+**Status**: ⚠️ **Deprecated** - Use `E_PURCHASE_VERIFICATION_FAILED` instead
+
+#### E_RECEIPT_FINISHED (Deprecated)
+**Description**: Receipt already processed/finished
+**Platforms**: iOS, Android
+**Status**: ⚠️ **Deprecated** - Use `E_PURCHASE_VERIFICATION_FINISHED` instead
+
+#### E_RECEIPT_FINISHED_FAILED (Deprecated)
+**Description**: Failed to finish receipt processing
+**Platforms**: iOS, Android
+**Status**: ⚠️ **Deprecated** - Use `E_PURCHASE_VERIFICATION_FINISH_FAILED` instead
+
+:::info Migration Note
+The `E_RECEIPT_*` error codes are deprecated and replaced by `E_PURCHASE_VERIFICATION_*` codes:
+
+| Deprecated | Replacement |
+|------------|-------------|
+| `E_RECEIPT_FAILED` | `E_PURCHASE_VERIFICATION_FAILED` |
+| `E_RECEIPT_FINISHED` | `E_PURCHASE_VERIFICATION_FINISHED` |
+| `E_RECEIPT_FINISHED_FAILED` | `E_PURCHASE_VERIFICATION_FINISH_FAILED` |
+
+The new codes better reflect the provider-based verification approach used by IAPKit and other verification services.
+:::
 
 #### E_TRANSACTION_VALIDATION_FAILED
 **Description**: Transaction validation failed  
@@ -476,7 +497,7 @@ class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
             ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
                 refreshPurchases()
             }
-            ErrorCode.E_RECEIPT_FAILED.name,
+            ErrorCode.E_PURCHASE_VERIFICATION_FAILED.name,
             ErrorCode.E_TRANSACTION_VALIDATION_FAILED.name -> {
                 revalidatePurchases()
             }
@@ -579,7 +600,7 @@ kmp-iap fully implements the [OpenIAP error specification](https://openiap.dev/d
 - **Consistent error codes** across all platforms
 - **Standardized error messages** for better UX
 - **Compatible with expo-iap** and other OpenIAP implementations
-- **27 standard error codes** covering all IAP scenarios
+- **30 standard error codes** covering all IAP scenarios
 
 ## Migration Notes
 

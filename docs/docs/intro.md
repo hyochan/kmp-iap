@@ -5,19 +5,20 @@ sidebar_position: 1
 ---
 
 import GreatFrontEndTopFixed from '@site/src/uis/GreatFrontEndTopFixed';
+import Logo from '@site/static/img/logo.png';
 
 # 🛒 kmp-iap
 
 <GreatFrontEndTopFixed />
 
 :::info Version
-This documentation is for **kmp-iap v1.0.0-rc.6** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
+This documentation is for **kmp-iap v1.0.0** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
 
 <div style={{textAlign: 'center', margin: '2rem 0'}}>
-  <img src="img/logo.png" alt="kmp-iap Logo" style={{maxWidth: '100%', height: 'auto'}} />
+  <img src={Logo} alt="kmp-iap Logo" style={{maxWidth: '200px', height: 'auto'}} />
 </div>
 
 ## 🚀 What is kmp-iap?
@@ -168,7 +169,7 @@ kmpIAP.finishTransaction(
     <span className="next-step-arrow-intro">→</span>
   </a>
   
-  <a href="/docs/examples/basic-store" className="next-step-card-intro gradient-green">
+  <a href="/docs/examples/purchase-flow" className="next-step-card-intro gradient-green">
     <div className="next-step-icon-intro">💻</div>
     <h3 className="next-step-title-intro">Examples</h3>
     <p className="next-step-desc-intro">Production-ready code samples</p>

@@ -59,10 +59,21 @@ typealias RequestPurchaseAndroidProps = io.github.hyochan.kmpiap.openiap.Request
 typealias RequestSubscriptionAndroidProps = io.github.hyochan.kmpiap.openiap.RequestSubscriptionAndroidProps
 typealias PurchaseOptions = io.github.hyochan.kmpiap.openiap.PurchaseOptions
 typealias DeepLinkOptions = io.github.hyochan.kmpiap.openiap.DeepLinkOptions
-typealias ValidationOptions = io.github.hyochan.kmpiap.openiap.ReceiptValidationProps
-typealias ValidationResult = io.github.hyochan.kmpiap.openiap.ReceiptValidationResult
-typealias ReceiptValidationResultAndroid = io.github.hyochan.kmpiap.openiap.ReceiptValidationResultAndroid
-typealias ReceiptValidationResultIOS = io.github.hyochan.kmpiap.openiap.ReceiptValidationResultIOS
+typealias ValidationOptions = io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+typealias ValidationResult = io.github.hyochan.kmpiap.openiap.VerifyPurchaseResult
+typealias VerifyPurchaseResultAndroid = io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
+typealias VerifyPurchaseResultIOS = io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
+
+// Re-export verifyPurchaseWithProvider types
+typealias PurchaseVerificationProvider = io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
+typealias VerifyPurchaseWithProviderProps = io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
+typealias VerifyPurchaseWithProviderResult = io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderResult
+typealias RequestVerifyPurchaseWithIapkitProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
+typealias RequestVerifyPurchaseWithIapkitAppleProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
+typealias RequestVerifyPurchaseWithIapkitGoogleProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+typealias RequestVerifyPurchaseWithIapkitResult = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
+typealias IapkitPurchaseState = io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+typealias IapStore = io.github.hyochan.kmpiap.openiap.IapStore
 
 // Re-export DSL builders
 typealias ProductsRequestBuilder = io.github.hyochan.kmpiap.dsl.ProductsRequestBuilder
