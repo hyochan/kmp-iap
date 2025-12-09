@@ -837,7 +837,43 @@ if (hasPremium) {
 - Showing/hiding subscription offers
 - Quick subscription status checks without detailed information
 
-## Validation
+## Purchase Validation
+
+### verifyPurchase()
+
+Verifies a purchase. For server-side verification, use [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider).
+
+```kotlin
+suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
+```
+
+**Parameters**:
+
+```kotlin
+data class VerifyPurchaseProps(
+    val sku: String,
+    val androidOptions: VerifyPurchaseAndroidOptions? = null  // Required for Android
+)
+
+data class VerifyPurchaseAndroidOptions(
+    val accessToken: String,
+    val packageName: String,
+    val productToken: String,
+    val isSub: Boolean? = null
+)
+```
+
+**Returns**: `VerifyPurchaseResult` with verification status
+
+**Platform Notes**:
+- **iOS**: Uses StoreKit's native verification
+- **Android**: Requires `androidOptions` with Google Play API credentials
+
+:::tip Recommendation
+For production apps, use [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) with [IAPKit](https://iapkit.com) for secure server-side verification without managing your own backend.
+:::
+
+---
 
 ### verifyPurchaseWithProvider()
 
@@ -952,30 +988,17 @@ See the [Verification Error Handling guide](https://www.openiap.dev/docs/apis#ve
 
 ---
 
-### validateReceipt()
+### validateReceipt() (Deprecated)
 
-Validates a purchase receipt (server-side validation recommended).
+:::warning Deprecated
+Use [`verifyPurchase()`](#verifypurchase) or [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) instead.
+:::
 
-```kotlin
-suspend fun validateReceipt(options: ValidationOptions): ValidationResult
-```
+### isPurchaseValid() (Deprecated)
 
-**Parameters**:
-- `options` - Validation options including receipt data
-
-**Returns**: Validation result with status
-
-**Note**: Client-side validation is not secure. Always validate receipts on your server.
-
-### isPurchaseValid()
-
-Quick client-side purchase validation.
-
-```kotlin
-suspend fun isPurchaseValid(purchase: Purchase): Boolean
-```
-
-**Returns**: `true` if purchase appears valid
+:::warning Deprecated
+Use [`verifyPurchase()`](#verifypurchase) or [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) instead.
+:::
 
 **Example**:
 ```kotlin
