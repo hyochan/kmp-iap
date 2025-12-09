@@ -5,10 +5,33 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version to publish (e.g., 1.0.0)"
+      version_type:
+        description: "Version type"
         required: true
+        type: choice
+        options:
+          - bump
+          - custom
+        default: bump
+      version_bump:
+        description: "Version bump type (only when version_type is 'bump')"
+        required: false
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      custom_version:
+        description: "Custom version (only when version_type is 'custom', e.g., 1.0.0 or 1.0.0-rc.1)"
+        required: false
         type: string
+        default: ""
+      create_release:
+        description: "Also create a GitHub Release from the tag"
+        required: false
+        default: true
+        type: boolean
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
@@ -35,15 +58,57 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Set version
+      - name: Calculate new version
         run: |
           if [ "${{ github.event_name }}" == "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event.inputs.version_type }}" == "custom" ]; then
+            # Use custom version directly
+            VERSION="${{ github.event.inputs.custom_version }}"
+            if [ -z "$VERSION" ]; then
+              echo "::error::Custom version is required when version_type is 'custom'"
+              exit 1
+            fi
           else
-            VERSION="${{ github.event.inputs.version }}"
+            # Bump version based on input
+            CURRENT_VERSION=$(cat openiap-versions.json | jq -r '.["kmp-iap"]')
+            echo "Current version: $CURRENT_VERSION"
+
+            # Extract base version (remove any pre-release suffix like -rc.1, -alpha.1, etc.)
+            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/(-[a-zA-Z]+(\.[0-9]+)?)+$//')
+            echo "Base version: $BASE_VERSION"
+
+            # Split version into major, minor, patch
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+            # Bump version based on input
+            case "${{ github.event.inputs.version_bump }}" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
           fi
+
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "New version: $VERSION"
           echo "libraryVersion=$VERSION" >> local.properties
+
+      - name: Update openiap-versions.json
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          jq --arg version "${{ env.VERSION }}" '.["kmp-iap"] = $version' openiap-versions.json > tmp.json && mv tmp.json openiap-versions.json
+          cat openiap-versions.json
 
       - name: Regenerate podspec with correct version
         run: |
@@ -95,19 +160,19 @@ jobs:
           ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
 
       - name: Create GitHub Release (workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch' && success()
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && success()
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(env.VERSION, '-') }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create release artifacts
-        if: github.event_name == 'workflow_dispatch' && success()
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && success()
         run: |
           mkdir -p release-artifacts
           cp library/build/outputs/aar/*.aar release-artifacts/
@@ -115,7 +180,7 @@ jobs:
           zip -r release-artifacts.zip release-artifacts/
 
       - name: Upload release artifacts
-        if: github.event_name == 'workflow_dispatch' && success()
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true' && success()
         uses: softprops/action-gh-release@v1
         with:
           files: ./release-artifacts.zip
