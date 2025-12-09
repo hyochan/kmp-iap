@@ -44,7 +44,7 @@ class OfferCodeHandler(
         
         try {
             // Present the system offer code redemption sheet
-            kmpIapInstance.presentCodeRedemptionSheet()
+            kmpIapInstance.presentCodeRedemptionSheetIOS()
             println("Offer code redemption sheet presented")
             
             // Results will come through purchaseUpdatedListener
@@ -86,25 +86,19 @@ class OfferCodeHandler(
 class StorefrontHandler() {
     /**
      * Get App Store storefront information (iOS only)
+     * Returns country code string (e.g., "USA", "KOR")
      */
-    suspend fun getStorefrontInfo(): Map<String, Any?>? {
+    suspend fun getStorefrontInfo(): String? {
         if (getCurrentPlatform() != IapPlatform.IOS) return null
-        
+
         return try {
-            val storefront = kmpIapInstance.getStorefront()
-            println("Storefront info: $storefront")
+            val storefront = kmpIapInstance.getStorefrontIOS()
+            println("Storefront country: $storefront")
             storefront
         } catch (e: PurchaseError) {
             println("Failed to get storefront info: $e")
             null
         }
-    }
-    
-    /**
-     * Get the current store type
-     */
-    fun getCurrentStore(): Store {
-        return kmpIapInstance.getStore()
     }
 }
 ```

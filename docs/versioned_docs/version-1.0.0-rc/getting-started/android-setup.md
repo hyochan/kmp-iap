@@ -193,7 +193,7 @@ kmpIAP.consumePurchaseAndroid(purchase.purchaseToken)
 
 // Deep link to subscription management
 kmpIAP.deepLinkToSubscriptions(
-    DeepLinkOptions(sku = "subscription_id")
+    DeepLinkOptions(skuAndroid = "subscription_id")
 )
 ```
 
