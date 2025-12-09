@@ -236,10 +236,17 @@ object IAPManager {
     }
     
     fun cleanup() {
-        scope.cancel()
-        runBlocking {
+        scope.launch {
             kmpIapInstance.endConnection()
+        }.invokeOnCompletion {
+            scope.cancel()
         }
+    }
+
+    // Alternative: suspend function for use in lifecycle-aware contexts
+    suspend fun cleanupAsync() {
+        kmpIapInstance.endConnection()
+        scope.cancel()
     }
 }
 
@@ -300,24 +307,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 fun StoreScreen() {
     val products by IAPManager.products.collectAsState()
     val subscriptions by IAPManager.subscriptions.collectAsState()
-    
+    val scope = rememberCoroutineScope()
+
     LazyColumn {
         items(products) { product ->
             ProductCard(
                 product = product,
                 onPurchase = {
-                    lifecycleScope.launch {
+                    scope.launch {
                         IAPManager.purchaseProduct(product.productId)
                     }
                 }
             )
         }
-        
+
         items(subscriptions) { subscription ->
             SubscriptionCard(
                 subscription = subscription,
                 onPurchase = {
-                    lifecycleScope.launch {
+                    scope.launch {
                         IAPManager.purchaseSubscription(subscription.productId)
                     }
                 }

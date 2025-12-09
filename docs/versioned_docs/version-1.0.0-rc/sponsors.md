@@ -25,7 +25,7 @@ Your support helps us maintain and improve kmp-iap. By becoming a sponsor, you'r
 [Support us on GitHub Sponsors](https://github.com/sponsors/hyochan)
 
 ### Open Collective
-[Support us on Open Collective](https://opencollective.com/dooboolab)
+[Support us on Open Collective](https://opencollective.com/nicedooboo)
 
 ## Our Sponsors
 

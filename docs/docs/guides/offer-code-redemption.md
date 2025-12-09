@@ -211,14 +211,16 @@ class AndroidSubscriptionManager() {
 
 ## Complete Implementation Example
 
-### Cross-Platform Offer Handler
+### Android Offer Handler
+
+> **Note**: This example uses Android-specific dependencies (`ViewModel`, `viewModelScope`). For iOS, use a similar pattern with your preferred state management approach.
 
 ```kotlin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 
-class CrossPlatformOfferViewModel : ViewModel() {
+class OfferViewModel : ViewModel() {
     
     data class OfferState(
         val isLoading: Boolean = false,
@@ -406,7 +408,9 @@ class PlatformSpecificFeatures(
 
 ## Usage Examples
 
-### In a Compose UI
+### In a Compose UI (Android)
+
+> **Note**: This example uses Android Compose with `viewModel()`. For Compose Multiplatform, adjust the ViewModel injection to match your DI approach.
 
 ```kotlin
 import androidx.compose.runtime.*
@@ -415,7 +419,7 @@ import androidx.compose.foundation.layout.*
 
 @Composable
 fun OfferRedemptionScreen(
-    viewModel: CrossPlatformOfferViewModel = viewModel()
+    viewModel: OfferViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val scope = rememberCoroutineScope()

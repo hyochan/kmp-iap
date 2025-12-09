@@ -25,14 +25,13 @@ The guide covers:
 ### Basic Setup
 
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.*
 
 class IAPManager {
-    private val kmpIAP = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
-    
+
     fun initialize() {
         scope.launch {
             try {

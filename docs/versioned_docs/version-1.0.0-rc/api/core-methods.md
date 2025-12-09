@@ -870,7 +870,7 @@ data class RequestVerifyPurchaseWithIapkitProps(
 ```kotlin
 data class VerifyPurchaseWithProviderResult(
     val provider: PurchaseVerificationProvider,
-    val iapkit: List<RequestVerifyPurchaseWithIapkitResult>
+    val iapkit: RequestVerifyPurchaseWithIapkitResult? = null
 )
 
 data class RequestVerifyPurchaseWithIapkitResult(

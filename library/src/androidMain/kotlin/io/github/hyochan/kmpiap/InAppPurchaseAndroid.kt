@@ -454,8 +454,14 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
 
-    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS =
-        VerifyPurchaseResultIOS(isValid = false, jwsRepresentation = "", receiptData = "")
+    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "validateReceiptIOS is an iOS-only API. Use verifyPurchaseWithProvider for server-side verification on Android."
+            )
+        )
+    }
 
     suspend fun isPurchaseValid(purchase: Purchase): Boolean = isPurchaseTokenValid(purchase)
 

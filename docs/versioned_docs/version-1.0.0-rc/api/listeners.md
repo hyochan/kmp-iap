@@ -177,22 +177,27 @@ class ConnectionManager(private val iap: InAppPurchase) {
 ### iOS Promoted Product Listener
 
 ```kotlin
-val promotedProductIOS: StateFlow<Product?>
+val promotedProductListener: Flow<String?>
 ```
 
-**Type**: `StateFlow<Product?>`  
-**Platform**: iOS only  
-**Description**: Product promoted from App Store that triggered app launch
+**Type**: `Flow<String?>`
+**Platform**: iOS only
+**Description**: Product ID of promoted product from App Store that triggered app launch
 
 **Example**:
 ```kotlin
 if (getCurrentPlatform() == IapPlatform.IOS) {
     scope.launch {
-        kmpIapInstance.promotedProductListener.collect { product ->
-            product?.let {
-                // Show promoted product immediately
-                showProductDetail(it)
-                
+        kmpIapInstance.promotedProductListener.collect { productId ->
+            productId?.let {
+                // Fetch product details using the product ID
+                val products = kmpIapInstance.getProducts(
+                    GetProductsProps(skus = listOf(it))
+                )
+                products.firstOrNull()?.let { product ->
+                    showProductDetail(product)
+                }
+
                 // Optionally auto-purchase
                 if (userSettings.autoPromotedPurchase) {
                     kmpIapInstance.buyPromotedProductIOS()
@@ -437,10 +442,10 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
 
 ```kotlin
 class MockKmpIAP : KmpIAP {
-    private val _purchaseUpdated = MutableFlow<Purchase>()
+    private val _purchaseUpdated = MutableSharedFlow<Purchase>()
     override val purchaseUpdatedListener: Flow<Purchase> = _purchaseUpdated
-    
-    private val _purchaseError = MutableFlow<PurchaseError>()
+
+    private val _purchaseError = MutableSharedFlow<PurchaseError>()
     override val purchaseErrorListener: Flow<PurchaseError> = _purchaseError
     
     // Test helpers
