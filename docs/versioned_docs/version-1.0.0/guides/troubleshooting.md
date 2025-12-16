@@ -34,7 +34,7 @@ dependencies {
 
 ### iOS Build Issues
 
-**Problem:** Build fails with StoreKit related errors
+**Problem:** Build fails with StoreKit-related errors
 
 **Solution:**
 1. Ensure iOS deployment target is 15.0+:
