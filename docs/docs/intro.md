@@ -60,7 +60,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.0.0-rc.6
+- **Current Version**: 1.1.0
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 15.0+ (via [openiap-apple](https://github.com/hyodotdev/openiap-apple))
 - **Android Requirements**: API level 24+ (via [openiap-google](https://github.com/hyodotdev/openiap-google))

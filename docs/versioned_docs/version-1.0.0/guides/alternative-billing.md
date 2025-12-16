@@ -1,3 +1,8 @@
+---
+sidebar_position: 7
+title: Alternative Billing
+---
+
 import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
 
 # Alternative Billing

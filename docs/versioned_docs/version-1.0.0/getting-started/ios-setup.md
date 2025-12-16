@@ -53,21 +53,21 @@ class IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseUpdate(purchase)
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
         
         scope.launch {
             // Listen for promoted products (iOS only)
-            kmpIAP.promotedProductListener.collect { productId ->
+            kmpIapInstance.promotedProductListener.collect { productId ->
                 productId?.let {
                     // Handle promoted product
                     handlePromotedProduct(it)
@@ -78,7 +78,7 @@ class IAPManager {
     
     private suspend fun loadProducts() {
         try {
-            val products = kmpIAP.fetchProducts {
+            val products = kmpIapInstance.fetchProducts {
                 skus = listOf("premium_upgrade", "remove_ads")
                 type = ProductQueryType.InApp
             }
@@ -124,11 +124,11 @@ class IAPManager {
         // Handle App Store promoted product
         println("Promoted product: $productId")
         // Optionally purchase the promoted product
-        kmpIAP.buyPromotedProductIOS()
+        kmpIapInstance.buyPromotedProductIOS()
     }
     
     suspend fun purchaseProduct(productId: String) {
-        kmpIAP.requestPurchase {
+        kmpIapInstance.requestPurchase {
             ios {
                 sku = productId
                 quantity = 1
@@ -140,7 +140,7 @@ class IAPManager {
     }
     
     suspend fun restorePurchases() {
-        val purchases = kmpIAP.getAvailablePurchases()
+        val purchases = kmpIapInstance.getAvailablePurchases()
         purchases.forEach { purchase ->
             grantEntitlement(purchase.productId)
         }
@@ -190,31 +190,31 @@ object UserSettings {
 
 ```kotlin
 // Get current storefront (iOS only)
-val storefront = kmpIAP.getStorefrontIOS()
+val storefront = kmpIapInstance.getStorefrontIOS()
 println("Current storefront: $storefront") // e.g., "US", "GB", "JP"
 
 // Present code redemption sheet (iOS only)
-kmpIAP.presentCodeRedemptionSheetIOS()
+kmpIapInstance.presentCodeRedemptionSheetIOS()
 
 // Handle promoted products
 scope.launch {
-    kmpIAP.promotedProductListener.collect { productId ->
+    kmpIapInstance.promotedProductListener.collect { productId ->
         productId?.let {
             println("Promoted product: $it")
             // Purchase the promoted product
-            kmpIAP.buyPromotedProductIOS()
+            kmpIapInstance.buyPromotedProductIOS()
         }
     }
 }
 
 // Clear pending transactions (iOS only)
-kmpIAP.clearTransactionIOS()
+kmpIapInstance.clearTransactionIOS()
 
 // Clear products cache (iOS only)
-kmpIAP.clearProductsIOS()
+kmpIapInstance.clearProductsIOS()
 
 // Finish specific transaction by ID
-kmpIAP.finishTransactionIOS(transactionId)
+kmpIapInstance.finishTransactionIOS(transactionId)
 ```
 
 ### StoreKit 2 Support
@@ -226,7 +226,7 @@ The library automatically uses StoreKit 2 on iOS 15.0+ with fallback to StoreKit
 // The same API works for both StoreKit 1 and 2
 
 // Validate receipt (uses StoreKit 2 verification when available)
-val validationResult = kmpIAP.validateReceipt(
+val validationResult = kmpIapInstance.validateReceipt(
     ValidationOptions(
         receiptData = purchase.transactionReceipt,
         isTest = false
@@ -234,14 +234,14 @@ val validationResult = kmpIAP.validateReceipt(
 )
 
 // Check if purchase is valid
-val isValid = kmpIAP.isPurchaseValid(purchase)
+val isValid = kmpIapInstance.isPurchaseValid(purchase)
 ```
 
 ### Subscription Offers
 
 ```kotlin
 // Handle subscription with promotional offers
-kmpIAP.requestPurchase(
+kmpIapInstance.requestPurchase(
     UnifiedPurchaseRequest(
         sku = "monthly_subscription",
         quantity = 1,
@@ -260,7 +260,7 @@ kmpIAP.requestPurchase(
 
 ```kotlin
 scope.launch {
-    kmpIAP.purchaseErrorListener.collect { error ->
+    kmpIapInstance.purchaseErrorListener.collect { error ->
         when (error.code) {
             ErrorCode.NetworkError -> {
                 // Network error

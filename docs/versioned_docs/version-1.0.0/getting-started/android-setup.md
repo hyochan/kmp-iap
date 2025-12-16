@@ -53,14 +53,14 @@ class IAPManager {
     private fun setupPurchaseListeners() {
         scope.launch {
             // Listen for purchase updates
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseUpdate(purchase)
             }
         }
         
         scope.launch {
             // Listen for purchase errors
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIapInstance.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
@@ -68,7 +68,7 @@ class IAPManager {
     
     private suspend fun loadProducts() {
         try {
-            val products = kmpIAP.fetchProducts {
+            val products = kmpIapInstance.fetchProducts {
                 skus = listOf("premium_upgrade", "remove_ads")
                 type = ProductQueryType.InApp
             }
@@ -111,7 +111,7 @@ class IAPManager {
     }
     
     suspend fun purchaseProduct(productId: String) {
-        kmpIAP.requestPurchase {
+        kmpIapInstance.requestPurchase {
             ios {
                 sku = productId
                 quantity = 1
@@ -123,7 +123,7 @@ class IAPManager {
     }
     
     suspend fun restorePurchases() {
-        val purchases = kmpIAP.getAvailablePurchases()
+        val purchases = kmpIapInstance.getAvailablePurchases()
         purchases.forEach { purchase ->
             grantEntitlement(purchase.productId)
         }
@@ -173,7 +173,7 @@ object UserSettings {
 
 ```kotlin
 // Use obfuscated account IDs for enhanced security
-kmpIAP.requestPurchase {
+kmpIapInstance.requestPurchase {
     ios {
         sku = "premium_upgrade"
         quantity = 1
@@ -186,13 +186,13 @@ kmpIAP.requestPurchase {
 }
 
 // Acknowledge a purchase (for non-consumables)
-kmpIAP.acknowledgePurchaseAndroid(purchase.purchaseToken)
+kmpIapInstance.acknowledgePurchaseAndroid(purchase.purchaseToken)
 
 // Consume a purchase (for consumables)
-kmpIAP.consumePurchaseAndroid(purchase.purchaseToken)
+kmpIapInstance.consumePurchaseAndroid(purchase.purchaseToken)
 
 // Deep link to subscription management
-kmpIAP.deepLinkToSubscriptions(
+kmpIapInstance.deepLinkToSubscriptions(
     DeepLinkOptions(skuAndroid = "subscription_id")
 )
 ```
@@ -201,7 +201,7 @@ kmpIAP.deepLinkToSubscriptions(
 
 ```kotlin
 scope.launch {
-    kmpIAP.purchaseErrorListener.collect { error ->
+    kmpIapInstance.purchaseErrorListener.collect { error ->
         when (error.code) {
             ErrorCode.ServiceUnavailable -> {
                 // Google Play services unavailable

@@ -64,11 +64,8 @@ Add to your `AndroidManifest.xml`:
 
 ```kotlin
 import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
-
-```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
-import io.github.hyochan.kmpiap.types.*
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 

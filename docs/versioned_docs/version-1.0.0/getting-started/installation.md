@@ -93,14 +93,14 @@ kotlin {
 }
 ```
 
-2. **Run pod install:**
+1. **Run pod install:**
 
 ```bash
 cd iosApp
 pod install
 ```
 
-3. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
+2. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
 
 ```bash
 open iosApp.xcworkspace

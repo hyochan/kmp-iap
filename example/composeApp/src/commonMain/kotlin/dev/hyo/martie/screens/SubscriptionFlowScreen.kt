@@ -129,8 +129,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     apple = if (isIos) VerifyPurchaseAppleOptions(sku = purchase.productId) else null,
                                                     google = if (!isIos) VerifyPurchaseGoogleOptions(
                                                         sku = purchase.productId,
-                                                        accessToken = "", // Obtain from your backend for production use
-                                                        packageName = "", // Your app's package name
+                                                        accessToken = "your_google_api_access_token", // Obtain from your backend for production use
+                                                        packageName = "your.app.package.name", // Your app's package name
                                                         purchaseToken = purchase.purchaseToken ?: "",
                                                         isSub = true
                                                     ) else null
