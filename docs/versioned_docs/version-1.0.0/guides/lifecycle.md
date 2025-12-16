@@ -35,7 +35,7 @@ Each phase has its own requirements and potential failure modes that need proper
 
 ### Automatic Connection
 
-The kmp-iap library manages connections through the `KmpIAP` singleton:
+The kmp-iap library supports both instance creation and singleton patterns. Here's an example using the instance pattern:
 
 ```kotlin
 import kotlinx.coroutines.*
@@ -348,12 +348,10 @@ class BadPurchaseManager {
         // Bad: No observers set up
         // Bad: No error handling
         GlobalScope.launch {
-            KmpIAP.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = productId,
-                    quantity = 1
-                )
-            )
+            kmpIapInstance.requestPurchase {
+                ios { sku = productId }
+                android { skus = listOf(productId) }
+            }
         }
     }
 }
@@ -363,32 +361,37 @@ class BadPurchaseManager {
 
 ### Receipt Validation and Security
 
-Always validate purchases server-side:
+Always validate purchases server-side. The validation methods shown below must be implemented by you on your backend - kmp-iap provides the purchase data, but server-side validation is your responsibility:
 
 ```kotlin
-class SecurePurchaseValidator {
+// NOTE: The `api` object and its methods (validateIOSReceipt, validateAndroidPurchase)
+// are YOUR backend API client - not provided by kmp-iap.
+// You must implement these endpoints on your server.
+
+class SecurePurchaseValidator(
+    private val api: YourBackendApi // Your backend API client
+) {
     suspend fun validatePurchase(purchase: Purchase): Boolean {
         return try {
             when (getCurrentPlatform()) {
-                IapPlatform.IOS -> {
-                    // iOS receipt validation
+                IapPlatform.Ios -> {
+                    // iOS receipt validation - call YOUR backend
                     val result = api.validateIOSReceipt(
-                        receipt = purchase.transactionReceipt,
-                        sharedSecret = "your-shared-secret",
+                        receipt = purchase.transactionReceipt ?: "",
                         isProduction = !BuildConfig.DEBUG
                     )
-                    
-                    result.status == 0
+
+                    result.isValid
                 }
-                IapPlatform.ANDROID -> {
-                    // Android purchase validation
+                IapPlatform.Android -> {
+                    // Android purchase validation - call YOUR backend
                     val result = api.validateAndroidPurchase(
                         packageName = BuildConfig.APPLICATION_ID,
                         productId = purchase.productId,
                         purchaseToken = purchase.purchaseToken ?: "",
                         isSubscription = false
                     )
-                    
+
                     result.isValid
                 }
             }
@@ -399,6 +402,10 @@ class SecurePurchaseValidator {
     }
 }
 ```
+
+:::tip Using IAPKit for Verification
+Instead of implementing your own backend, you can use [IAPKit](https://iapkit.com) with `verifyPurchaseWithProvider()` for hassle-free server-side verification.
+:::
 
 ### Purchase State Management
 
@@ -440,14 +447,17 @@ class PurchaseStateManager(
             }
             
             updateState(PurchaseFlowState.PROCESSING, productId)
-            
-            KmpIAP.requestPurchase(
-                UnifiedPurchaseRequest(
-                    sku = productId,
-                    quantity = 1,
-                    obfuscatedAccountIdAndroid = getUserId()
-                )
-            )
+
+            kmpIapInstance.requestPurchase {
+                ios {
+                    sku = productId
+                    quantity = 1
+                }
+                android {
+                    skus = listOf(productId)
+                    obfuscatedAccountId = getUserId()
+                }
+            }
             
         } catch (e: PurchaseError) {
             updateState(
@@ -485,41 +495,41 @@ class PurchaseErrorHandler {
         scope: CoroutineScope
     ) {
         val (message, actionLabel) = when (error.code) {
-            ErrorCode.USER_CANCELLED -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled - no message needed
                 return
             }
-            ErrorCode.NETWORK_ERROR -> {
+            ErrorCode.NetworkError -> {
                 "Network error. Please check your connection." to "Retry"
             }
-            ErrorCode.SERVICE_UNAVAILABLE -> {
+            ErrorCode.ServiceError -> {
                 "Store service unavailable. Please try later." to null
             }
-            ErrorCode.PRODUCT_NOT_AVAILABLE -> {
+            ErrorCode.ItemUnavailable -> {
                 "This item is currently unavailable" to null
             }
-            ErrorCode.DEVELOPER_ERROR -> {
+            ErrorCode.DeveloperError -> {
                 "Configuration error. Please update the app." to null
             }
-            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+            ErrorCode.AlreadyOwned -> {
                 "You already own this item" to "Restore"
             }
             else -> {
                 "Purchase failed: ${error.message}" to null
             }
         }
-        
+
         scope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = actionLabel,
                 duration = SnackbarDuration.Long
             )
-            
+
             if (result == SnackbarResult.ActionPerformed) {
                 when (error.code) {
-                    ErrorCode.NETWORK_ERROR -> retryLastPurchase()
-                    ErrorCode.PRODUCT_ALREADY_OWNED -> restorePurchases()
+                    ErrorCode.NetworkError -> retryLastPurchase()
+                    ErrorCode.AlreadyOwned -> restorePurchases()
                     else -> {}
                 }
             }
