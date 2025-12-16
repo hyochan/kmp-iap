@@ -140,7 +140,7 @@ kotlin {
         pod("openiap") {
             version = appleVersion
             source = git("https://github.com/hyodotdev/openiap.git") {
-                tag = "apple-v$appleVersion"
+                tag = appleVersion
             }
             // Podspec is at the root of the monorepo
             moduleName = "OpenIAP"
