@@ -1,5 +1,5 @@
 ---
-title: Comprehensive API Enhancements & OpenIAP Compliance in KMP-IAP v1.0.0-beta
+title: 1.0.0-beta - Comprehensive API Enhancements & OpenIAP Compliance
 description: Complete platform parity with enhanced Android/iOS fields, OpenIAP specification compliance, unified API structure, and improved type safety
 slug: comprehensive-api-enhancements
 authors:

@@ -44,6 +44,42 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     fun toJson(): String = rawValue
 }
 
+/**
+ * Billing program types for Android (Google Play Billing 8.2.0+)
+ * Used for external billing flows
+ */
+public enum class BillingProgram(val rawValue: String) {
+    /**
+     * Unspecified program type
+     */
+    Unspecified("unspecified"),
+    /**
+     * External content link program
+     */
+    ExternalContentLink("external-content-link"),
+    /**
+     * External offer program
+     */
+    ExternalOffer("external-offer");
+
+    companion object {
+        fun fromJson(value: String): BillingProgram = when (value) {
+            "unspecified" -> BillingProgram.Unspecified
+            "UNSPECIFIED" -> BillingProgram.Unspecified
+            "Unspecified" -> BillingProgram.Unspecified
+            "external-content-link" -> BillingProgram.ExternalContentLink
+            "EXTERNAL_CONTENT_LINK" -> BillingProgram.ExternalContentLink
+            "ExternalContentLink" -> BillingProgram.ExternalContentLink
+            "external-offer" -> BillingProgram.ExternalOffer
+            "EXTERNAL_OFFER" -> BillingProgram.ExternalOffer
+            "ExternalOffer" -> BillingProgram.ExternalOffer
+            else -> throw IllegalArgumentException("Unknown BillingProgram value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
 public enum class ErrorCode(val rawValue: String) {
     Unknown("unknown"),
     UserCancelled("user-cancelled"),
@@ -196,6 +232,76 @@ public enum class ErrorCode(val rawValue: String) {
             "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Launch mode for external billing links (Android 8.2.0+)
+ */
+public enum class ExternalLinkLaunchMode(val rawValue: String) {
+    /**
+     * Unspecified launch mode
+     */
+    Unspecified("unspecified"),
+    /**
+     * Launch link in external browser or app
+     */
+    LaunchInExternalBrowserOrApp("launch-in-external-browser-or-app"),
+    /**
+     * Caller will launch the link themselves
+     */
+    CallerWillLaunchLink("caller-will-launch-link");
+
+    companion object {
+        fun fromJson(value: String): ExternalLinkLaunchMode = when (value) {
+            "unspecified" -> ExternalLinkLaunchMode.Unspecified
+            "UNSPECIFIED" -> ExternalLinkLaunchMode.Unspecified
+            "Unspecified" -> ExternalLinkLaunchMode.Unspecified
+            "launch-in-external-browser-or-app" -> ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp
+            "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp
+            "LaunchInExternalBrowserOrApp" -> ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp
+            "caller-will-launch-link" -> ExternalLinkLaunchMode.CallerWillLaunchLink
+            "CALLER_WILL_LAUNCH_LINK" -> ExternalLinkLaunchMode.CallerWillLaunchLink
+            "CallerWillLaunchLink" -> ExternalLinkLaunchMode.CallerWillLaunchLink
+            else -> throw IllegalArgumentException("Unknown ExternalLinkLaunchMode value: $value")
+        }
+    }
+
+    fun toJson(): String = rawValue
+}
+
+/**
+ * Type of external link (Android 8.2.0+)
+ */
+public enum class ExternalLinkType(val rawValue: String) {
+    /**
+     * Unspecified link type
+     */
+    Unspecified("unspecified"),
+    /**
+     * Link to digital content offer
+     */
+    LinkToDigitalContentOffer("link-to-digital-content-offer"),
+    /**
+     * Link to app download
+     */
+    LinkToAppDownload("link-to-app-download");
+
+    companion object {
+        fun fromJson(value: String): ExternalLinkType = when (value) {
+            "unspecified" -> ExternalLinkType.Unspecified
+            "UNSPECIFIED" -> ExternalLinkType.Unspecified
+            "Unspecified" -> ExternalLinkType.Unspecified
+            "link-to-digital-content-offer" -> ExternalLinkType.LinkToDigitalContentOffer
+            "LINK_TO_DIGITAL_CONTENT_OFFER" -> ExternalLinkType.LinkToDigitalContentOffer
+            "LinkToDigitalContentOffer" -> ExternalLinkType.LinkToDigitalContentOffer
+            "link-to-app-download" -> ExternalLinkType.LinkToAppDownload
+            "LINK_TO_APP_DOWNLOAD" -> ExternalLinkType.LinkToAppDownload
+            "LinkToAppDownload" -> ExternalLinkType.LinkToAppDownload
+            else -> throw IllegalArgumentException("Unknown ExternalLinkType value: $value")
         }
     }
 
@@ -599,6 +705,82 @@ public interface PurchaseCommon {
 
 // MARK: - Objects
 
+/**
+ * Result of checking billing program availability (Android 8.2.0+)
+ */
+public data class BillingProgramAvailabilityResult(
+    val billingProgram: BillingProgram,
+    val isAvailable: Boolean
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingProgramAvailabilityResult {
+            return BillingProgramAvailabilityResult(
+                billingProgram = BillingProgram.fromJson(json["billingProgram"] as String),
+                isAvailable = json["isAvailable"] as Boolean,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BillingProgramAvailabilityResult",
+        "billingProgram" to billingProgram.toJson(),
+        "isAvailable" to isAvailable,
+    )
+}
+
+/**
+ * Reporting details for billing programs (Android 8.2.0+)
+ * Contains the external transaction token to report to Google Play
+ */
+public data class BillingProgramReportingDetails(
+    val billingProgram: BillingProgram,
+    val externalTransactionToken: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetails {
+            return BillingProgramReportingDetails(
+                billingProgram = BillingProgram.fromJson(json["billingProgram"] as String),
+                externalTransactionToken = json["externalTransactionToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BillingProgramReportingDetails",
+        "billingProgram" to billingProgram.toJson(),
+        "externalTransactionToken" to externalTransactionToken,
+    )
+}
+
+/**
+ * Parameters for launching an external billing link (Android 8.2.0+)
+ */
+public data class LaunchExternalLinkParams(
+    val billingProgram: BillingProgram,
+    val launchMode: ExternalLinkLaunchMode,
+    val linkType: ExternalLinkType,
+    val linkUri: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParams {
+            return LaunchExternalLinkParams(
+                billingProgram = BillingProgram.fromJson(json["billingProgram"] as String),
+                launchMode = ExternalLinkLaunchMode.fromJson(json["launchMode"] as String),
+                linkType = ExternalLinkType.fromJson(json["linkType"] as String),
+                linkUri = json["linkUri"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "LaunchExternalLinkParams",
+        "billingProgram" to billingProgram.toJson(),
+        "launchMode" to launchMode.toJson(),
+        "linkType" to linkType.toJson(),
+        "linkUri" to linkUri,
+    )
+}
+
 public data class ActiveSubscription(
     val autoRenewingAndroid: Boolean? = null,
     val basePlanIdAndroid: String? = null,
@@ -725,6 +907,144 @@ public data class AppTransaction(
         "originalPurchaseDate" to originalPurchaseDate,
         "preorderDate" to preorderDate,
         "signedDate" to signedDate,
+    )
+}
+
+/**
+ * Discount amount information (Android 7.0+)
+ */
+public data class DiscountAmountAndroid(
+    val discountAmountMicros: Long,
+    val formattedDiscountAmount: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DiscountAmountAndroid {
+            return DiscountAmountAndroid(
+                discountAmountMicros = (json["discountAmountMicros"] as Number).toLong(),
+                formattedDiscountAmount = json["formattedDiscountAmount"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DiscountAmountAndroid",
+        "discountAmountMicros" to discountAmountMicros,
+        "formattedDiscountAmount" to formattedDiscountAmount,
+    )
+}
+
+/**
+ * Discount display information (Android 7.0+)
+ */
+public data class DiscountDisplayInfoAndroid(
+    val percentageDiscount: Int? = null,
+    val discountAmount: DiscountAmountAndroid? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): DiscountDisplayInfoAndroid {
+            return DiscountDisplayInfoAndroid(
+                percentageDiscount = (json["percentageDiscount"] as Number?)?.toInt(),
+                discountAmount = (json["discountAmount"] as Map<String, Any?>?)?.let { DiscountAmountAndroid.fromJson(it) },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "DiscountDisplayInfoAndroid",
+        "percentageDiscount" to percentageDiscount,
+        "discountAmount" to discountAmount?.toJson(),
+    )
+}
+
+/**
+ * Limited quantity information for one-time offers (Android 7.0+)
+ */
+public data class LimitedQuantityInfoAndroid(
+    val maximumQuantity: Int,
+    val remainingQuantity: Int
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): LimitedQuantityInfoAndroid {
+            return LimitedQuantityInfoAndroid(
+                maximumQuantity = (json["maximumQuantity"] as Number).toInt(),
+                remainingQuantity = (json["remainingQuantity"] as Number).toInt(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "LimitedQuantityInfoAndroid",
+        "maximumQuantity" to maximumQuantity,
+        "remainingQuantity" to remainingQuantity,
+    )
+}
+
+/**
+ * Valid time window for one-time offers (Android 7.0+)
+ */
+public data class ValidTimeWindowAndroid(
+    val startTimeMillis: Long,
+    val endTimeMillis: Long
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ValidTimeWindowAndroid {
+            return ValidTimeWindowAndroid(
+                startTimeMillis = (json["startTimeMillis"] as Number).toLong(),
+                endTimeMillis = (json["endTimeMillis"] as Number).toLong(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "ValidTimeWindowAndroid",
+        "startTimeMillis" to startTimeMillis,
+        "endTimeMillis" to endTimeMillis,
+    )
+}
+
+/**
+ * Preorder details for products (Android 8.0+)
+ */
+public data class PreorderDetailsAndroid(
+    val preorderReleaseTimeMillis: Long,
+    val preorderPresaleEndTimeMillis: Long
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): PreorderDetailsAndroid {
+            return PreorderDetailsAndroid(
+                preorderReleaseTimeMillis = (json["preorderReleaseTimeMillis"] as Number).toLong(),
+                preorderPresaleEndTimeMillis = (json["preorderPresaleEndTimeMillis"] as Number).toLong(),
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "PreorderDetailsAndroid",
+        "preorderReleaseTimeMillis" to preorderReleaseTimeMillis,
+        "preorderPresaleEndTimeMillis" to preorderPresaleEndTimeMillis,
+    )
+}
+
+/**
+ * Rental details for products (Android 8.0+)
+ */
+public data class RentalDetailsAndroid(
+    val rentalPeriod: String,
+    val rentalExpirationPeriod: String? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RentalDetailsAndroid {
+            return RentalDetailsAndroid(
+                rentalPeriod = json["rentalPeriod"] as String,
+                rentalExpirationPeriod = json["rentalExpirationPeriod"] as String?,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "RentalDetailsAndroid",
+        "rentalPeriod" to rentalPeriod,
+        "rentalExpirationPeriod" to rentalExpirationPeriod,
     )
 }
 
@@ -963,7 +1283,11 @@ public data class ProductAndroid(
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    /**
+     * One-time purchase offer details list (Android 7.0+)
+     * BREAKING CHANGE: Changed from single object to List to support multiple offers with discounts
+     */
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
@@ -973,6 +1297,13 @@ public data class ProductAndroid(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductAndroid {
+            // Support both old single-object format and new list format for backwards compatibility
+            val offerDetails = json["oneTimePurchaseOfferDetailsAndroid"]
+            val offerDetailsList: List<ProductAndroidOneTimePurchaseOfferDetail>? = when (offerDetails) {
+                is List<*> -> offerDetails.mapNotNull { (it as? Map<String, Any?>)?.let { map -> ProductAndroidOneTimePurchaseOfferDetail.fromJson(map) } }
+                is Map<*, *> -> listOf(ProductAndroidOneTimePurchaseOfferDetail.fromJson(offerDetails as Map<String, Any?>))
+                else -> null
+            }
             return ProductAndroid(
                 currency = json["currency"] as String,
                 debugDescription = json["debugDescription"] as String?,
@@ -981,7 +1312,7 @@ public data class ProductAndroid(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
+                oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
                 platform = IapPlatform.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>?)?.map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
@@ -1000,7 +1331,7 @@ public data class ProductAndroid(
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.toJson(),
+        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid?.map { it.toJson() },
@@ -1009,10 +1340,46 @@ public data class ProductAndroid(
     )
 }
 
+/**
+ * One-time purchase offer details (Android)
+ * Updated to support discounts and additional fields from Google Play Billing 7.0+ and 8.0+
+ */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     val formattedPrice: String,
     val priceAmountMicros: String,
-    val priceCurrencyCode: String
+    val priceCurrencyCode: String,
+    /**
+     * Offer identifier (Android 7.0+)
+     */
+    val offerId: String? = null,
+    /**
+     * Full price in micros before discount (Android 7.0+)
+     */
+    val fullPriceMicros: Long? = null,
+    /**
+     * Discount display information (Android 7.0+)
+     */
+    val discountDisplayInfo: DiscountDisplayInfoAndroid? = null,
+    /**
+     * Limited quantity information for the offer (Android 7.0+)
+     */
+    val limitedQuantityInfo: LimitedQuantityInfoAndroid? = null,
+    /**
+     * Time window when the offer is valid (Android 7.0+)
+     */
+    val validTimeWindow: ValidTimeWindowAndroid? = null,
+    /**
+     * Tags associated with the offer (Android 7.0+)
+     */
+    val offerTags: List<String> = emptyList(),
+    /**
+     * Preorder details (Android 8.0+)
+     */
+    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
+    /**
+     * Rental details (Android 8.0+)
+     */
+    val rentalDetailsAndroid: RentalDetailsAndroid? = null
 ) {
 
     companion object {
@@ -1021,6 +1388,14 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
                 formattedPrice = json["formattedPrice"] as String,
                 priceAmountMicros = json["priceAmountMicros"] as String,
                 priceCurrencyCode = json["priceCurrencyCode"] as String,
+                offerId = json["offerId"] as String?,
+                fullPriceMicros = (json["fullPriceMicros"] as Number?)?.toLong(),
+                discountDisplayInfo = (json["discountDisplayInfo"] as Map<String, Any?>?)?.let { DiscountDisplayInfoAndroid.fromJson(it) },
+                limitedQuantityInfo = (json["limitedQuantityInfo"] as Map<String, Any?>?)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
+                validTimeWindow = (json["validTimeWindow"] as Map<String, Any?>?)?.let { ValidTimeWindowAndroid.fromJson(it) },
+                offerTags = (json["offerTags"] as List<*>?)?.map { it as String } ?: emptyList(),
+                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as Map<String, Any?>?)?.let { PreorderDetailsAndroid.fromJson(it) },
+                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as Map<String, Any?>?)?.let { RentalDetailsAndroid.fromJson(it) },
             )
         }
     }
@@ -1030,6 +1405,14 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
         "formattedPrice" to formattedPrice,
         "priceAmountMicros" to priceAmountMicros,
         "priceCurrencyCode" to priceCurrencyCode,
+        "offerId" to offerId,
+        "fullPriceMicros" to fullPriceMicros,
+        "discountDisplayInfo" to discountDisplayInfo?.toJson(),
+        "limitedQuantityInfo" to limitedQuantityInfo?.toJson(),
+        "validTimeWindow" to validTimeWindow?.toJson(),
+        "offerTags" to offerTags,
+        "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
+        "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
     )
 }
 
@@ -1101,7 +1484,11 @@ public data class ProductSubscriptionAndroid(
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    /**
+     * One-time purchase offer details list (Android 7.0+)
+     * BREAKING CHANGE: Changed from single object to List to support multiple offers with discounts
+     */
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
@@ -1111,6 +1498,13 @@ public data class ProductSubscriptionAndroid(
 
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionAndroid {
+            // Support both old single-object format and new list format for backwards compatibility
+            val offerDetails = json["oneTimePurchaseOfferDetailsAndroid"]
+            val offerDetailsList: List<ProductAndroidOneTimePurchaseOfferDetail>? = when (offerDetails) {
+                is List<*> -> offerDetails.mapNotNull { (it as? Map<String, Any?>)?.let { map -> ProductAndroidOneTimePurchaseOfferDetail.fromJson(map) } }
+                is Map<*, *> -> listOf(ProductAndroidOneTimePurchaseOfferDetail.fromJson(offerDetails as Map<String, Any?>))
+                else -> null
+            }
             return ProductSubscriptionAndroid(
                 currency = json["currency"] as String,
                 debugDescription = json["debugDescription"] as String?,
@@ -1119,7 +1513,7 @@ public data class ProductSubscriptionAndroid(
                 displayPrice = json["displayPrice"] as String,
                 id = json["id"] as String,
                 nameAndroid = json["nameAndroid"] as String,
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as Map<String, Any?>?)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) },
+                oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
                 platform = IapPlatform.fromJson(json["platform"] as String),
                 price = (json["price"] as Number?)?.toDouble(),
                 subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as List<*>).map { ProductSubscriptionAndroidOfferDetails.fromJson((it as Map<String, Any?>)) },
@@ -1138,7 +1532,7 @@ public data class ProductSubscriptionAndroid(
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.toJson(),
+        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid.map { it.toJson() },
@@ -1270,6 +1664,12 @@ public data class PurchaseAndroid(
     override val ids: List<String>? = null,
     val isAcknowledgedAndroid: Boolean? = null,
     override val isAutoRenewing: Boolean,
+    /**
+     * Whether the subscription is currently suspended (Android 8.1.0+)
+     * A subscription can be suspended due to payment issues.
+     * Only available on Android.
+     */
+    val isSuspendedAndroid: Boolean? = null,
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val packageNameAndroid: String? = null,
@@ -1301,6 +1701,7 @@ public data class PurchaseAndroid(
                 ids = (json["ids"] as List<*>?)?.map { it as String },
                 isAcknowledgedAndroid = json["isAcknowledgedAndroid"] as Boolean?,
                 isAutoRenewing = json["isAutoRenewing"] as Boolean,
+                isSuspendedAndroid = json["isSuspendedAndroid"] as Boolean?,
                 obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as String?,
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as String?,
                 packageNameAndroid = json["packageNameAndroid"] as String?,
@@ -1327,6 +1728,7 @@ public data class PurchaseAndroid(
         "ids" to ids?.map { it },
         "isAcknowledgedAndroid" to isAcknowledgedAndroid,
         "isAutoRenewing" to isAutoRenewing,
+        "isSuspendedAndroid" to isSuspendedAndroid,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "packageNameAndroid" to packageNameAndroid,
@@ -2473,53 +2875,121 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     )
 }
 
-public data class VerifyPurchaseAndroidOptions(
-    val accessToken: String,
-    val isSub: Boolean? = null,
-    val packageName: String,
-    val productToken: String
-) {
-    companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAndroidOptions {
-            return VerifyPurchaseAndroidOptions(
-                accessToken = json["accessToken"] as String,
-                isSub = json["isSub"] as Boolean?,
-                packageName = json["packageName"] as String,
-                productToken = json["productToken"] as String,
-            )
-        }
-    }
+/**
+ * @deprecated Use VerifyPurchaseGoogleOptions instead
+ */
+@Deprecated("Use VerifyPurchaseGoogleOptions instead", ReplaceWith("VerifyPurchaseGoogleOptions"))
+public typealias VerifyPurchaseAndroidOptions = VerifyPurchaseGoogleOptions
 
-    fun toJson(): Map<String, Any?> = mapOf(
-        "accessToken" to accessToken,
-        "isSub" to isSub,
-        "packageName" to packageName,
-        "productToken" to productToken,
-    )
-}
-
-public data class VerifyPurchaseProps(
-    /**
-     * Android-specific validation options
-     */
-    val androidOptions: VerifyPurchaseAndroidOptions? = null,
-    /**
-     * Product SKU to validate
-     */
+/**
+ * Apple App Store verification options
+ */
+public data class VerifyPurchaseAppleOptions(
     val sku: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
-            return VerifyPurchaseProps(
-                androidOptions = (json["androidOptions"] as Map<String, Any?>?)?.let { VerifyPurchaseAndroidOptions.fromJson(it) },
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions {
+            return VerifyPurchaseAppleOptions(
                 sku = json["sku"] as String,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "androidOptions" to androidOptions?.toJson(),
         "sku" to sku,
+    )
+}
+
+/**
+ * Google Play Store verification options
+ */
+public data class VerifyPurchaseGoogleOptions(
+    val sku: String,
+    val accessToken: String,
+    val packageName: String,
+    val purchaseToken: String,
+    val isSub: Boolean? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions {
+            return VerifyPurchaseGoogleOptions(
+                sku = json["sku"] as String,
+                accessToken = json["accessToken"] as String,
+                packageName = json["packageName"] as String,
+                purchaseToken = json["purchaseToken"] as String,
+                isSub = json["isSub"] as Boolean?,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "sku" to sku,
+        "accessToken" to accessToken,
+        "packageName" to packageName,
+        "purchaseToken" to purchaseToken,
+        "isSub" to isSub,
+    )
+}
+
+/**
+ * Meta Horizon (Quest) verification options
+ */
+public data class VerifyPurchaseHorizonOptions(
+    val sku: String,
+    val userId: String,
+    val accessToken: String
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseHorizonOptions {
+            return VerifyPurchaseHorizonOptions(
+                sku = json["sku"] as String,
+                userId = json["userId"] as String,
+                accessToken = json["accessToken"] as String,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "sku" to sku,
+        "userId" to userId,
+        "accessToken" to accessToken,
+    )
+}
+
+/**
+ * Purchase verification options with platform-specific fields.
+ *
+ * Breaking Change (v1.1.0): The previous `sku` root field and `androidOptions`
+ * have been replaced with `apple`, `google`, and `horizon` fields.
+ */
+public data class VerifyPurchaseProps(
+    /**
+     * Apple App Store verification options
+     */
+    val apple: VerifyPurchaseAppleOptions? = null,
+    /**
+     * Google Play Store verification options
+     */
+    val google: VerifyPurchaseGoogleOptions? = null,
+    /**
+     * Meta Horizon (Quest) verification options
+     */
+    val horizon: VerifyPurchaseHorizonOptions? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
+            return VerifyPurchaseProps(
+                apple = (json["apple"] as Map<String, Any?>?)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
+                google = (json["google"] as Map<String, Any?>?)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
+                horizon = (json["horizon"] as Map<String, Any?>?)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "apple" to apple?.toJson(),
+        "google" to google?.toJson(),
+        "horizon" to horizon?.toJson(),
     )
 }
 
@@ -2733,6 +3203,35 @@ public interface MutationResolver {
      * Verify purchases with a specific provider (e.g., IAPKit)
      */
     suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult
+
+    // ===== Billing Programs API (Android 8.2.0+) =====
+
+    /**
+     * Check if a billing program is available for the current user/device (Android 8.2.0+)
+     *
+     * @param program The billing program to check
+     * @return Result indicating program type and availability
+     * @throws UnsupportedOperationException on iOS
+     */
+    suspend fun isBillingProgramAvailable(program: BillingProgram): BillingProgramAvailabilityResult
+
+    /**
+     * Create billing program reporting details (Android 8.2.0+)
+     * Returns an external transaction token to be reported to Google Play within 24 hours
+     *
+     * @param program The billing program to create reporting details for
+     * @return Reporting details including the external transaction token
+     * @throws UnsupportedOperationException on iOS
+     */
+    suspend fun createBillingProgramReportingDetails(program: BillingProgram): BillingProgramReportingDetails
+
+    /**
+     * Launch an external link for billing programs (Android 8.2.0+)
+     *
+     * @param params Parameters for launching the external link
+     * @throws UnsupportedOperationException on iOS
+     */
+    suspend fun launchExternalLink(params: LaunchExternalLinkParams)
 }
 
 /**

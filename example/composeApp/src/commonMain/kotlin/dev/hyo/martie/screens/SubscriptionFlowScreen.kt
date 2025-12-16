@@ -40,6 +40,8 @@ import io.github.hyochan.kmpiap.openiap.ProductIOS
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseAppleOptions
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseGoogleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -121,8 +123,18 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                 try {
                                     when (verificationMethod) {
                                         VerificationMethod.Local -> {
+                                            val isIos = getCurrentPlatform() == IapPlatform.Ios
                                             val result = kmpIAP.verifyPurchase(
-                                                VerifyPurchaseProps(sku = purchase.productId)
+                                                VerifyPurchaseProps(
+                                                    apple = if (isIos) VerifyPurchaseAppleOptions(sku = purchase.productId) else null,
+                                                    google = if (!isIos) VerifyPurchaseGoogleOptions(
+                                                        sku = purchase.productId,
+                                                        accessToken = "", // Obtain from your backend for production use
+                                                        packageName = "", // Your app's package name
+                                                        purchaseToken = purchase.purchaseToken ?: "",
+                                                        isSub = true
+                                                    ) else null
+                                                )
                                             )
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +

@@ -12,7 +12,7 @@ import Logo from '@site/static/img/logo.png';
 <GreatFrontEndTopFixed />
 
 :::info Version
-This documentation is for **kmp-iap v1.1.0** which includes Google Play Billing 8.2.0 features: Billing Programs API and one-time product discounts. Native code is powered by [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
+This documentation is for **kmp-iap v1.0.0** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
