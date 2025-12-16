@@ -241,7 +241,7 @@ dependencies {
 **Solution:**
 ```kotlin
 private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-    // Assuming kmpIAP is available as class property or use kmpIapInstance
+    // Assuming kmpIap is available as class property or use kmpIapInstance
     try {
         // IMPORTANT: Always complete transactions
         val success = kmpIapInstance.finishTransaction(
@@ -340,7 +340,7 @@ private suspend fun handlePurchaseUpdate(purchase: Purchase) {
 **Solution:**
 ```kotlin
 class PurchaseManager : ViewModel() {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     
     init {
         initializeIAP()
@@ -349,20 +349,20 @@ class PurchaseManager : ViewModel() {
     
     private fun initializeIAP() {
         viewModelScope.launch {
-            kmpIAP.initConnection()
+            kmpIap.initConnection()
         }
     }
     
     private fun setupObservers() {
         // Use viewModelScope for automatic cancellation
         viewModelScope.launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIap.purchaseUpdatedListener.collect { purchase ->
                 handlePurchase(purchase)
             }
         }
         
         viewModelScope.launch {
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIap.purchaseErrorListener.collect { error ->
                 handleError(error)
             }
         }
@@ -371,7 +371,7 @@ class PurchaseManager : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         // Dispose KmpIAP resources
-        kmpIAP.dispose()
+        kmpIap.dispose()
     }
 }
 ```
@@ -383,18 +383,18 @@ class PurchaseManager : ViewModel() {
 **Solution:** Always clean up resources:
 ```kotlin
 class IAPService : ViewModel() {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     
     init {
         viewModelScope.launch {
-            kmpIAP.initConnection()
+            kmpIap.initConnection()
         }
     }
     
     override fun onCleared() {
         super.onCleared()
         // Dispose IAP resources
-        kmpIAP.dispose()
+        kmpIap.dispose()
     }
 }
 ```
@@ -459,16 +459,16 @@ private suspend fun validateAndroidPurchase(purchase: Purchase) {
 // Add logging to track IAP flow
 class DebugIAPHelper(scope: CoroutineScope) {
     
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     
     init {
         scope.launch {
-            val connected = kmpIAP.initConnection()
+            val connected = kmpIap.initConnection()
             println("[IAP] Connection state: $connected")
         }
         
         scope.launch {
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIap.purchaseErrorListener.collect { error ->
                 println("[IAP] Error: ${error.code} - ${error.message}")
             }
         }

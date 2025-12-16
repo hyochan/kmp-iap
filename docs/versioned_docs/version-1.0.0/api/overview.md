@@ -22,9 +22,9 @@ The main class for all IAP operations. You can use it in two ways:
 import io.github.hyochan.kmpiap.KmpIAP
 
 // Create your own instance
-val kmpIAP = KmpIAP()
-kmpIAP.initConnection()
-kmpIAP.requestProducts(...)
+val kmpIap = KmpIAP()
+kmpIap.initConnection()
+kmpIap.requestProducts(...)
 ```
 
 #### 2. Singleton Pattern (Deprecated)
@@ -199,8 +199,8 @@ data class Subscription(
 ### Purchase Updates
 
 ```kotlin
-val kmpIAP = KmpIAP()
-kmpIAP.purchaseUpdatedListener.collect { purchase ->
+val kmpIap = KmpIAP()
+kmpIap.purchaseUpdatedListener.collect { purchase ->
     when (purchase.purchaseState) {
         PurchaseState.PURCHASED -> {
             // Handle successful purchase
@@ -218,8 +218,8 @@ kmpIAP.purchaseUpdatedListener.collect { purchase ->
 ### Error Handling
 
 ```kotlin
-val kmpIAP = KmpIAP()
-kmpIAP.purchaseErrorListener.collect { error ->
+val kmpIap = KmpIAP()
+kmpIap.purchaseErrorListener.collect { error ->
     when (error.code) {
         ErrorCode.E_USER_CANCELLED -> {
             // User cancelled the purchase

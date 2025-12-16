@@ -16,10 +16,10 @@ Complete reference for kmp-iap - A unified Kotlin Multiplatform API for implemen
 ### 🏪 Core Methods
 Essential methods for initializing connections, loading products, and processing purchases.
 
-- **Connection Management**: `kmpIAP.initConnection()`, `kmpIAP.dispose()`
-- **Product Loading**: `kmpIAP.requestProducts()`, `kmpIAP.requestSubscriptions()`
-- **Purchase Processing**: `kmpIAP.requestPurchase()`, `kmpIAP.requestSubscription()`
-- **Transaction Management**: `kmpIAP.finishTransaction()`, `kmpIAP.acknowledgePurchase()`
+- **Connection Management**: `kmpIap.initConnection()`, `kmpIap.dispose()`
+- **Product Loading**: `kmpIap.requestProducts()`, `kmpIap.requestSubscriptions()`
+- **Purchase Processing**: `kmpIap.requestPurchase()`, `kmpIap.requestSubscription()`
+- **Transaction Management**: `kmpIap.finishTransaction()`, `kmpIap.acknowledgePurchase()`
 
 ### 📱 Platform-Specific Methods
 Access iOS and Android specific features and capabilities.
@@ -50,29 +50,29 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class PurchaseManager {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
     
     suspend fun initializePurchases() {
         // Initialize connection
-        kmpIAP.initConnection()
+        kmpIap.initConnection()
         
         // Set up state listeners
         scope.launch {
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+            kmpIap.purchaseUpdatedListener.collect { purchase ->
                 handlePurchaseSuccess(purchase)
             }
         }
         
         scope.launch {
-            kmpIAP.purchaseErrorListener.collect { error ->
+            kmpIap.purchaseErrorListener.collect { error ->
                 handlePurchaseError(error)
             }
         }
     }
     
     suspend fun makePurchase(productId: String) {
-        kmpIAP.requestPurchase(
+        kmpIap.requestPurchase(
             UnifiedPurchaseRequest(
                 sku = productId,
                 quantity = 1,

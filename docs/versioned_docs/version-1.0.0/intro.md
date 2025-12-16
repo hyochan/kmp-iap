@@ -116,19 +116,19 @@ import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.*
 
 // Create your own instance
-val kmpIAP = KmpIAP()
+val kmpIap = KmpIAP()
 
 // Initialize connection
-kmpIAP.initConnection()
+kmpIap.initConnection()
 
 // Get products using DSL
-val products = kmpIAP.fetchProducts {
+val products = kmpIap.fetchProducts {
     skus = listOf("product_id")
     type = ProductQueryType.InApp
 }
 
 // Request purchase using DSL
-val purchase = kmpIAP.requestPurchase {
+val purchase = kmpIap.requestPurchase {
     ios {
         sku = "product_id"
         quantity = 1
@@ -139,7 +139,7 @@ val purchase = kmpIAP.requestPurchase {
 }
 
 // Finish transaction after validation
-kmpIAP.finishTransaction(
+kmpIap.finishTransaction(
     purchase = purchase.toPurchaseInput(),
     isConsumable = true
 )

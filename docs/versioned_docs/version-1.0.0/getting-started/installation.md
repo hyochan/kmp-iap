@@ -257,13 +257,13 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun initialize() {
         scope.launch {
             try {
-                kmpIAP.initConnection()
+                kmpIap.initConnection()
                 println("IAP connection initialized successfully")
             } catch (e: PurchaseError) {
                 println("Failed to initialize IAP connection: $e")
@@ -273,7 +273,7 @@ class IAPManager {
 
     fun dispose() {
         scope.launch {
-            kmpIAP.endConnection()
+            kmpIap.endConnection()
         }
         scope.cancel()
     }

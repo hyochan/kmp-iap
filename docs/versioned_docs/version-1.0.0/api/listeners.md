@@ -28,12 +28,12 @@ val purchaseUpdatedListener: Flow<Purchase>
 import kotlinx.coroutines.flow.collectLatest
 
 class PurchaseManager {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
     
     init {
         scope.launch {
-            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
+            kmpIap.purchaseUpdatedListener.collectLatest { purchase ->
                 println("Purchase updated: \${purchase.productId}")
                 println("Transaction ID: \${purchase.transactionId}")
                 println("State: \${purchase.purchaseState}")
@@ -62,7 +62,7 @@ class PurchaseManager {
         grantEntitlement(purchase.productId)
         
         // Finish transaction
-        kmpIAP.finishTransaction(purchase, isConsumable = true)
+        kmpIap.finishTransaction(purchase, isConsumable = true)
     }
 }
 ```
@@ -238,14 +238,14 @@ Monitor multiple events simultaneously:
 ```kotlin
 class PurchaseFlowManager(private val iap: InAppPurchase) {
     
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     
     init {
         // Combine purchase and error flows
         scope.launch {
             merge(
-                kmpIAP.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
-                kmpIAP.purchaseErrorListener.map { PurchaseEvent.Error(it) }
+                kmpIap.purchaseUpdatedListener.map { PurchaseEvent.Success(it) },
+                kmpIap.purchaseErrorListener.map { PurchaseEvent.Error(it) }
             ).collectLatest { event ->
                 when (event) {
                     is PurchaseEvent.Success -> handleSuccess(event.purchase)
@@ -277,7 +277,7 @@ kmpIapInstance.purchaseUpdatedListener
     }
 
 // Only listen for specific error types
-kmpIAP.purchaseErrorListener
+kmpIap.purchaseErrorListener
     .filter { error ->
         error.code in listOf(
             ErrorCode.NETWORK_ERROR,
@@ -302,7 +302,7 @@ kmpIapInstance.purchaseUpdatedListener
     }
 
 // Throttle error messages
-kmpIAP.purchaseErrorListener
+kmpIap.purchaseErrorListener
     .throttleLatest(2000) // Max one error dialog per 2 seconds
     .collectLatest { error ->
         showErrorDialog(error)
@@ -333,7 +333,7 @@ fun PurchaseScreen(iap: InAppPurchase) {
     // Error handling
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            kmpIAP.purchaseErrorListener.collectLatest { error ->
+            kmpIap.purchaseErrorListener.collectLatest { error ->
                 showErrorSnackbar(error.message)
             }
         }
@@ -411,7 +411,7 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
         }
         
         scope.launch {
-            kmpIAP.purchaseUpdatedListener.collectLatest { purchase ->
+            kmpIap.purchaseUpdatedListener.collectLatest { purchase ->
                 // Success - reset retry count
                 resetRetryCount(purchase.productId)
             }

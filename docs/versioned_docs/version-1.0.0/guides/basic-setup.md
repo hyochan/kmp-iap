@@ -210,8 +210,8 @@ object IAPManager {
     private fun grantEntitlement(productId: String) {
         // Grant the appropriate entitlement based on productId
         when (productId) {
-            "remove_ads" -> UserSettings.adsRemoved = true
-            "premium_features" -> UserSettings.isPremium = true
+            "remove_ads" -> UserSettings.setAdsRemoved(true)
+            "premium_features" -> UserSettings.setPremium(true)
             // Handle other products
         }
     }
@@ -247,10 +247,16 @@ object IAPManager {
     }
 }
 
-// Simple user settings example
+// Thread-safe user settings using StateFlow
 object UserSettings {
-    var adsRemoved: Boolean = false
-    var isPremium: Boolean = false
+    private val _adsRemoved = MutableStateFlow(false)
+    val adsRemoved: StateFlow<Boolean> = _adsRemoved.asStateFlow()
+
+    private val _isPremium = MutableStateFlow(false)
+    val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
+
+    fun setAdsRemoved(removed: Boolean) { _adsRemoved.value = removed }
+    fun setPremium(premium: Boolean) { _isPremium.value = premium }
 }
 ```
 

@@ -112,7 +112,7 @@ class ProductsViewModel : ViewModel() {
     
     override fun onCleared() {
         super.onCleared()
-        kmpIAP.dispose()
+        kmpIap.dispose()
     }
     
     // Purchase observer setup...
