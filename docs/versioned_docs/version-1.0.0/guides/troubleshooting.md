@@ -125,7 +125,7 @@ dependencies {
 
 ### Products Not Loading
 
-**Problem:** `getProducts()` returns empty list
+**Problem:** `fetchProducts()` returns empty list
 
 **Debugging Steps:**
 

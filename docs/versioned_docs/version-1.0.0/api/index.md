@@ -22,7 +22,7 @@ Essential methods for initializing connections, loading products, and processing
 - **Transaction Management**: `kmpIap.finishTransaction()`, `kmpIap.acknowledgePurchase()`
 
 ### 📱 Platform-Specific Methods
-Access iOS and Android specific features and capabilities.
+Access iOS-specific and Android-specific features and capabilities.
 
 - **iOS Features**: Offer code redemption, subscription management, StoreKit 2 support
 - **Android Features**: Billing client state, pending purchases, deep links
