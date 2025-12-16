@@ -153,12 +153,12 @@ data class PurchaseAndroid(
     val purchaseTimeAndroid: Double? = null,
     val purchaseTokenAndroid: String? = null,  // @deprecated
     val signatureAndroid: String? = null,
-    // New in v1.1.0 (Google Play Billing 8.1.0+)
+    // New in v1.2.0 (Google Play Billing 8.1.0+)
     val isSuspendedAndroid: Boolean? = null   // Subscription suspended due to payment issues
 ) : PurchaseCommon
 ```
 
-:::tip Handling Suspended Subscriptions (v1.1.0)
+:::tip Handling Suspended Subscriptions (v1.2.0)
 When `isSuspendedAndroid` is `true`, the subscription is suspended due to payment issues. Direct users to fix their payment method:
 ```kotlin
 if (purchase.isSuspendedAndroid == true) {
@@ -336,16 +336,16 @@ data class DiscountIOS(
 
 ### ProductAndroidOneTimePurchaseOfferDetail
 
-Android one-time purchase offer details from Google Play Billing. **Updated in v1.1.0** with discount support.
+Android one-time purchase offer details from Google Play Billing. **Updated in v1.2.0** with discount support.
 
-:::warning Breaking Change (v1.1.0)
+:::warning Breaking Change (v1.2.0)
 `oneTimePurchaseOfferDetailsAndroid` is now a **List** instead of a single object to support multiple offers with discounts.
 
 ```kotlin
 // Before (v1.0.0)
 val price = product.oneTimePurchaseOfferDetailsAndroid?.formattedPrice
 
-// After (v1.1.0)
+// After (v1.2.0)
 val price = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.formattedPrice
 ```
 :::
@@ -355,7 +355,7 @@ data class ProductAndroidOneTimePurchaseOfferDetail(
     val formattedPrice: String,
     val priceAmountMicros: String,
     val priceCurrencyCode: String,
-    // New fields in v1.1.0 (Google Play Billing 7.0+)
+    // New fields in v1.2.0 (Google Play Billing 7.0+)
     val offerId: String? = null,
     val offerTags: List<String>? = null,
     val offerToken: String? = null,
@@ -589,7 +589,7 @@ enum class DiscountTypeIOS {
 }
 ```
 
-## Billing Programs API Types (v1.1.0)
+## Billing Programs API Types (v1.2.0)
 
 New types for Google Play Billing Programs API (Android 8.2.0+).
 

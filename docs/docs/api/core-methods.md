@@ -738,9 +738,9 @@ suspend fun purchaseWithAlternativeBilling(productId: String) {
 
 ---
 
-### Billing Programs API (v1.1.0)
+### Billing Programs API (v1.2.0)
 
-New in v1.1.0, the Billing Programs API provides a unified way to handle external billing programs (Google Play Billing 8.2.0+).
+New in v1.2.0, the Billing Programs API provides a unified way to handle external billing programs (Google Play Billing 8.2.0+).
 
 :::info Availability Note
 The Billing Programs API methods currently return `FeatureNotSupported` error as the underlying Google Play Billing Library 8.2.0 APIs are not yet available in the billing-ktx dependency. This documentation is provided for future compatibility.
