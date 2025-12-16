@@ -12,7 +12,7 @@ import Logo from '@site/static/img/logo.png';
 <GreatFrontEndTopFixed />
 
 :::info Version
-This documentation is for **kmp-iap v1.1.0** which includes Google Play Billing 8.2.0 features: Billing Programs API and one-time product discounts. Native code is powered by [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
+This documentation is for **kmp-iap v1.0.0** with simplified API design. Native code has been migrated to [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
@@ -60,7 +60,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.1.0
+- **Current Version**: 1.0.0
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 15.0+ (via [openiap-apple](https://github.com/hyodotdev/openiap-apple))
 - **Android Requirements**: API level 24+ (via [openiap-google](https://github.com/hyodotdev/openiap-google))
@@ -116,19 +116,19 @@ import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.*
 
 // Create your own instance
-val kmpIAP = KmpIAP()
+val kmpIap = KmpIAP()
 
 // Initialize connection
-kmpIAP.initConnection()
+kmpIap.initConnection()
 
 // Get products using DSL
-val products = kmpIAP.fetchProducts {
+val products = kmpIap.fetchProducts {
     skus = listOf("product_id")
     type = ProductQueryType.InApp
 }
 
 // Request purchase using DSL
-val purchase = kmpIAP.requestPurchase {
+val purchase = kmpIap.requestPurchase {
     ios {
         sku = "product_id"
         quantity = 1
@@ -139,7 +139,7 @@ val purchase = kmpIAP.requestPurchase {
 }
 
 // Finish transaction after validation
-kmpIAP.finishTransaction(
+kmpIap.finishTransaction(
     purchase = purchase.toPurchaseInput(),
     isConsumable = true
 )

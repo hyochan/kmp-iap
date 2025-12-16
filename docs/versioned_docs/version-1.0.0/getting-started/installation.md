@@ -31,7 +31,7 @@ Add kmp-iap to your project's dependencies:
 ```kotlin
 val commonMain by getting {
     dependencies {
-        implementation("io.github.hyochan:kmp-iap:1.1.0")
+        implementation("io.github.hyochan:kmp-iap:1.0.0")
     }
 }
 ```
@@ -41,7 +41,7 @@ Or if using version catalogs:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kmp-iap = "1.1.0"
+kmp-iap = "1.0.0"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
@@ -93,14 +93,14 @@ kotlin {
 }
 ```
 
-2. **Run pod install:**
+1. **Run pod install:**
 
 ```bash
 cd iosApp
 pod install
 ```
 
-3. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
+2. **Important:** Always open `.xcworkspace`, not `.xcodeproj`:
 
 ```bash
 open iosApp.xcworkspace
@@ -257,13 +257,13 @@ import io.github.hyochan.kmpiap.types.*
 import kotlinx.coroutines.*
 
 class IAPManager {
-    private val kmpIAP = KmpIAP()
+    private val kmpIap = KmpIAP()
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun initialize() {
         scope.launch {
             try {
-                kmpIAP.initConnection()
+                kmpIap.initConnection()
                 println("IAP connection initialized successfully")
             } catch (e: PurchaseError) {
                 println("Failed to initialize IAP connection: $e")
@@ -273,7 +273,7 @@ class IAPManager {
 
     fun dispose() {
         scope.launch {
-            kmpIAP.endConnection()
+            kmpIap.endConnection()
         }
         scope.cancel()
     }
@@ -285,9 +285,10 @@ class IAPManager {
 Test your setup with this verification code:
 
 ```kotlin
-suspend fun testConnection() {
-    import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.*
 
+suspend fun testConnection() {
     try {
         // Initialize connection
         kmpIapInstance.initConnection()
@@ -312,8 +313,8 @@ suspend fun testConnection() {
 
 Now that you have kmp-iap installed and configured:
 
-- [**iOS Setup Guide**](/docs/getting-started/ios-setup) - iOS specific configuration
-- [**Android Setup Guide**](/docs/getting-started/android-setup) - Android specific configuration
+- [**iOS Setup Guide**](/docs/getting-started/ios-setup) - iOS-specific configuration
+- [**Android Setup Guide**](/docs/getting-started/android-setup) - Android-specific configuration
 - [**Basic Implementation**](/docs/guides/purchases) - Learn the fundamentals
 
 ## Troubleshooting

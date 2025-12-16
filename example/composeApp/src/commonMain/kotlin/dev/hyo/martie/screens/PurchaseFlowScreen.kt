@@ -32,6 +32,8 @@ import io.github.hyochan.kmpiap.openiap.PurchaseState
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseAppleOptions
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseGoogleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -130,8 +132,18 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 try {
                                     when (verificationMethod) {
                                         VerificationMethod.Local -> {
+                                            val isIos = getCurrentPlatform() == IapPlatform.Ios
                                             val result = kmpIapInstance.verifyPurchase(
-                                                VerifyPurchaseProps(sku = purchase.productId)
+                                                VerifyPurchaseProps(
+                                                    apple = if (isIos) VerifyPurchaseAppleOptions(sku = purchase.productId) else null,
+                                                    google = if (!isIos) VerifyPurchaseGoogleOptions(
+                                                        sku = purchase.productId,
+                                                        accessToken = "your_google_api_access_token", // Obtain from your backend for production use
+                                                        packageName = "your.app.package.name", // Your app's package name
+                                                        purchaseToken = purchase.purchaseToken ?: "",
+                                                        isSub = false
+                                                    ) else null
+                                                )
                                             )
                                             verificationResult = when (result) {
                                                 is VerifyPurchaseResultIOS -> "📱 Local Verification (iOS):\n" +
@@ -655,13 +667,18 @@ fun ProductCard(
     onPurchase: () -> Unit,
     isProcessing: Boolean
 ) {
+    var showDetailsDialog by remember { mutableStateOf(false) }
+
+    // Get Android-specific offer details via smart cast
+    val androidOffers = (product as? io.github.hyochan.kmpiap.openiap.ProductAndroid)?.oneTimePurchaseOfferDetailsAndroid
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
                 // Log product details to console in JSON format
                 println("\n========== PRODUCT DETAILS (JSON) ==========")
-                val json = Json { 
+                val json = Json {
                     prettyPrint = true
                     encodeDefaults = true
                 }
@@ -669,6 +686,9 @@ fun ProductCard(
                 val jsonString = product.toPrettyJson(json)
                 println(jsonString)
                 println("====================================\n")
+
+                // Show details dialog
+                showDetailsDialog = true
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
@@ -691,25 +711,37 @@ fun ProductCard(
                         fontSize = 16.sp,
                         color = AppColors.OnSurface
                     )
-                    
+
                     Spacer(modifier = Modifier.height(4.dp))
-                    
+
                     Text(
                         text = product.description,
                         fontSize = 14.sp,
                         color = AppColors.Secondary
                     )
-                    
+
                     Spacer(modifier = Modifier.height(4.dp))
-                    
+
                     Text(
                         text = "ID: ${product.id}",
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
                         color = AppColors.Secondary
                     )
+
+                    // Show offer count if available (Android only)
+                    androidOffers?.let { offers ->
+                        if (offers.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${offers.size} offer(s) available",
+                                fontSize = 12.sp,
+                                color = AppColors.Primary
+                            )
+                        }
+                    }
                 }
-                
+
                 Column(
                     horizontalAlignment = Alignment.End
                 ) {
@@ -719,11 +751,23 @@ fun ProductCard(
                         fontSize = 18.sp,
                         color = AppColors.Primary
                     )
+
+                    // Show discount if available (Android only)
+                    androidOffers?.firstOrNull()?.discountDisplayInfo?.let { discount ->
+                        discount.percentageDiscount?.let { percent ->
+                            Text(
+                                text = "$percent% OFF",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppColors.Success
+                            )
+                        }
+                    }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Button(
                 onClick = onPurchase,
                 modifier = Modifier.fillMaxWidth(),
@@ -743,6 +787,194 @@ fun ProductCard(
                 }
             }
         }
+    }
+
+    // Product Details Dialog
+    if (showDetailsDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetailsDialog = false },
+            title = {
+                Text(
+                    text = product.title,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    // Basic Info
+                    ProductDetailSection("Basic Info") {
+                        ProductDetailRow("Product ID", product.id)
+                        ProductDetailRow("Price", product.displayPrice)
+                        ProductDetailRow("Currency", product.currency)
+                        ProductDetailRow("Type", product.type.rawValue)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // One-Time Purchase Offers (Android only)
+                    androidOffers?.let { offers ->
+                        if (offers.isNotEmpty()) {
+                            ProductDetailSection("One-Time Purchase Offers (${offers.size})") {
+                                offers.forEachIndexed { index, offer ->
+                                    if (index > 0) {
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                    }
+
+                                    Text(
+                                        text = "Offer ${index + 1}${offer.offerId?.let { " ($it)" } ?: ""}",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = AppColors.Primary
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    ProductDetailRow("Price", offer.formattedPrice)
+                                    ProductDetailRow("Price (micros)", offer.priceAmountMicros)
+                                    ProductDetailRow("Currency", offer.priceCurrencyCode)
+
+                                    offer.offerId?.let { ProductDetailRow("Offer ID", it) }
+                                    offer.fullPriceMicros?.let { ProductDetailRow("Full Price (micros)", it.toString()) }
+
+                                    if (offer.offerTags.isNotEmpty()) {
+                                        ProductDetailRow("Tags", offer.offerTags.joinToString(", "))
+                                    }
+
+                                    // Discount Info
+                                    offer.discountDisplayInfo?.let { discount ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Discount Info:",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = AppColors.Success
+                                        )
+                                        discount.percentageDiscount?.let {
+                                            ProductDetailRow("  Percentage", "$it%")
+                                        }
+                                        discount.discountAmount?.let { amount ->
+                                            ProductDetailRow("  Amount", amount.formattedDiscountAmount)
+                                            ProductDetailRow("  Amount (micros)", amount.discountAmountMicros.toString())
+                                        }
+                                    }
+
+                                    // Limited Quantity
+                                    offer.limitedQuantityInfo?.let { limitInfo ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Limited Quantity:",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = AppColors.Warning
+                                        )
+                                        ProductDetailRow("  Maximum", limitInfo.maximumQuantity.toString())
+                                        ProductDetailRow("  Remaining", limitInfo.remainingQuantity.toString())
+                                    }
+
+                                    // Valid Time Window
+                                    offer.validTimeWindow?.let { window ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Valid Time Window:",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = AppColors.Secondary
+                                        )
+                                        ProductDetailRow("  Start", window.startTimeMillis.toString())
+                                        ProductDetailRow("  End", window.endTimeMillis.toString())
+                                    }
+
+                                    // Preorder Details
+                                    offer.preorderDetailsAndroid?.let { preorder ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Preorder Details:",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = AppColors.Primary
+                                        )
+                                        ProductDetailRow("  Release Time", preorder.preorderReleaseTimeMillis.toString())
+                                        ProductDetailRow("  Presale End", preorder.preorderPresaleEndTimeMillis.toString())
+                                    }
+
+                                    // Rental Details
+                                    offer.rentalDetailsAndroid?.let { rental ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Rental Details:",
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = AppColors.Secondary
+                                        )
+                                        ProductDetailRow("  Period", rental.rentalPeriod)
+                                        rental.rentalExpirationPeriod?.let {
+                                            ProductDetailRow("  Expiration", it)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Note for iOS
+                    if (product is io.github.hyochan.kmpiap.openiap.ProductIOS) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "iOS Product - see console for full JSON details",
+                            fontSize = 12.sp,
+                            color = AppColors.Secondary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailsDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+internal fun ProductDetailSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Text(
+        text = title,
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = AppColors.OnSurface
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = AppColors.Background),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun ProductDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = AppColors.Secondary
+        )
+        Text(
+            text = value,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            color = AppColors.OnSurface
+        )
     }
 }
 

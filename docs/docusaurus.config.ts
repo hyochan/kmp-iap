@@ -51,8 +51,12 @@ const config: Config = {
           lastVersion: 'current',
           versions: {
             current: {
-              label: 'v1.0.0 (Current)',
+              label: 'v1.1.0 (Next)',
               path: '',
+            },
+            '1.0.0': {
+              label: 'v1.0.0 (Current)',
+              path: '1.0.0',
             },
             '1.0.0-rc': {
               label: 'v1.0.0-rc',

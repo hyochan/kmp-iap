@@ -736,155 +736,6 @@ suspend fun purchaseWithAlternativeBilling(productId: String) {
 
 **See also**: [Alternative Billing Guide](../guides/alternative-billing.md)
 
----
-
-### Billing Programs API (v1.1.0)
-
-New in v1.1.0, the Billing Programs API provides a unified way to handle external billing programs (Google Play Billing 8.2.0+).
-
-:::info Availability Note
-The Billing Programs API methods currently return `FeatureNotSupported` error as the underlying Google Play Billing Library 8.2.0 APIs are not yet available in the billing-ktx dependency. This documentation is provided for future compatibility.
-:::
-
-#### isBillingProgramAvailable()
-
-Check if a specific billing program is available for the current user.
-
-```kotlin
-suspend fun isBillingProgramAvailable(program: BillingProgram): BillingProgramAvailabilityResult
-```
-
-**Parameters**:
-- `program` - The billing program to check (`ExternalOffer` or `ExternalContentLink`)
-
-**Returns**: `BillingProgramAvailabilityResult` with availability status
-
-**Example**:
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.BillingProgram
-
-try {
-    val result = kmpIapInstance.isBillingProgramAvailable(BillingProgram.ExternalOffer)
-    if (result.isAvailable) {
-        println("External offer program is available")
-    } else {
-        println("External offer program not available for this user")
-    }
-} catch (e: PurchaseException) {
-    println("Error: ${e.error.message}")
-}
-```
-
-**Platform**: Android 8.2.0+
-
----
-
-#### createBillingProgramReportingDetails()
-
-Create reporting details for external transactions. Call this after completing an external purchase.
-
-```kotlin
-suspend fun createBillingProgramReportingDetails(program: BillingProgram): BillingProgramReportingDetails
-```
-
-**Parameters**:
-- `program` - The billing program type
-
-**Returns**: `BillingProgramReportingDetails` with external transaction token
-
-**Example**:
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.BillingProgram
-
-try {
-    val details = kmpIapInstance.createBillingProgramReportingDetails(BillingProgram.ExternalOffer)
-    val token = details.externalTransactionToken
-
-    // Report this token to Google Play backend within 24 hours
-    reportToGoogleBackend(token)
-} catch (e: PurchaseException) {
-    println("Error: ${e.error.message}")
-}
-```
-
-**Platform**: Android 8.2.0+
-
----
-
-#### launchExternalLink()
-
-Launch an external link for the specified billing program.
-
-```kotlin
-suspend fun launchExternalLink(params: LaunchExternalLinkParams)
-```
-
-**Parameters**:
-- `params` - `LaunchExternalLinkParams` with billing program, launch mode, link type, and URI
-
-**Example**:
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.*
-
-try {
-    kmpIapInstance.launchExternalLink(
-        LaunchExternalLinkParams(
-            billingProgram = BillingProgram.ExternalOffer,
-            launchMode = ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp,
-            linkType = ExternalLinkType.LinkToDigitalContentOffer,
-            linkUri = "https://your-payment-site.com/offer"
-        )
-    )
-    println("External link launched")
-} catch (e: PurchaseException) {
-    println("Error: ${e.error.message}")
-}
-```
-
-**Platform**: Android 8.2.0+
-
----
-
-#### Complete Billing Programs Flow Example
-
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.*
-
-suspend fun purchaseWithBillingPrograms(productId: String) {
-    // Step 1: Check availability
-    val availabilityResult = kmpIapInstance.isBillingProgramAvailable(BillingProgram.ExternalOffer)
-    if (!availabilityResult.isAvailable) {
-        throw Exception("External offer program not available")
-    }
-
-    // Step 2: Launch external link
-    kmpIapInstance.launchExternalLink(
-        LaunchExternalLinkParams(
-            billingProgram = BillingProgram.ExternalOffer,
-            launchMode = ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp,
-            linkType = ExternalLinkType.LinkToDigitalContentOffer,
-            linkUri = "https://your-payment-site.com/checkout?product=$productId"
-        )
-    )
-
-    // Step 3: After user completes external purchase, get reporting token
-    val reportingDetails = kmpIapInstance.createBillingProgramReportingDetails(BillingProgram.ExternalOffer)
-
-    // Step 4: Report to Google Play backend within 24 hours
-    reportToGoogleBackend(reportingDetails.externalTransactionToken, productId)
-
-    println("Billing Programs purchase completed")
-}
-```
-
-**See also**:
-- [Alternative Billing Guide](../guides/alternative-billing.md)
-- [Billing Programs API Types](./types.md#billing-programs-api-types-v110)
-
 ## Subscription Management
 
 ### getActiveSubscriptions()
@@ -1000,66 +851,23 @@ suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
 
 ```kotlin
 data class VerifyPurchaseProps(
-    val apple: VerifyPurchaseAppleOptions? = null,
-    val google: VerifyPurchaseGoogleOptions? = null,
-    val horizon: VerifyPurchaseHorizonOptions? = null
-)
-
-data class VerifyPurchaseAppleOptions(
-    val sku: String
-)
-
-data class VerifyPurchaseGoogleOptions(
     val sku: String,
-    val accessToken: String,      // Obtain from your backend, NOT stored in app
+    val androidOptions: VerifyPurchaseAndroidOptions? = null  // Required for Android
+)
+
+data class VerifyPurchaseAndroidOptions(
+    val accessToken: String,
     val packageName: String,
-    val purchaseToken: String,
+    val productToken: String,
     val isSub: Boolean? = null
-)
-
-data class VerifyPurchaseHorizonOptions(
-    val sku: String,
-    val userId: String,
-    val accessToken: String       // Obtain from your backend
 )
 ```
 
 **Returns**: `VerifyPurchaseResult` with verification status
 
 **Platform Notes**:
-- **iOS**: Uses StoreKit's native verification. Only `apple` field is used.
-- **Android**: Requires `google` field with Google Play API credentials.
-- **Horizon (Meta Quest)**: Requires `horizon` field with user credentials.
-
-**Example**:
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.*
-
-// iOS verification
-val iosResult = kmpIapInstance.verifyPurchase(
-    VerifyPurchaseProps(
-        apple = VerifyPurchaseAppleOptions(sku = "premium_upgrade")
-    )
-)
-
-// Android verification
-val androidResult = kmpIapInstance.verifyPurchase(
-    VerifyPurchaseProps(
-        google = VerifyPurchaseGoogleOptions(
-            sku = "premium_upgrade",
-            accessToken = backendProvidedToken, // Get from your secure backend
-            packageName = "com.yourapp.id",
-            purchaseToken = purchase.purchaseToken ?: "",
-            isSub = false
-        )
-    )
-)
-```
-
-:::warning Security Note
-The `accessToken` for Google and Horizon verification must be obtained from your secure backend. Never hardcode or store API credentials in your app.
-:::
+- **iOS**: Uses StoreKit's native verification
+- **Android**: Requires `androidOptions` with Google Play API credentials
 
 :::tip Recommendation
 For production apps, use [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) with [IAPKit](https://iapkit.com) for secure server-side verification without managing your own backend.

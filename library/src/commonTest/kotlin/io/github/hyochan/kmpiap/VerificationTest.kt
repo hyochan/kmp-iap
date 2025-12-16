@@ -17,23 +17,156 @@ class VerificationTest {
     // MARK: - VerifyPurchaseProps Tests
 
     @Test
-    fun testVerifyPurchasePropsCreation() {
-        val props = VerifyPurchaseProps(sku = "test_product")
-        assertEquals("test_product", props.sku)
+    fun testVerifyPurchasePropsCreationWithApple() {
+        val props = VerifyPurchaseProps(
+            apple = VerifyPurchaseAppleOptions(sku = "test_product")
+        )
+        assertNotNull(props.apple)
+        assertEquals("test_product", props.apple?.sku)
+        assertNull(props.google)
+        assertNull(props.horizon)
     }
 
     @Test
-    fun testVerifyPurchasePropsToJson() {
-        val props = VerifyPurchaseProps(sku = "test_product")
+    fun testVerifyPurchasePropsCreationWithGoogle() {
+        val props = VerifyPurchaseProps(
+            google = VerifyPurchaseGoogleOptions(
+                sku = "test_product",
+                accessToken = "test_token",
+                packageName = "com.test.app",
+                purchaseToken = "purchase_token_123",
+                isSub = false
+            )
+        )
+        assertNotNull(props.google)
+        assertEquals("test_product", props.google?.sku)
+        assertEquals("test_token", props.google?.accessToken)
+        assertEquals("com.test.app", props.google?.packageName)
+        assertEquals("purchase_token_123", props.google?.purchaseToken)
+        assertEquals(false, props.google?.isSub)
+        assertNull(props.apple)
+        assertNull(props.horizon)
+    }
+
+    @Test
+    fun testVerifyPurchasePropsCreationWithHorizon() {
+        val props = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(
+                sku = "test_product",
+                userId = "user_123",
+                accessToken = "horizon_token"
+            )
+        )
+        assertNotNull(props.horizon)
+        assertEquals("test_product", props.horizon?.sku)
+        assertEquals("user_123", props.horizon?.userId)
+        assertEquals("horizon_token", props.horizon?.accessToken)
+        assertNull(props.apple)
+        assertNull(props.google)
+    }
+
+    @Test
+    fun testVerifyPurchasePropsToJsonWithApple() {
+        val props = VerifyPurchaseProps(
+            apple = VerifyPurchaseAppleOptions(sku = "test_product")
+        )
         val json = props.toJson()
-        assertEquals("test_product", json["sku"])
+        assertNotNull(json["apple"])
+        val appleJson = json["apple"] as? Map<*, *>
+        assertEquals("test_product", appleJson?.get("sku"))
     }
 
     @Test
-    fun testVerifyPurchasePropsFromJson() {
-        val json = mapOf("sku" to "test_product")
+    fun testVerifyPurchasePropsToJsonWithGoogle() {
+        val props = VerifyPurchaseProps(
+            google = VerifyPurchaseGoogleOptions(
+                sku = "test_product",
+                accessToken = "token",
+                packageName = "com.test",
+                purchaseToken = "pt"
+            )
+        )
+        val json = props.toJson()
+        assertNotNull(json["google"])
+        val googleJson = json["google"] as? Map<*, *>
+        assertEquals("test_product", googleJson?.get("sku"))
+        assertEquals("token", googleJson?.get("accessToken"))
+    }
+
+    @Test
+    fun testVerifyPurchasePropsFromJsonWithApple() {
+        val json = mapOf(
+            "apple" to mapOf("sku" to "test_product")
+        )
         val props = VerifyPurchaseProps.fromJson(json)
-        assertEquals("test_product", props.sku)
+        assertNotNull(props.apple)
+        assertEquals("test_product", props.apple?.sku)
+    }
+
+    @Test
+    fun testVerifyPurchasePropsFromJsonWithGoogle() {
+        val json = mapOf(
+            "google" to mapOf(
+                "sku" to "test_product",
+                "accessToken" to "token",
+                "packageName" to "com.test",
+                "purchaseToken" to "pt",
+                "isSub" to true
+            )
+        )
+        val props = VerifyPurchaseProps.fromJson(json)
+        assertNotNull(props.google)
+        assertEquals("test_product", props.google?.sku)
+        assertEquals("token", props.google?.accessToken)
+        assertEquals(true, props.google?.isSub)
+    }
+
+    @Test
+    fun testVerifyPurchaseAppleOptionsToJson() {
+        val options = VerifyPurchaseAppleOptions(sku = "premium")
+        val json = options.toJson()
+        assertEquals("premium", json["sku"])
+    }
+
+    @Test
+    fun testVerifyPurchaseGoogleOptionsToJson() {
+        val options = VerifyPurchaseGoogleOptions(
+            sku = "premium",
+            accessToken = "at",
+            packageName = "pkg",
+            purchaseToken = "pt",
+            isSub = true
+        )
+        val json = options.toJson()
+        assertEquals("premium", json["sku"])
+        assertEquals("at", json["accessToken"])
+        assertEquals("pkg", json["packageName"])
+        assertEquals("pt", json["purchaseToken"])
+        assertEquals(true, json["isSub"])
+    }
+
+    @Test
+    fun testVerifyPurchaseHorizonOptionsToJson() {
+        val options = VerifyPurchaseHorizonOptions(
+            sku = "vr_product",
+            userId = "uid",
+            accessToken = "hat"
+        )
+        val json = options.toJson()
+        assertEquals("vr_product", json["sku"])
+        assertEquals("uid", json["userId"])
+        assertEquals("hat", json["accessToken"])
+    }
+
+    @Test
+    fun testVerifyPurchaseGoogleOptionsWithNullIsSub() {
+        val options = VerifyPurchaseGoogleOptions(
+            sku = "test",
+            accessToken = "t",
+            packageName = "p",
+            purchaseToken = "pt"
+        )
+        assertNull(options.isSub)
     }
 
     // MARK: - VerifyPurchaseResultIOS Tests

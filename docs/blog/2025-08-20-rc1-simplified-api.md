@@ -1,5 +1,5 @@
 ---
-title: v1.0.0-rc - Simplified API Design
+title: 1.0.0-rc - Simplified API Design
 authors: [hyochan]
 tags: [release, api, rc1]
 ---

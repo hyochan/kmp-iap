@@ -26,206 +26,121 @@ The guide covers:
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.fetchProducts
+import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.*
+
+val productIds = listOf(
+    "com.yourapp.premium",
+    "com.yourapp.coins_100",
+    "com.yourapp.subscription_monthly"
+)
 
 class IAPManager {
     private val scope = CoroutineScope(Dispatchers.Main)
 
     fun initialize() {
         scope.launch {
-            try {
-                // Initialize connection
-                kmpIapInstance.initConnection()
-                println("Billing client connected")
+            // Initialize connection
+            val connected = kmpIapInstance.initConnection()
 
-                // Set up purchase listeners
-                setupPurchaseListeners()
+            if (connected) {
+                // Fetch products
+                val products = kmpIapInstance.fetchProducts {
+                    skus = productIds
+                    type = ProductQueryType.InApp
+                }
 
-                // Load products
-                loadProducts()
-            } catch (e: Exception) {
-                println("Failed to initialize: ${e.message}")
+                // Display products
+                products.forEach { product ->
+                    println("${product.title} - ${product.displayPrice}")
+                }
             }
         }
-    }
-    
-    private fun setupPurchaseListeners() {
+
+        // Listen for purchase updates
         scope.launch {
-            // Listen for purchase updates
-            kmpIAP.purchaseUpdatedListener.collect { purchase ->
-                handlePurchaseUpdate(purchase)
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+                println("Purchase successful: ${purchase.productId}")
+                // For production apps, verify purchases server-side.
+                // See verifyPurchaseWithProvider: /blog/release-1.0.0
             }
         }
-        
+
+        // Listen for errors
         scope.launch {
-            // Listen for purchase errors
-            kmpIAP.purchaseErrorListener.collect { error ->
-                handlePurchaseError(error)
+            kmpIapInstance.purchaseErrorListener.collect { error ->
+                println("Purchase failed: ${error.message}")
             }
         }
     }
-    
-    private suspend fun loadProducts() {
-        try {
-            val products = kmpIAP.fetchProducts {
-                skus = listOf("premium_upgrade", "remove_ads")
-                type = ProductQueryType.InApp
-            }
-            println("Found ${products.size} products")
-        } catch (e: Exception) {
-            println("Failed to load products: ${e.message}")
-        }
-    }
-    
-    private suspend fun handlePurchaseUpdate(purchase: Purchase) {
-        // Verify purchase with your backend
-        val isValid = verifyPurchaseWithBackend(purchase)
-        
-        if (isValid) {
-            // Grant entitlement
-            grantEntitlement(purchase.productId)
-            
-            // Finish transaction
-            kmpIapInstance.finishTransaction(
-                purchase.toPurchaseInput(),
-                isConsumable = isConsumableProduct(purchase.productId)
-            )
-        }
-    }
-    
-    private fun handlePurchaseError(error: PurchaseError) {
-        when (error.code) {
-            ErrorCode.UserCancelled -> {
-                // User cancelled, no action needed
-            }
-            ErrorCode.AlreadyOwned -> {
-                // Item already owned, restore it
-                restorePurchases()
-            }
-            else -> {
-                // Show error to user
-                showError(error.message)
-            }
-        }
-    }
-    
-    suspend fun purchaseProduct(productId: String) {
-        kmpIAP.requestPurchase {
-            ios {
-                sku = productId
-                quantity = 1
-            }
+
+    suspend fun purchase(productId: String) {
+        kmpIapInstance.requestPurchase {
             android {
                 skus = listOf(productId)
             }
         }
     }
-    
-    suspend fun restorePurchases() {
-        val purchases = kmpIAP.getAvailablePurchases()
-        purchases.forEach { purchase ->
-            grantEntitlement(purchase.productId)
-        }
-    }
-    
-    private suspend fun verifyPurchaseWithBackend(purchase: Purchase): Boolean {
-        // TODO: Implement your backend verification
-        return true
-    }
-    
-    private fun grantEntitlement(productId: String) {
-        // Grant the appropriate entitlement based on productId
-        when (productId) {
-            "remove_ads" -> UserSettings.adsRemoved = true
-            "premium_upgrade" -> UserSettings.isPremium = true
-            // Handle other products
-        }
-    }
-    
-    private fun isConsumableProduct(productId: String): Boolean {
-        return when (productId) {
-            "coins_100", "coins_500" -> true
-            else -> false
-        }
-    }
-    
-    private fun showError(message: String) {
-        // Show error message to user
-    }
-    
-    fun cleanup() {
-        scope.cancel()
-        runBlocking {
-            kmpIapInstance.endConnection()
-        }
-    }
-}
-
-// Simple user settings example
-object UserSettings {
-    var adsRemoved: Boolean = false
-    var isPremium: Boolean = false
 }
 ```
 
-### Android-specific Features
+:::tip Cross-Platform Note
+This example shows Android-specific usage with `skus`. For cross-platform compatibility, include both `ios` and `android` blocks in your request. See the [Core Methods](/docs/api/core-methods) documentation for details.
+:::
 
-```kotlin
-// Use obfuscated account IDs for enhanced security
-kmpIAP.requestPurchase {
-    ios {
-        sku = "premium_upgrade"
-        quantity = 1
-    }
-    android {
-        skus = listOf("premium_upgrade")
-        obfuscatedAccountIdAndroid = "user_account_123"
-        obfuscatedProfileIdAndroid = "profile_456"
-    }
-}
+:::info Full Examples
+For complete implementation examples including purchase flow, subscription handling, and verification, see the example app:
+- [PurchaseFlowScreen.kt](https://github.com/hyochan/kmp-iap/blob/main/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/PurchaseFlowScreen.kt)
+- [SubscriptionFlowScreen.kt](https://github.com/hyochan/kmp-iap/blob/main/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/SubscriptionFlowScreen.kt)
+:::
 
-// Acknowledge a purchase (for non-consumables)
-kmpIAP.acknowledgePurchaseAndroid(purchase.purchaseToken)
+## Common Issues
 
-// Consume a purchase (for consumables)
-kmpIAP.consumePurchaseAndroid(purchase.purchaseToken)
+### Product IDs Not Found
 
-// Deep link to subscription management
-kmpIAP.deepLinkToSubscriptions(
-    DeepLinkOptions(skuAndroid = "subscription_id")
-)
-```
+**Problem:** Products return empty or undefined
 
-### Error Handling
+**Solutions:**
 
-```kotlin
-scope.launch {
-    kmpIAP.purchaseErrorListener.collect { error ->
-        when (error.code) {
-            ErrorCode.ServiceUnavailable -> {
-                // Google Play services unavailable
-                showDialog("Please update Google Play services")
-            }
-            ErrorCode.BillingUnavailable -> {
-                // Billing API version not supported
-                showDialog("In-app purchases not supported on this device")
-            }
-            ErrorCode.ItemUnavailable -> {
-                // Product not found or not available for purchase
-                showDialog("This item is currently unavailable")
-            }
-            ErrorCode.DeveloperError -> {
-                // Invalid arguments provided to the API
-                println("Developer error: Check product configuration")
-            }
-            else -> {
-                showDialog("Purchase failed: ${error.message}")
-            }
-        }
-    }
-}
-```
+1. **Check App Signing:**
+   - Ensure your app is signed with the same key uploaded to Play Console
+   - Debug builds must use the same signing key for testing
+
+2. **Verify Product Configuration:**
+   - Product IDs match exactly between code and Play Console
+   - Products are in "Active" state
+   - App must be published (at least to internal testing)
+
+3. **Wait for Propagation:**
+   - New products may take 2-3 hours to become available
+   - App must be uploaded to at least internal testing track
+
+### Billing Unavailable
+
+**Problem:** "Billing unavailable" or "Service unavailable" errors
+
+**Solution:**
+- Test on a real device (not emulator)
+- Ensure Google Play Store is installed and up-to-date
+- Check that the Google account is added to license testers in Play Console
+
+### Purchase Not Acknowledged
+
+**Problem:** Purchases are refunded after 3 days
+
+**Solution:**
+- Always call `finishTransaction()` after successful purchase
+- For non-consumables, ensure acknowledgment is completed
+- For consumables, ensure consumption is completed
+
+## Best Practices
+
+- Always verify purchases server-side for production apps
+- Handle all error cases gracefully
+- Test with license testers in Play Console
+- Provide restore functionality for non-consumable products
 
 ## Next Steps
 

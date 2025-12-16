@@ -152,21 +152,9 @@ data class PurchaseAndroid(
     val packageNameAndroid: String? = null,
     val purchaseTimeAndroid: Double? = null,
     val purchaseTokenAndroid: String? = null,  // @deprecated
-    val signatureAndroid: String? = null,
-    // New in v1.1.0 (Google Play Billing 8.1.0+)
-    val isSuspendedAndroid: Boolean? = null   // Subscription suspended due to payment issues
+    val signatureAndroid: String? = null
 ) : PurchaseCommon
 ```
-
-:::tip Handling Suspended Subscriptions (v1.1.0)
-When `isSuspendedAndroid` is `true`, the subscription is suspended due to payment issues. Direct users to fix their payment method:
-```kotlin
-if (purchase.isSuspendedAndroid == true) {
-    // Show UI to direct user to fix payment method
-    showPaymentIssueDialog()
-}
-```
-:::
 
 ## Type Aliases for Convenience
 
@@ -336,100 +324,13 @@ data class DiscountIOS(
 
 ### ProductAndroidOneTimePurchaseOfferDetail
 
-Android one-time purchase offer details from Google Play Billing. **Updated in v1.1.0** with discount support.
-
-:::warning Breaking Change (v1.1.0)
-`oneTimePurchaseOfferDetailsAndroid` is now a **List** instead of a single object to support multiple offers with discounts.
-
-```kotlin
-// Before (v1.0.0)
-val price = product.oneTimePurchaseOfferDetailsAndroid?.formattedPrice
-
-// After (v1.1.0)
-val price = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()?.formattedPrice
-```
-:::
+Android one-time purchase offer details from Google Play Billing.
 
 ```kotlin
 data class ProductAndroidOneTimePurchaseOfferDetail(
     val formattedPrice: String,
     val priceAmountMicros: String,
-    val priceCurrencyCode: String,
-    // New fields in v1.1.0 (Google Play Billing 7.0+)
-    val offerId: String? = null,
-    val offerTags: List<String>? = null,
-    val offerToken: String? = null,
-    val discountDisplayInfo: DiscountDisplayInfoAndroid? = null,
-    val limitedQuantityInfo: LimitedQuantityInfoAndroid? = null,
-    val validTimeWindow: ValidTimeWindowAndroid? = null,
-    val preorderDetails: PreorderDetailsAndroid? = null,
-    val rentalDetails: RentalDetailsAndroid? = null
-)
-```
-
-### DiscountDisplayInfoAndroid
-
-Display information for one-time product discounts (Google Play Billing 7.0+).
-
-```kotlin
-data class DiscountDisplayInfoAndroid(
-    val percentageDiscount: Int? = null,
-    val discountAmount: DiscountAmountAndroid? = null
-)
-```
-
-### DiscountAmountAndroid
-
-Discount amount details for Android.
-
-```kotlin
-data class DiscountAmountAndroid(
-    val discountAmountMicros: String,
-    val formattedDiscountAmount: String
-)
-```
-
-### LimitedQuantityInfoAndroid
-
-Limited quantity information for offers.
-
-```kotlin
-data class LimitedQuantityInfoAndroid(
-    val maximumQuantity: Int,
-    val remainingQuantity: Int
-)
-```
-
-### ValidTimeWindowAndroid
-
-Validity period for offers.
-
-```kotlin
-data class ValidTimeWindowAndroid(
-    val startTimeMillis: String,
-    val endTimeMillis: String
-)
-```
-
-### PreorderDetailsAndroid
-
-Pre-order details for products (Google Play Billing 8.1.0+).
-
-```kotlin
-data class PreorderDetailsAndroid(
-    val preorderReleaseTimeMillis: String,
-    val preorderPresaleEndTimeMillis: String
-)
-```
-
-### RentalDetailsAndroid
-
-Rental details for products.
-
-```kotlin
-data class RentalDetailsAndroid(
-    val rentalPeriod: String,
-    val rentalExpirationPeriod: String? = null
+    val priceCurrencyCode: String
 )
 ```
 
@@ -589,85 +490,6 @@ enum class DiscountTypeIOS {
 }
 ```
 
-## Billing Programs API Types (v1.1.0)
-
-New types for Google Play Billing Programs API (Android 8.2.0+).
-
-### BillingProgram
-
-Billing program types for external billing.
-
-```kotlin
-enum class BillingProgram {
-    Unspecified,
-    ExternalContentLink,  // External content link programs
-    ExternalOffer         // External offer programs
-}
-```
-
-### ExternalLinkLaunchMode
-
-Launch mode for external links.
-
-```kotlin
-enum class ExternalLinkLaunchMode {
-    Unspecified,
-    LaunchInExternalBrowserOrApp,  // Open link in browser or app
-    CallerWillLaunchLink           // Caller handles opening the link
-}
-```
-
-### ExternalLinkType
-
-Type of external link.
-
-```kotlin
-enum class ExternalLinkType {
-    Unspecified,
-    LinkToDigitalContentOffer,  // Link to digital content offer
-    LinkToAppDownload           // Link to app download
-}
-```
-
-### LaunchExternalLinkParams
-
-Parameters for launching external links.
-
-```kotlin
-data class LaunchExternalLinkParams(
-    val billingProgram: BillingProgram,
-    val launchMode: ExternalLinkLaunchMode,
-    val linkType: ExternalLinkType,
-    val linkUri: String
-)
-```
-
-### BillingProgramAvailabilityResult
-
-Result of checking billing program availability.
-
-```kotlin
-data class BillingProgramAvailabilityResult(
-    val billingProgram: BillingProgram,
-    val isAvailable: Boolean
-)
-```
-
-### BillingProgramReportingDetails
-
-Reporting details for external transactions.
-
-```kotlin
-data class BillingProgramReportingDetails(
-    val billingProgram: BillingProgram,
-    val externalTransactionToken: String
-)
-```
-
-:::info Note
-The Billing Programs API requires Google Play Billing Library 8.2.0+. These methods currently return `FeatureNotSupported` error as the underlying Google Play Billing Library APIs are not yet available in the current billing-ktx dependency.
-:::
-
 ## Error Types (OpenIAP-Compliant)
 
 ### PurchaseError
@@ -807,117 +629,6 @@ interface Subscription {
     fun remove()
 }
 ```
-
-## Purchase Verification Types
-
-### VerifyPurchaseProps
-
-Platform-specific options for purchase verification.
-
-```kotlin
-data class VerifyPurchaseProps(
-    val apple: VerifyPurchaseAppleOptions? = null,
-    val google: VerifyPurchaseGoogleOptions? = null,
-    val horizon: VerifyPurchaseHorizonOptions? = null
-)
-```
-
-### VerifyPurchaseAppleOptions
-
-iOS-specific verification options.
-
-```kotlin
-data class VerifyPurchaseAppleOptions(
-    val sku: String
-)
-```
-
-### VerifyPurchaseGoogleOptions
-
-Android-specific verification options.
-
-```kotlin
-data class VerifyPurchaseGoogleOptions(
-    val sku: String,
-    val accessToken: String,      // Obtain from your backend
-    val packageName: String,
-    val purchaseToken: String,
-    val isSub: Boolean? = null
-)
-```
-
-:::warning Security Note
-The `accessToken` must be obtained from your secure backend. Never hardcode or store Google API credentials in your app.
-:::
-
-### VerifyPurchaseHorizonOptions
-
-Meta Quest (Horizon) verification options.
-
-```kotlin
-data class VerifyPurchaseHorizonOptions(
-    val sku: String,
-    val userId: String,
-    val accessToken: String       // Obtain from your backend
-)
-```
-
-### PurchaseVerificationProvider
-
-Supported third-party verification providers.
-
-```kotlin
-enum class PurchaseVerificationProvider(val rawValue: String) {
-    Iapkit("iapkit")
-}
-```
-
-### VerifyPurchaseWithProviderProps
-
-Configuration for provider-based verification (e.g., IAPKit).
-
-```kotlin
-data class VerifyPurchaseWithProviderProps(
-    val provider: PurchaseVerificationProvider,
-    val iapkit: RequestVerifyPurchaseWithIapkitProps?
-)
-
-data class RequestVerifyPurchaseWithIapkitProps(
-    val apiKey: String?,
-    val apple: RequestVerifyPurchaseWithIapkitAppleProps?,
-    val google: RequestVerifyPurchaseWithIapkitGoogleProps?
-)
-```
-
-### IapkitPurchaseState
-
-Purchase states returned by IAPKit verification.
-
-```kotlin
-enum class IapkitPurchaseState(val rawValue: String) {
-    Unknown("unknown"),
-    Entitled("entitled"),
-    PendingAcknowledgment("pending_acknowledgment"),
-    Pending("pending"),
-    Canceled("canceled"),
-    Expired("expired"),
-    ReadyToConsume("ready_to_consume"),
-    Consumed("consumed"),
-    Inauthentic("inauthentic")
-}
-```
-
-| State | Description |
-|-------|-------------|
-| `Entitled` | Purchase is valid and user has access |
-| `PendingAcknowledgment` | Purchase needs acknowledgment (Android) |
-| `Pending` | Purchase is being processed |
-| `Canceled` | Purchase was canceled |
-| `Expired` | Subscription has expired |
-| `ReadyToConsume` | Consumable ready to be consumed |
-| `Consumed` | Consumable has been consumed |
-| `Inauthentic` | Purchase failed verification (potential fraud) |
-| `Unknown` | Unknown state |
 
 ## Usage Examples
 
