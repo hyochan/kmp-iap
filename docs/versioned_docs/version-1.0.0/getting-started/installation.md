@@ -285,9 +285,10 @@ class IAPManager {
 Test your setup with this verification code:
 
 ```kotlin
-suspend fun testConnection() {
-    import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.*
 
+suspend fun testConnection() {
     try {
         // Initialize connection
         kmpIapInstance.initConnection()
@@ -312,8 +313,8 @@ suspend fun testConnection() {
 
 Now that you have kmp-iap installed and configured:
 
-- [**iOS Setup Guide**](/docs/getting-started/ios-setup) - iOS specific configuration
-- [**Android Setup Guide**](/docs/getting-started/android-setup) - Android specific configuration
+- [**iOS Setup Guide**](/docs/getting-started/ios-setup) - iOS-specific configuration
+- [**Android Setup Guide**](/docs/getting-started/android-setup) - Android-specific configuration
 - [**Basic Implementation**](/docs/guides/purchases) - Learn the fundamentals
 
 ## Troubleshooting

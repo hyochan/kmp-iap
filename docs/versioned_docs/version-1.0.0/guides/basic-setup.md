@@ -185,7 +185,7 @@ object IAPManager {
             }
             ErrorCode.AlreadyOwned -> {
                 // Item already owned, restore it
-                restorePurchases()
+                scope.launch { restorePurchases() }
             }
             else -> {
                 // Show error to user
