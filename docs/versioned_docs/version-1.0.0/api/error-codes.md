@@ -3,11 +3,11 @@ title: Error Codes
 sidebar_position: 6
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Error Codes
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Comprehensive error handling reference for kmp-iap. The library follows the OpenIAP specification for standardized error codes across platforms.
 

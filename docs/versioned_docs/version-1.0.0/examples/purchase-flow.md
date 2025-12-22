@@ -4,11 +4,11 @@ sidebar_label: Purchase Flow
 sidebar_position: 1
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Purchase Flow
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 ## Key Concepts
 

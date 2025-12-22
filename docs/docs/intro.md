@@ -4,12 +4,12 @@ sidebar_label: Introduction
 sidebar_position: 1
 ---
 
-import GreatFrontEndTopFixed from '@site/src/uis/GreatFrontEndTopFixed';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 import Logo from '@site/static/img/logo.png';
 
 # 🛒 kmp-iap
 
-<GreatFrontEndTopFixed />
+<IapKitBanner />
 
 :::info Version
 This documentation is for **kmp-iap v1.2.0** which includes Google Play Billing 8.2.0 features: Billing Programs API and one-time product discounts. Native code is powered by [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.

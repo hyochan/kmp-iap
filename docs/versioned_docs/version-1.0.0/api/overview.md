@@ -2,11 +2,11 @@
 sidebar_position: 1
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # API Overview
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 KMP IAP provides a comprehensive API for handling in-app purchases across platforms. This overview covers the main components and their usage.
 

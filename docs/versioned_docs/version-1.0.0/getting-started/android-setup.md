@@ -4,11 +4,11 @@ sidebar_label: Android Setup
 sidebar_position: 3
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Android Setup
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 For complete Android setup instructions including Google Play Console configuration, app setup, and testing guidelines, please visit:
 

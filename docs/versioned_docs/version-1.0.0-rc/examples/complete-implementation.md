@@ -3,11 +3,11 @@ sidebar_position: 3
 title: Complete Implementation
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Complete Implementation
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 :::tip
 The complete working example can be found at [example/composeApp](https://github.com/hyochan/kmp-iap/tree/main/example/composeApp).

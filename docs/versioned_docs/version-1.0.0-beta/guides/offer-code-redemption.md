@@ -4,11 +4,11 @@ title: Offer Code Redemption
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Offer Code Redemption
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Guide to implementing promotional offer codes and subscription management with kmp-iap v1.0.0-beta.2, covering iOS and Android platforms.
 

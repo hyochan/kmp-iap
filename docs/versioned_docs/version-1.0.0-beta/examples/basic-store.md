@@ -5,11 +5,11 @@ sidebar_position: 1
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Basic Store Implementation
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 A simple store implementation demonstrating core kmp-iap concepts and basic purchase flow. Perfect for getting started with in-app purchases in Kotlin Multiplatform.
 

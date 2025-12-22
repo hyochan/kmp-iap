@@ -4,11 +4,11 @@ title: FAQ
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Frequently Asked Questions
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Common questions and answers about kmp-iap.
 

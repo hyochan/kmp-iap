@@ -3,11 +3,11 @@ title: Listeners
 sidebar_position: 4
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Listeners
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Event listeners and flow collectors for monitoring purchase updates, errors, and connection states in kmp-iap.
 

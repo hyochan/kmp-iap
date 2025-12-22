@@ -4,11 +4,11 @@ sidebar_label: Introduction
 sidebar_position: 1
 ---
 
-import GreatFrontEndTopFixed from '@site/src/uis/GreatFrontEndTopFixed';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # 🛒 kmp-iap
 
-<GreatFrontEndTopFixed />
+<IapKitBanner />
 
 :::warning Legacy Version
 This documentation is for **kmp-iap v1.0.0-beta**. For the latest version with simplified API, see [v1.0.0-rc documentation](/).

@@ -2,11 +2,11 @@
 sidebar_position: 1
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Basic Setup
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 This guide walks you through the complete setup process for KMP IAP in your Kotlin Multiplatform project.
 

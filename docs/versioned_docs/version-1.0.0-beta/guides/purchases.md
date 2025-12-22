@@ -3,11 +3,11 @@ sidebar_position: 3
 title: Purchases
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Purchases
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Complete guide to implementing in-app purchases with kmp-iap v1.0.0-beta.2, covering everything from basic setup to advanced purchase handling using Kotlin Multiplatform.
 

@@ -3,11 +3,11 @@ sidebar_position: 2
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Quick Start
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Get up and running with KMP IAP in just a few minutes!
 

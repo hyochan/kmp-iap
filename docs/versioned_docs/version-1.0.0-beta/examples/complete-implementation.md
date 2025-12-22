@@ -4,11 +4,11 @@ title: Complete Implementation
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Complete Production-Ready Implementation
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 A comprehensive, production-ready implementation with all best practices for a robust in-app purchase system using Kotlin Multiplatform.
 

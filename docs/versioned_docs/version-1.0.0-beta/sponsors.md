@@ -3,11 +3,11 @@ title: Sponsors
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Sponsors
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Thank you to all our sponsors for supporting the kmp-iap project and the Open IAP ecosystem!
 

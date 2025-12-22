@@ -4,11 +4,11 @@ title: Subscription Store
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Subscription Store Example
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 A complete subscription store implementation with monthly and yearly plans using kmp-iap.
 

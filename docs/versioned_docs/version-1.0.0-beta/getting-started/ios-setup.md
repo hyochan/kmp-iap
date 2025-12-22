@@ -4,11 +4,11 @@ sidebar_label: iOS Setup
 sidebar_position: 2
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # iOS Setup
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 For complete iOS setup instructions including App Store Connect configuration, Xcode setup, and testing guidelines, please visit:
 

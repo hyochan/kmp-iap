@@ -3,11 +3,11 @@ sidebar_position: 2
 title: Subscription Flow
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Subscription Flow
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 ## Key Concepts
 

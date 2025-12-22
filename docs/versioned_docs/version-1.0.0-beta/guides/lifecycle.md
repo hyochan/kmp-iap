@@ -3,11 +3,11 @@ sidebar_position: 7
 title: Lifecycle
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Lifecycle
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Understanding and managing the in-app purchase lifecycle is crucial for creating robust and reliable purchase experiences in Kotlin Multiplatform projects.
 

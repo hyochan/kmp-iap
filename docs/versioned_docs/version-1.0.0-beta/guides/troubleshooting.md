@@ -4,11 +4,11 @@ title: Troubleshooting
 ---
 
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # Troubleshooting
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Common issues and solutions when implementing in-app purchases with kmp-iap.
 

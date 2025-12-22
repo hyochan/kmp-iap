@@ -3,11 +3,11 @@ title: API Reference
 sidebar_position: 1
 ---
 
-import GreatFrontEndBanner from '@site/src/uis/GreatFrontEndBanner';
+import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 # API Reference
 
-<GreatFrontEndBanner />
+<IapKitBanner />
 
 Complete reference for kmp-iap v1.0.0-beta.2 - A unified Kotlin Multiplatform API for implementing in-app purchases across iOS and Android platforms.
 
