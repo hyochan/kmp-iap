@@ -184,23 +184,63 @@ val promotedProductListener: Flow<String?>
 **Platform**: iOS only
 **Description**: Product ID of promoted product from App Store that triggered app launch
 
-**Example**:
+:::warning Deprecated: requestPurchaseOnPromotedProductIOS() (v1.3.6)
+The `requestPurchaseOnPromotedProductIOS()` / `buyPromotedProductIOS()` API is now deprecated. In StoreKit 2, promoted products can be purchased directly via the standard `requestPurchase()` flow.
+
+**Recommended approach**:
+```kotlin
+// Use promotedProductListenerIOS to receive the product ID
+// then call requestPurchase() directly
+kmpIapInstance.promotedProductListener.collect { productId ->
+    productId?.let { sku ->
+        kmpIapInstance.requestPurchase {
+            ios {
+                this.sku = sku
+            }
+        }
+    }
+}
+```
+:::
+
+**Example** (Updated for v1.3.6+):
 ```kotlin
 if (getCurrentPlatform() == IapPlatform.IOS) {
     scope.launch {
         kmpIapInstance.promotedProductListener.collect { productId ->
-            productId?.let {
+            productId?.let { sku ->
                 // Fetch product details using the product ID
-                val products = kmpIapInstance.getProducts(
-                    GetProductsProps(skus = listOf(it))
-                )
+                val products = kmpIapInstance.fetchProducts {
+                    skus = listOf(sku)
+                    type = ProductQueryType.InApp
+                }
                 products.firstOrNull()?.let { product ->
                     showProductDetail(product)
                 }
 
-                // Optionally auto-purchase
+                // Purchase directly using requestPurchase (recommended)
                 if (userSettings.autoPromotedPurchase) {
-                    kmpIapInstance.buyPromotedProductIOS()
+                    kmpIapInstance.requestPurchase {
+                        ios {
+                            this.sku = sku
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+**Legacy Example** (Deprecated):
+```kotlin
+// ❌ Deprecated - Do not use
+if (getCurrentPlatform() == IapPlatform.IOS) {
+    scope.launch {
+        kmpIapInstance.promotedProductListener.collect { productId ->
+            productId?.let {
+                if (userSettings.autoPromotedPurchase) {
+                    kmpIapInstance.buyPromotedProductIOS() // Deprecated
                 }
             }
         }

@@ -138,8 +138,10 @@ suspend fun handlePurchase(productId: String) {
             ios {
                 sku = productId
                 quantity = 1
+                // Optional: Pass attribution data (v1.3.7+)
+                // advancedCommerceData = "campaign_id"
             }
-            android {
+            google {  // Recommended (v1.3.15+), or use `android { }` for backward compatibility
                 skus = listOf(productId)
                 obfuscatedAccountIdAndroid = getUserId()
             }
@@ -218,7 +220,7 @@ suspend fun requestSubscription(productId: String) {
                 sku = productId
                 quantity = 1
             }
-            android {
+            google {  // Recommended (v1.3.15+)
                 skus = listOf(productId)
                 obfuscatedAccountIdAndroid = getUserId()
             }
@@ -239,7 +241,7 @@ suspend fun requestSubscriptionWithOffer(
             sku = productId
             quantity = 1
         }
-        android {
+        google {  // Recommended (v1.3.15+)
             skus = listOf(productId)
             subscriptionOffers = listOf(
                 SubscriptionOfferAndroid(
@@ -674,7 +676,7 @@ class PurchaseService : ViewModel() {
                 sku = productId
                 quantity = 1
             }
-            android {
+            google {  // Recommended (v1.3.15+)
                 skus = listOf(productId)
                 obfuscatedAccountIdAndroid = getUserId()
             }

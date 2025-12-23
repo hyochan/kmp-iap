@@ -76,10 +76,12 @@ import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
-import io.github.hyochan.kmpiap.openiap.BillingProgram
-import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResult
-import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetails
-import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParams
+import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResultAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetailsAndroid
+import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
+import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
+import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
@@ -956,112 +958,312 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     }
 
     // ---------------------------------------------------------------------
-    // Billing Programs API (Android 8.2.0+)
+    // Billing Programs API (Android 8.2.1+)
+    // These APIs use reflection to maintain compatibility with older Billing Library versions
+    // Full implementation uses Google Play Billing Library 8.2.1
     // ---------------------------------------------------------------------
 
-    /**
-     * Check if a billing program is available for the current user/device (Android 8.2.0+).
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param program The billing program to check
-     * @return Result indicating program type and availability
-     */
-    override suspend fun isBillingProgramAvailable(program: BillingProgram): BillingProgramAvailabilityResult {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.isBillingProgramAvailableAsync(program.toBillingProgram()) { billingResult ->
-        //         continuation.resume(BillingProgramAvailabilityResult(
-        //             billingProgram = program,
-        //             isAvailable = billingResult.responseCode == BillingClient.BillingResponseCode.OK
-        //         ))
-        //     }
-        // }
+    override suspend fun isBillingProgramAvailableAndroid(
+        program: BillingProgramAndroid
+    ): BillingProgramAvailabilityResultAndroid {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
 
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
+        // Convert our enum to BillingClient.BillingProgram constant
+        val billingProgramConstant = when (program) {
+            BillingProgramAndroid.ExternalContentLink -> 1 // EXTERNAL_CONTENT_LINK
+            BillingProgramAndroid.ExternalOffer -> 3 // EXTERNAL_OFFER
+            BillingProgramAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot check availability for UNSPECIFIED program"
+                )
+            )
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                // Use reflection to call isBillingProgramAvailableAsync (8.2.0+)
+                val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramAvailabilityListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onBillingProgramAvailabilityResponse") {
+                        val result = args?.get(0) as? BillingResult
+                        val isAvailable = result?.responseCode == BillingClient.BillingResponseCode.OK
+                        if (continuation.isActive) {
+                            continuation.resume(BillingProgramAvailabilityResultAndroid(
+                                billingProgram = program,
+                                isAvailable = isAvailable
+                            ))
+                        }
+                    }
+                    null
+                }
+
+                val method = client.javaClass.getMethod(
+                    "isBillingProgramAvailableAsync",
+                    Int::class.javaPrimitiveType,
+                    listenerClass
+                )
+                method.invoke(client, billingProgramConstant, listener)
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "isBillingProgramAvailableAsync requires Billing Library 8.2.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to check billing program availability: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
     }
 
-    /**
-     * Create billing program reporting details (Android 8.2.0+).
-     * Returns an external transaction token to be reported to Google Play within 24 hours.
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param program The billing program to create reporting details for
-     * @return Reporting details including the external transaction token
-     */
-    override suspend fun createBillingProgramReportingDetails(program: BillingProgram): BillingProgramReportingDetails {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.createBillingProgramReportingDetailsAsync(program.toBillingProgram()) { billingResult, details ->
-        //         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && details != null) {
-        //             continuation.resume(BillingProgramReportingDetails(
-        //                 billingProgram = program,
-        //                 externalTransactionToken = details.externalTransactionToken
-        //             ))
-        //         } else {
-        //             continuation.resumeWithException(PurchaseException(PurchaseError(
-        //                 code = ErrorCode.ServiceError,
-        //                 message = "Failed to create billing program reporting details: ${billingResult.debugMessage}"
-        //             )))
-        //         }
-        //     }
-        // }
+    override suspend fun createBillingProgramReportingDetailsAndroid(
+        program: BillingProgramAndroid
+    ): BillingProgramReportingDetailsAndroid {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
 
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
+        val billingProgramConstant = when (program) {
+            BillingProgramAndroid.ExternalContentLink -> 1
+            BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot create reporting details for UNSPECIFIED program"
+                )
+            )
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val listenerClass = Class.forName("com.android.billingclient.api.BillingProgramReportingDetailsListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onBillingProgramReportingDetailsResponse") {
+                        val result = args?.get(0) as? BillingResult
+                        val details = args?.getOrNull(1)
+
+                        if (result?.responseCode == BillingClient.BillingResponseCode.OK && details != null) {
+                            try {
+                                val tokenMethod = details.javaClass.getMethod("getExternalTransactionToken")
+                                val token = tokenMethod.invoke(details) as? String
+
+                                if (continuation.isActive && token != null) {
+                                    continuation.resume(BillingProgramReportingDetailsAndroid(
+                                        billingProgram = program,
+                                        externalTransactionToken = token
+                                    ))
+                                } else if (continuation.isActive) {
+                                    continuation.resumeWithException(PurchaseException(
+                                        PurchaseError(
+                                            code = ErrorCode.Unknown,
+                                            message = "Failed to extract external transaction token"
+                                        )
+                                    ))
+                                }
+                            } catch (e: Exception) {
+                                if (continuation.isActive) {
+                                    continuation.resumeWithException(PurchaseException(
+                                        PurchaseError(
+                                            code = ErrorCode.Unknown,
+                                            message = "Failed to extract token: ${e.message}"
+                                        )
+                                    ))
+                                }
+                            }
+                        } else if (continuation.isActive) {
+                            continuation.resumeWithException(PurchaseException(
+                                PurchaseError(
+                                    code = ErrorCode.Unknown,
+                                    message = "Reporting details creation failed: ${result?.debugMessage}"
+                                )
+                            ))
+                        }
+                    }
+                    null
+                }
+
+                val method = client.javaClass.getMethod(
+                    "createBillingProgramReportingDetailsAsync",
+                    Int::class.javaPrimitiveType,
+                    listenerClass
+                )
+                method.invoke(client, billingProgramConstant, listener)
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "createBillingProgramReportingDetailsAsync requires Billing Library 8.2.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to create billing program reporting details: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
     }
 
-    /**
-     * Launch an external link for billing programs (Android 8.2.0+).
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param params Parameters for launching the external link
-     */
-    override suspend fun launchExternalLink(params: LaunchExternalLinkParams) {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // val activity = currentActivity ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available"))
-        // }
-        // val externalLinkParams = params.toGoogleExternalLinkParams()
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.launchExternalLink(activity, externalLinkParams) { billingResult ->
-        //         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-        //             continuation.resume(Unit)
-        //         } else {
-        //             continuation.resumeWithException(PurchaseException(PurchaseError(
-        //                 code = ErrorCode.ServiceError,
-        //                 message = "Failed to launch external link: ${billingResult.debugMessage}"
-        //             )))
-        //         }
-        //     }
-        // }
+    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
+        val client = billingClient ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "BillingClient not initialized"
+            )
+        )
 
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
+        val activity = currentActivity ?: throw PurchaseException(
+            PurchaseError(
+                code = ErrorCode.NotPrepared,
+                message = "Activity not available"
+            )
+        )
+
+        // Convert enums to BillingClient constants
+        val billingProgramConstant = when (params.billingProgram) {
+            BillingProgramAndroid.ExternalContentLink -> 1
+            BillingProgramAndroid.ExternalOffer -> 3
+            BillingProgramAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot launch with UNSPECIFIED program"
+                )
+            )
+        }
+
+        val launchModeConstant = when (params.launchMode) {
+            ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp -> 1
+            ExternalLinkLaunchModeAndroid.CallerWillLaunchLink -> 2
+            ExternalLinkLaunchModeAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot launch with UNSPECIFIED launch mode"
+                )
+            )
+        }
+
+        val linkTypeConstant = when (params.linkType) {
+            ExternalLinkTypeAndroid.LinkToDigitalContentOffer -> 1
+            ExternalLinkTypeAndroid.LinkToAppDownload -> 2
+            ExternalLinkTypeAndroid.Unspecified -> throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "Cannot launch with UNSPECIFIED link type"
+                )
+            )
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                // Build LaunchExternalLinkParams using reflection
+                val paramsClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams")
+                val builderClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams\$Builder")
+
+                val newBuilderMethod = paramsClass.getMethod("newBuilder")
+                val builder = newBuilderMethod.invoke(null)
+
+                // Set billing program
+                val setBillingProgramMethod = builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
+                setBillingProgramMethod.invoke(builder, billingProgramConstant)
+
+                // Set launch mode
+                val setLaunchModeMethod = builderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)
+                setLaunchModeMethod.invoke(builder, launchModeConstant)
+
+                // Set link type
+                val setLinkTypeMethod = builderClass.getMethod("setLinkType", Int::class.javaPrimitiveType)
+                setLinkTypeMethod.invoke(builder, linkTypeConstant)
+
+                // Set link URI
+                val setLinkUriMethod = builderClass.getMethod("setLinkUri", Uri::class.java)
+                setLinkUriMethod.invoke(builder, Uri.parse(params.linkUri))
+
+                // Build the params
+                val buildMethod = builderClass.getMethod("build")
+                val launchParams = buildMethod.invoke(builder)
+
+                // Create the response listener
+                val listenerClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkResponseListener")
+                val listener = java.lang.reflect.Proxy.newProxyInstance(
+                    listenerClass.classLoader,
+                    arrayOf(listenerClass)
+                ) { _, method, args ->
+                    if (method.name == "onLaunchExternalLinkResponse") {
+                        val result = args?.get(0) as? BillingResult
+                        if (result?.responseCode == BillingClient.BillingResponseCode.OK) {
+                            if (continuation.isActive) continuation.resume(true)
+                        } else {
+                            if (continuation.isActive) {
+                                continuation.resumeWithException(PurchaseException(
+                                    PurchaseError(
+                                        code = ErrorCode.Unknown,
+                                        message = "External link launch failed: ${result?.debugMessage}"
+                                    )
+                                ))
+                            }
+                        }
+                    }
+                    null
+                }
+
+                // Call launchExternalLink
+                val launchMethod = client.javaClass.getMethod(
+                    "launchExternalLink",
+                    Activity::class.java,
+                    paramsClass,
+                    listenerClass
+                )
+                launchMethod.invoke(client, activity, launchParams, listener)
+            } catch (e: NoSuchMethodException) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.FeatureNotSupported,
+                            message = "launchExternalLink requires Billing Library 8.2.0+"
+                        )
+                    ))
+                }
+            } catch (e: Exception) {
+                if (continuation.isActive) {
+                    continuation.resumeWithException(PurchaseException(
+                        PurchaseError(
+                            code = ErrorCode.Unknown,
+                            message = "Failed to launch external link: ${e.message}"
+                        )
+                    ))
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------------

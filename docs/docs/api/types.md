@@ -204,9 +204,32 @@ data class RequestPurchaseIosProps(
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
     val appAccountToken: String? = null,
     val quantity: Int? = null,
-    val withOffer: PaymentDiscountIOS? = null
+    val withOffer: PaymentDiscountIOS? = null,
+    // New in v1.3.7 (openiap-apple)
+    val advancedCommerceData: String? = null
 )
 ```
+
+#### advancedCommerceData (v1.3.7)
+
+Support for StoreKit 2's `Product.PurchaseOption.custom` API to pass attribution data during purchases.
+
+**Use Cases**:
+- Campaign attribution tracking
+- Affiliate marketing integration
+- Promotional code tracking
+
+**Example**:
+```kotlin
+kmpIapInstance.requestPurchase {
+    ios {
+        sku = "com.example.premium"
+        advancedCommerceData = "campaign_summer_2025"
+    }
+}
+```
+
+The data is formatted as JSON internally: `{"signatureInfo": {"token": "<value>"}}`
 
 ### RequestPurchaseAndroidProps
 
@@ -221,16 +244,54 @@ data class RequestPurchaseAndroidProps(
 )
 ```
 
+:::info google field support (v1.3.15)
+Starting from openiap-google v1.3.15, you can use the `google` field instead of `android` for purchase requests. The `android` field is still supported for backward compatibility but is deprecated.
+
+```kotlin
+// Recommended (new)
+kmpIapInstance.requestPurchase {
+    google {
+        skus = listOf("sku_id")
+    }
+}
+
+// Still supported (deprecated)
+kmpIapInstance.requestPurchase {
+    android {
+        skus = listOf("sku_id")
+    }
+}
+```
+:::
+
 ### RequestSubscriptionProps
 
 OpenIAP-compliant subscription request structure.
 
 ```kotlin
 data class RequestSubscriptionProps(
-    val ios: RequestPurchaseIosProps? = null,
+    val ios: RequestSubscriptionIosProps? = null,
     val android: RequestSubscriptionAndroidProps? = null
 )
 ```
+
+### RequestSubscriptionIosProps
+
+iOS-specific subscription request parameters. Similar to `RequestPurchaseIosProps` but for subscriptions.
+
+```kotlin
+data class RequestSubscriptionIosProps(
+    val sku: String,
+    val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
+    val appAccountToken: String? = null,
+    val quantity: Int? = null,
+    val withOffer: PaymentDiscountIOS? = null,
+    // New in v1.3.7 (openiap-apple)
+    val advancedCommerceData: String? = null
+)
+```
+
+The `advancedCommerceData` field works the same way as in `RequestPurchaseIosProps`.
 
 ### ActiveSubscription
 

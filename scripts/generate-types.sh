@@ -5,7 +5,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
 # Read TAG from openiap-versions.json
-TAG=$(grep '"gql"' "$REPO_ROOT/openiap-versions.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+VERSION=$(grep '"gql"' "$REPO_ROOT/openiap-versions.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+TAG="gql-${VERSION}"
 
 ASSET_NAME="openiap-kotlin.zip"
 DOWNLOAD_URL="https://github.com/hyodotdev/openiap/releases/download/${TAG}/${ASSET_NAME}"

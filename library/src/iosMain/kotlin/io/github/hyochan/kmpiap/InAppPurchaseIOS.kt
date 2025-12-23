@@ -907,22 +907,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     // -------------------------------------------------------------------------
-    // Billing Programs API (Android 8.2.0+ - Not supported on iOS)
-    // -------------------------------------------------------------------------
-
-    override suspend fun isBillingProgramAvailable(program: BillingProgram): BillingProgramAvailabilityResult {
-        throw UnsupportedOperationException("Billing Programs API is only available on Android")
-    }
-
-    override suspend fun createBillingProgramReportingDetails(program: BillingProgram): BillingProgramReportingDetails {
-        throw UnsupportedOperationException("Billing Programs API is only available on Android")
-    }
-
-    override suspend fun launchExternalLink(params: LaunchExternalLinkParams) {
-        throw UnsupportedOperationException("Billing Programs API is only available on Android")
-    }
-
-    // -------------------------------------------------------------------------
     // iOS External Purchase Methods
     // -------------------------------------------------------------------------
 
@@ -983,4 +967,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resume(error == null && canPresent)
             }
         }
+
+    // Billing Programs API (Android 8.2.0+ only) - iOS stubs
+    override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
+        throw UnsupportedOperationException("isBillingProgramAvailableAndroid is only available on Android")
+    }
+
+    override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
+        throw UnsupportedOperationException("createBillingProgramReportingDetailsAndroid is only available on Android")
+    }
+
+    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
+        throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")
+    }
 }

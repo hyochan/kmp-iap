@@ -3,6 +3,8 @@ package io.github.hyochan.kmpiap
 import io.github.hyochan.kmpiap.openiap.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class InAppPurchaseTest {
@@ -133,5 +135,146 @@ class InAppPurchaseTest {
         assertEquals("test_sub", activeSubscription.productId)
         assertTrue(activeSubscription.isActive)
         assertEquals("txn", activeSubscription.transactionId)
+    }
+
+    // =========================================================================
+    // advancedCommerceData Tests
+    // =========================================================================
+
+    @Test
+    fun testRequestPurchaseIosPropsWithAdvancedCommerceData() {
+        val props = RequestPurchaseIosProps(
+            sku = "com.example.premium",
+            advancedCommerceData = "campaign_summer_2025"
+        )
+
+        assertEquals("com.example.premium", props.sku)
+        assertEquals("campaign_summer_2025", props.advancedCommerceData)
+    }
+
+    @Test
+    fun testRequestPurchaseIosPropsWithoutAdvancedCommerceData() {
+        val props = RequestPurchaseIosProps(
+            sku = "com.example.premium"
+        )
+
+        assertEquals("com.example.premium", props.sku)
+        assertNull(props.advancedCommerceData)
+    }
+
+    @Test
+    fun testRequestSubscriptionIosPropsWithAdvancedCommerceData() {
+        val props = RequestSubscriptionIosProps(
+            sku = "com.example.subscription.monthly",
+            advancedCommerceData = "campaign_q4_2025"
+        )
+
+        assertEquals("com.example.subscription.monthly", props.sku)
+        assertEquals("campaign_q4_2025", props.advancedCommerceData)
+    }
+
+    // =========================================================================
+    // google field support Tests
+    // =========================================================================
+
+    @Test
+    fun testRequestPurchasePropsByPlatformsWithGoogleField() {
+        val props = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(
+                skus = listOf("sku_premium")
+            )
+        )
+
+        assertNotNull(props.google)
+        assertEquals(listOf("sku_premium"), props.google?.skus)
+        assertNull(props.android)
+    }
+
+    @Test
+    fun testRequestPurchasePropsByPlatformsWithBothIosAndGoogle() {
+        val props = RequestPurchasePropsByPlatforms(
+            ios = RequestPurchaseIosProps(
+                sku = "ios_premium",
+                advancedCommerceData = "campaign_123"
+            ),
+            google = RequestPurchaseAndroidProps(
+                skus = listOf("android_premium"),
+                obfuscatedAccountIdAndroid = "user_123"
+            )
+        )
+
+        assertNotNull(props.ios)
+        assertNotNull(props.google)
+        assertEquals("ios_premium", props.ios?.sku)
+        assertEquals("campaign_123", props.ios?.advancedCommerceData)
+        assertEquals(listOf("android_premium"), props.google?.skus)
+    }
+
+    @Test
+    fun testRequestSubscriptionPropsByPlatformsWithGoogleField() {
+        val props = RequestSubscriptionPropsByPlatforms(
+            google = RequestSubscriptionAndroidProps(
+                skus = listOf("sub_monthly"),
+                subscriptionOffers = listOf(
+                    AndroidSubscriptionOfferInput(
+                        sku = "sub_monthly",
+                        offerToken = "offer_token_123"
+                    )
+                )
+            )
+        )
+
+        assertNotNull(props.google)
+        assertEquals(listOf("sub_monthly"), props.google?.skus)
+        assertEquals(1, props.google?.subscriptionOffers?.size)
+    }
+
+    // =========================================================================
+    // Billing Programs API types Tests
+    // =========================================================================
+
+    @Test
+    fun testBillingProgramAndroidEnum() {
+        assertEquals("unspecified", BillingProgramAndroid.Unspecified.rawValue)
+        assertEquals("external-content-link", BillingProgramAndroid.ExternalContentLink.rawValue)
+        assertEquals("external-offer", BillingProgramAndroid.ExternalOffer.rawValue)
+    }
+
+    @Test
+    fun testExternalLinkLaunchModeAndroidEnum() {
+        assertEquals("unspecified", ExternalLinkLaunchModeAndroid.Unspecified.rawValue)
+        assertEquals("launch-in-external-browser-or-app", ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp.rawValue)
+        assertEquals("caller-will-launch-link", ExternalLinkLaunchModeAndroid.CallerWillLaunchLink.rawValue)
+    }
+
+    @Test
+    fun testLaunchExternalLinkParamsAndroid() {
+        val params = LaunchExternalLinkParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalOffer,
+            launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+            linkUri = "https://example.com/offer"
+        )
+
+        assertEquals(BillingProgramAndroid.ExternalOffer, params.billingProgram)
+        assertEquals(ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp, params.launchMode)
+        assertEquals("https://example.com/offer", params.linkUri)
+    }
+
+    @Test
+    fun testProductAndroidOneTimePurchaseOfferDetailWithRequiredFields() {
+        val detail = ProductAndroidOneTimePurchaseOfferDetail(
+            formattedPrice = "$0.99",
+            priceAmountMicros = "990000",
+            priceCurrencyCode = "USD",
+            offerTags = listOf("sale", "featured"),
+            offerToken = "offer_token_abc123"
+        )
+
+        assertEquals("$0.99", detail.formattedPrice)
+        assertEquals("990000", detail.priceAmountMicros)
+        assertEquals("USD", detail.priceCurrencyCode)
+        assertEquals(listOf("sale", "featured"), detail.offerTags)
+        assertEquals("offer_token_abc123", detail.offerToken)
     }
 }

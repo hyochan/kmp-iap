@@ -166,27 +166,29 @@ kmpIapInstance.requestPurchase {
         sku = "premium_upgrade"
         quantity = 1
     }
-    android {
+    google {  // Recommended (v1.3.15+)
         skus = listOf("premium_upgrade")
     }
 }
 
-// iOS-only purchase
+// iOS-only purchase with Advanced Commerce Data (v1.3.7+)
 kmpIapInstance.requestPurchase {
     ios {
         sku = "coins_100"
         quantity = 5
         appAccountToken = "token_456"
+        advancedCommerceData = "campaign_summer_2025"  // Attribution tracking
     }
 }
 
 // Android-only purchase
 kmpIapInstance.requestPurchase {
-    android {
+    google {  // Recommended (v1.3.15+)
         skus = listOf("coins_100")
         obfuscatedAccountIdAndroid = "user_123"
         obfuscatedProfileIdAndroid = "profile_456"
     }
+    // Or use deprecated `android { }` for backward compatibility
 }
 ```
 
@@ -210,8 +212,8 @@ kmpIapInstance.requestPurchase {
 ```
 
 **Platform Differences**:
-- **iOS**: Supports App Account Token for fraud prevention
-- **Android**: Supports obfuscated user IDs and automatic Activity detection
+- **iOS**: Supports App Account Token for fraud prevention, `advancedCommerceData` for attribution tracking (v1.3.7+)
+- **Android**: Supports obfuscated user IDs and automatic Activity detection. Use `google { }` instead of `android { }` (v1.3.15+)
 
 ## Transaction Management
 
