@@ -977,7 +977,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         throw UnsupportedOperationException("createBillingProgramReportingDetailsAndroid is only available on Android")
     }
 
-    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid) {
+    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
         throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")
     }
 }
