@@ -967,4 +967,17 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resume(error == null && canPresent)
             }
         }
+
+    // Billing Programs API (Android 8.2.0+ only) - iOS stubs
+    override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
+        throw UnsupportedOperationException("isBillingProgramAvailableAndroid is only available on Android")
+    }
+
+    override suspend fun createBillingProgramReportingDetailsAndroid(program: BillingProgramAndroid): BillingProgramReportingDetailsAndroid {
+        throw UnsupportedOperationException("createBillingProgramReportingDetailsAndroid is only available on Android")
+    }
+
+    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid) {
+        throw UnsupportedOperationException("launchExternalLinkAndroid is only available on Android")
+    }
 }
