@@ -69,6 +69,7 @@ interface KmpInAppPurchase {
     suspend fun getStorefrontIOS(): String
     suspend fun presentCodeRedemptionSheetIOS()
     suspend fun getPromotedProductIOS(): String?
+    @Deprecated("Use requestPurchase() with promotedProductListenerIOS instead")
     suspend fun buyPromotedProductIOS()
     
     // Platform-specific (Android)

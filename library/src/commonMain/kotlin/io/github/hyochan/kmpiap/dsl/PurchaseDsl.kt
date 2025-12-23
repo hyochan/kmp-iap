@@ -59,7 +59,22 @@ class PurchaseRequestBuilder {
         iosOptions = block
     }
 
+    /**
+     * Alias for ios() - use apple {} as an alternative to ios {}
+     */
+    fun apple(block: IosOptionsBuilder.() -> Unit) {
+        iosOptions = block
+    }
+
     fun android(block: AndroidOptionsBuilder.() -> Unit) {
+        androidOptions = block
+    }
+
+    /**
+     * Alias for android() - use google {} as an alternative to android {}
+     * Recommended over android {} as of openiap-google v1.3.15
+     */
+    fun google(block: AndroidOptionsBuilder.() -> Unit) {
         androidOptions = block
     }
 
@@ -117,6 +132,11 @@ class IosOptionsBuilder {
     var appAccountToken: String? = null
     var andDangerouslyFinishTransactionAutomatically: Boolean? = null
     var withOffer: DiscountOfferInputIOS? = null
+    /**
+     * Attribution tracking data for StoreKit 2's Product.PurchaseOption.custom API.
+     * Added in openiap-apple v1.3.7
+     */
+    var advancedCommerceData: String? = null
 
     internal fun build(): BuiltIosOptions? {
         val skuValue = sku ?: return null
@@ -125,14 +145,16 @@ class IosOptionsBuilder {
             quantity = quantity,
             appAccountToken = appAccountToken,
             andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
-            withOffer = withOffer
+            withOffer = withOffer,
+            advancedCommerceData = advancedCommerceData
         )
         val subscription = RequestSubscriptionIosProps(
             sku = skuValue,
             quantity = quantity,
             appAccountToken = appAccountToken,
             andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
-            withOffer = withOffer
+            withOffer = withOffer,
+            advancedCommerceData = advancedCommerceData
         )
         return BuiltIosOptions(purchase = purchase, subscription = subscription)
     }

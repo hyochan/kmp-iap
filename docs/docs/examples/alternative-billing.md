@@ -179,7 +179,7 @@ fun AndroidUserChoiceBilling(product: ProductCommon) {
                 try {
                     // Google will show selection dialog automatically
                     kmpIapInstance.requestPurchase {
-                        android {
+                        google {  // Recommended (v1.3.15+)
                             skus = listOf(product.id)
                         }
                     }
@@ -299,7 +299,7 @@ fun AlternativeBillingScreen() {
         scope.launch {
             try {
                 kmpIapInstance.requestPurchase {
-                    android {
+                    google {  // Recommended (v1.3.15+)
                         skus = listOf(product.id)
                     }
                 }

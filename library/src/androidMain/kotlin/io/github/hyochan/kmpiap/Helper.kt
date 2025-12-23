@@ -10,14 +10,14 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
-import io.github.hyochan.kmpiap.openiap.BillingProgram
+import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.ErrorCode
-import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchMode
-import io.github.hyochan.kmpiap.openiap.ExternalLinkType
+import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
+import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.FetchProductsResult
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
-import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParams
+import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
 import io.github.hyochan.kmpiap.openiap.ProductAndroidOneTimePurchaseOfferDetail
@@ -269,7 +269,9 @@ internal fun ProductDetails.toProduct(): Product {
             listOf(ProductAndroidOneTimePurchaseOfferDetail(
                 formattedPrice = it.formattedPrice,
                 priceAmountMicros = it.priceAmountMicros.toString(),
-                priceCurrencyCode = it.priceCurrencyCode
+                priceCurrencyCode = it.priceCurrencyCode,
+                offerTags = emptyList(),
+                offerToken = ""
             ))
         },
         platform = IapPlatform.Android,
@@ -326,36 +328,36 @@ internal fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): ProductSub
 // ---------------------------------------------------------------------
 
 /**
- * Convert KMP-IAP BillingProgram to OpenIAP BillingProgramAndroid
+ * Convert KMP-IAP BillingProgramAndroid to OpenIAP BillingProgramAndroid
  */
-internal fun BillingProgram.toOpenIapProgram(): OpenIapBillingProgram = when (this) {
-    BillingProgram.Unspecified -> OpenIapBillingProgram.Unspecified
-    BillingProgram.ExternalContentLink -> OpenIapBillingProgram.ExternalContentLink
-    BillingProgram.ExternalOffer -> OpenIapBillingProgram.ExternalOffer
+internal fun BillingProgramAndroid.toOpenIapProgram(): OpenIapBillingProgram = when (this) {
+    BillingProgramAndroid.Unspecified -> OpenIapBillingProgram.Unspecified
+    BillingProgramAndroid.ExternalContentLink -> OpenIapBillingProgram.ExternalContentLink
+    BillingProgramAndroid.ExternalOffer -> OpenIapBillingProgram.ExternalOffer
 }
 
 /**
- * Convert KMP-IAP ExternalLinkLaunchMode to OpenIAP ExternalLinkLaunchModeAndroid
+ * Convert KMP-IAP ExternalLinkLaunchModeAndroid to OpenIAP ExternalLinkLaunchModeAndroid
  */
-internal fun ExternalLinkLaunchMode.toOpenIapLaunchMode(): OpenIapExternalLinkLaunchMode = when (this) {
-    ExternalLinkLaunchMode.Unspecified -> OpenIapExternalLinkLaunchMode.Unspecified
-    ExternalLinkLaunchMode.LaunchInExternalBrowserOrApp -> OpenIapExternalLinkLaunchMode.LaunchInExternalBrowserOrApp
-    ExternalLinkLaunchMode.CallerWillLaunchLink -> OpenIapExternalLinkLaunchMode.CallerWillLaunchLink
+internal fun ExternalLinkLaunchModeAndroid.toOpenIapLaunchMode(): OpenIapExternalLinkLaunchMode = when (this) {
+    ExternalLinkLaunchModeAndroid.Unspecified -> OpenIapExternalLinkLaunchMode.Unspecified
+    ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp -> OpenIapExternalLinkLaunchMode.LaunchInExternalBrowserOrApp
+    ExternalLinkLaunchModeAndroid.CallerWillLaunchLink -> OpenIapExternalLinkLaunchMode.CallerWillLaunchLink
 }
 
 /**
- * Convert KMP-IAP ExternalLinkType to OpenIAP ExternalLinkTypeAndroid
+ * Convert KMP-IAP ExternalLinkTypeAndroid to OpenIAP ExternalLinkTypeAndroid
  */
-internal fun ExternalLinkType.toOpenIapLinkType(): OpenIapExternalLinkType = when (this) {
-    ExternalLinkType.Unspecified -> OpenIapExternalLinkType.Unspecified
-    ExternalLinkType.LinkToDigitalContentOffer -> OpenIapExternalLinkType.LinkToDigitalContentOffer
-    ExternalLinkType.LinkToAppDownload -> OpenIapExternalLinkType.LinkToAppDownload
+internal fun ExternalLinkTypeAndroid.toOpenIapLinkType(): OpenIapExternalLinkType = when (this) {
+    ExternalLinkTypeAndroid.Unspecified -> OpenIapExternalLinkType.Unspecified
+    ExternalLinkTypeAndroid.LinkToDigitalContentOffer -> OpenIapExternalLinkType.LinkToDigitalContentOffer
+    ExternalLinkTypeAndroid.LinkToAppDownload -> OpenIapExternalLinkType.LinkToAppDownload
 }
 
 /**
- * Convert KMP-IAP LaunchExternalLinkParams to OpenIAP LaunchExternalLinkParamsAndroid
+ * Convert KMP-IAP LaunchExternalLinkParamsAndroid to OpenIAP LaunchExternalLinkParamsAndroid
  */
-internal fun LaunchExternalLinkParams.toOpenIapParams(): OpenIapLaunchExternalLinkParams =
+internal fun LaunchExternalLinkParamsAndroid.toOpenIapParams(): OpenIapLaunchExternalLinkParams =
     OpenIapLaunchExternalLinkParams(
         billingProgram = billingProgram.toOpenIapProgram(),
         launchMode = launchMode.toOpenIapLaunchMode(),

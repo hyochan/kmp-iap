@@ -76,10 +76,6 @@ import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
-import io.github.hyochan.kmpiap.openiap.BillingProgram
-import io.github.hyochan.kmpiap.openiap.BillingProgramAvailabilityResult
-import io.github.hyochan.kmpiap.openiap.BillingProgramReportingDetails
-import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParams
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
@@ -958,111 +954,6 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     // ---------------------------------------------------------------------
     // Billing Programs API (Android 8.2.0+)
     // ---------------------------------------------------------------------
-
-    /**
-     * Check if a billing program is available for the current user/device (Android 8.2.0+).
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param program The billing program to check
-     * @return Result indicating program type and availability
-     */
-    override suspend fun isBillingProgramAvailable(program: BillingProgram): BillingProgramAvailabilityResult {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.isBillingProgramAvailableAsync(program.toBillingProgram()) { billingResult ->
-        //         continuation.resume(BillingProgramAvailabilityResult(
-        //             billingProgram = program,
-        //             isAvailable = billingResult.responseCode == BillingClient.BillingResponseCode.OK
-        //         ))
-        //     }
-        // }
-
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
-    }
-
-    /**
-     * Create billing program reporting details (Android 8.2.0+).
-     * Returns an external transaction token to be reported to Google Play within 24 hours.
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param program The billing program to create reporting details for
-     * @return Reporting details including the external transaction token
-     */
-    override suspend fun createBillingProgramReportingDetails(program: BillingProgram): BillingProgramReportingDetails {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.createBillingProgramReportingDetailsAsync(program.toBillingProgram()) { billingResult, details ->
-        //         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && details != null) {
-        //             continuation.resume(BillingProgramReportingDetails(
-        //                 billingProgram = program,
-        //                 externalTransactionToken = details.externalTransactionToken
-        //             ))
-        //         } else {
-        //             continuation.resumeWithException(PurchaseException(PurchaseError(
-        //                 code = ErrorCode.ServiceError,
-        //                 message = "Failed to create billing program reporting details: ${billingResult.debugMessage}"
-        //             )))
-        //         }
-        //     }
-        // }
-
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
-    }
-
-    /**
-     * Launch an external link for billing programs (Android 8.2.0+).
-     *
-     * Note: Requires Google Play Billing Library 8.2.0 or higher.
-     * This feature will be enabled when the library is updated to support it.
-     *
-     * @param params Parameters for launching the external link
-     */
-    override suspend fun launchExternalLink(params: LaunchExternalLinkParams) {
-        // Note: Google Play Billing Library 8.2.0+ required for this API
-        // Once the dependency is updated, this implementation can be uncommented:
-        // val client = billingClient ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "Billing client not ready"))
-        // }
-        // val activity = currentActivity ?: run {
-        //     failWith(PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available"))
-        // }
-        // val externalLinkParams = params.toGoogleExternalLinkParams()
-        // return suspendCancellableCoroutine { continuation ->
-        //     client.launchExternalLink(activity, externalLinkParams) { billingResult ->
-        //         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-        //             continuation.resume(Unit)
-        //         } else {
-        //             continuation.resumeWithException(PurchaseException(PurchaseError(
-        //                 code = ErrorCode.ServiceError,
-        //                 message = "Failed to launch external link: ${billingResult.debugMessage}"
-        //             )))
-        //         }
-        //     }
-        // }
-
-        failWith(PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "Billing Programs API requires Google Play Billing Library 8.2.0+. This feature is not yet available."
-        ))
-    }
 
     // ---------------------------------------------------------------------
     // Activity lifecycle
