@@ -1134,7 +1134,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
-    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid) {
+    override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean {
         val client = billingClient ?: throw PurchaseException(
             PurchaseError(
                 code = ErrorCode.NotPrepared,
@@ -1221,7 +1221,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                     if (method.name == "onLaunchExternalLinkResponse") {
                         val result = args?.get(0) as? BillingResult
                         if (result?.responseCode == BillingClient.BillingResponseCode.OK) {
-                            if (continuation.isActive) continuation.resume(Unit)
+                            if (continuation.isActive) continuation.resume(true)
                         } else {
                             if (continuation.isActive) {
                                 continuation.resumeWithException(PurchaseException(
