@@ -381,6 +381,16 @@ actual class IAPManager {
 }
 ```
 
+## Android Limitations
+
+### Q: Why can't I get the `basePlanId` directly from the `Purchase` object on Android?
+
+**A:** Google Play Billing Library does not include the `basePlanId` in the `Purchase` object. When a purchase is completed, you only receive the `productId` but not which specific base plan was purchased.
+
+**Solution:** Use server-side verification with [IAPKit](https://iapkit.com) to get the complete subscription details including `basePlanId`.
+
+> See [Android basePlanId Limitation](../examples/subscription-flow.md#baseplanid-limitation) for full details and code examples.
+
 ## Troubleshooting
 
 ### Q: My app was rejected for IAP issues. What should I check?

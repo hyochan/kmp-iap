@@ -197,6 +197,58 @@ suspend fun validateActiveSubscriptions() {
 | `Canceled` | User canceled | Access until period ends |
 | `Inauthentic` | Fraudulent | Revoke immediately |
 
+## Android basePlanId Limitation {#baseplanid-limitation}
+
+### Client-Side Limitation
+
+The `basePlanId` is available when fetching products, but **not** when retrieving purchases via `getAvailablePurchases()`. This is a limitation of Google Play Billing Library - the purchase token alone doesn't reveal which base plan was purchased.
+
+> See [GitHub Issue #3096](https://github.com/hyochan/react-native-iap/issues/3096) for more details.
+
+**Why this matters:**
+
+- If you have multiple base plans (e.g., monthly, yearly, premium), you cannot determine which plan the user is subscribed to using client-side APIs alone
+- The `basePlanId` is only available from `subscriptionOfferDetailsAndroid` at the time of purchase, not from restored purchases
+
+### Solution: Server-Side Verification with IAPKit
+
+Use the `verifyPurchaseWithProvider` function to get complete subscription details including `basePlanId`:
+
+```kotlin
+val verifyAndroidSubscription = suspend fun(purchase: Purchase) {
+    val result = kmpIapInstance.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            provider = PurchaseVerificationProvider.Iapkit,
+            iapkit = RequestVerifyPurchaseWithIapkitProps(
+                apiKey = AppConfig.iapkitApiKey,
+                google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                    purchaseToken = purchase.purchaseToken
+                )
+            )
+        )
+    )
+
+    // Response includes offerDetails.basePlanId in lineItems
+    val basePlanId = result.providerResponse
+        ?.get("lineItems")
+        ?.let { (it as? List<*>)?.firstOrNull() as? Map<*, *> }
+        ?.get("offerDetails")
+        ?.let { (it as? Map<*, *>)?.get("basePlanId") as? String }
+
+    println("Subscribed to base plan: $basePlanId")
+}
+```
+
+> See [verifyPurchaseWithProvider](https://www.openiap.dev/docs/apis#verifypurchasewithprovider)
+
+The server response includes `offerDetails.basePlanId` in the `lineItems` array, allowing you to identify exactly which subscription plan the user purchased.
+
+:::tip Subscription Offers
+When fetching products, each subscription offer includes: `basePlanId`, `offerId?`, `offerTags`, `offerToken`, and `pricingPhases`. See [ProductSubscriptionAndroidOfferDetails](https://www.openiap.dev/docs/types#productsubscriptionandroidofferdetails) for more details.
+:::
+
+> See [IAPKit documentation](https://iapkit.com) for setup instructions and API details.
+
 ## Next Steps
 
 - [Purchase Flow](./purchase-flow.md) - One-time purchases
