@@ -112,6 +112,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
     private var currentPurchaseCallback: ((Result<List<Purchase>>) -> Unit)? = null
     private var alternativeBillingMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None
+    private var enabledBillingProgram: BillingProgramAndroid? = null
 
     // ---------------------------------------------------------------------
     // Event streams
@@ -149,6 +150,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         withContext(Dispatchers.IO) {
             // Set alternative billing mode (reset to None if no config supplied)
             alternativeBillingMode = config?.alternativeBillingModeAndroid ?: AlternativeBillingModeAndroid.None
+            // Track enabled billing program for validation
+            enabledBillingProgram = config?.enableBillingProgramAndroid
 
             if (context == null) {
                 val disposer = tryCaptureApplication(
@@ -1378,12 +1381,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     /**
      * Enable a billing program using reflection for 8.2.0+ compatibility.
      * Used for EXTERNAL_CONTENT_LINK and EXTERNAL_OFFER programs.
+     * Note: EXTERNAL_PAYMENTS should use enableExternalPaymentsProgram() instead.
      */
     private fun enableBillingProgram(builder: BillingClient.Builder, program: BillingProgramAndroid) {
         val programConstant = when (program) {
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
-            BillingProgramAndroid.ExternalPayments -> 4
+            BillingProgramAndroid.ExternalPayments -> {
+                android.util.Log.w("KmpIAP", "ExternalPayments should use enableExternalPaymentsProgram()")
+                return
+            }
             BillingProgramAndroid.Unspecified -> return
         }
 
@@ -1459,8 +1466,18 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     /**
      * Get the developer provided billing details when user selects developer billing
      * in the External Payments flow.
+     *
+     * @throws PurchaseException if External Payments program is not enabled
      */
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid {
+        if (enabledBillingProgram != BillingProgramAndroid.ExternalPayments) {
+            throw PurchaseException(
+                PurchaseError(
+                    code = ErrorCode.DeveloperError,
+                    message = "External Payments program not enabled. Set enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments in InitConnectionConfig."
+                )
+            )
+        }
         return _developerProvidedBillingListener.first()
     }
 }
