@@ -277,4 +277,119 @@ class InAppPurchaseTest {
         assertEquals(listOf("sale", "featured"), detail.offerTags)
         assertEquals("offer_token_abc123", detail.offerToken)
     }
+
+    // =========================================================================
+    // External Payments API Tests (Billing Library 8.3.0+)
+    // =========================================================================
+
+    @Test
+    fun testBillingProgramAndroidExternalPayments() {
+        val program = BillingProgramAndroid.ExternalPayments
+        assertEquals("external-payments", program.rawValue)
+        assertEquals(BillingProgramAndroid.ExternalPayments, program)
+    }
+
+    @Test
+    fun testDeveloperBillingLaunchModeAndroidEnum() {
+        assertEquals("unspecified", DeveloperBillingLaunchModeAndroid.Unspecified.rawValue)
+        assertEquals("launch-in-external-browser-or-app", DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp.rawValue)
+        assertEquals("caller-will-launch-link", DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink.rawValue)
+    }
+
+    @Test
+    fun testDeveloperBillingOptionParamsAndroid() {
+        val params = DeveloperBillingOptionParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalPayments,
+            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkUri = "https://example.com/checkout"
+        )
+
+        assertEquals(BillingProgramAndroid.ExternalPayments, params.billingProgram)
+        assertEquals(DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp, params.launchMode)
+        assertEquals("https://example.com/checkout", params.linkUri)
+    }
+
+    @Test
+    fun testDeveloperBillingOptionParamsAndroidWithCallerWillLaunch() {
+        val params = DeveloperBillingOptionParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalPayments,
+            launchMode = DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink,
+            linkUri = "https://example.com/payment"
+        )
+
+        assertEquals(BillingProgramAndroid.ExternalPayments, params.billingProgram)
+        assertEquals(DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink, params.launchMode)
+        assertEquals("https://example.com/payment", params.linkUri)
+    }
+
+    @Test
+    fun testDeveloperProvidedBillingDetailsAndroid() {
+        val details = DeveloperProvidedBillingDetailsAndroid(
+            externalTransactionToken = "ext_txn_token_12345"
+        )
+
+        assertEquals("ext_txn_token_12345", details.externalTransactionToken)
+    }
+
+    @Test
+    fun testRequestPurchaseAndroidPropsWithDeveloperBillingOption() {
+        val developerBillingOption = DeveloperBillingOptionParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalPayments,
+            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkUri = "https://example.com/checkout"
+        )
+
+        val props = RequestPurchaseAndroidProps(
+            skus = listOf("premium_product"),
+            developerBillingOption = developerBillingOption
+        )
+
+        assertEquals(listOf("premium_product"), props.skus)
+        assertNotNull(props.developerBillingOption)
+        assertEquals(BillingProgramAndroid.ExternalPayments, props.developerBillingOption?.billingProgram)
+        assertEquals("https://example.com/checkout", props.developerBillingOption?.linkUri)
+    }
+
+    @Test
+    fun testRequestSubscriptionAndroidPropsWithDeveloperBillingOption() {
+        val developerBillingOption = DeveloperBillingOptionParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalPayments,
+            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkUri = "https://example.com/subscribe"
+        )
+
+        val props = RequestSubscriptionAndroidProps(
+            skus = listOf("monthly_subscription"),
+            subscriptionOffers = listOf(
+                AndroidSubscriptionOfferInput(
+                    sku = "monthly_subscription",
+                    offerToken = "offer_token_abc"
+                )
+            ),
+            developerBillingOption = developerBillingOption
+        )
+
+        assertEquals(listOf("monthly_subscription"), props.skus)
+        assertNotNull(props.developerBillingOption)
+        assertEquals(BillingProgramAndroid.ExternalPayments, props.developerBillingOption?.billingProgram)
+        assertEquals("https://example.com/subscribe", props.developerBillingOption?.linkUri)
+    }
+
+    @Test
+    fun testRequestPurchasePropsByPlatformsWithExternalPayments() {
+        val props = RequestPurchasePropsByPlatforms(
+            google = RequestPurchaseAndroidProps(
+                skus = listOf("premium_upgrade"),
+                developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                    billingProgram = BillingProgramAndroid.ExternalPayments,
+                    launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                    linkUri = "https://example.com/checkout"
+                )
+            )
+        )
+
+        assertNotNull(props.google)
+        assertNotNull(props.google?.developerBillingOption)
+        assertEquals(BillingProgramAndroid.ExternalPayments, props.google?.developerBillingOption?.billingProgram)
+    }
 }
