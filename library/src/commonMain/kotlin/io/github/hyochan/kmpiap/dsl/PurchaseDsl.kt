@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap.dsl
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductType
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingOptionParamsAndroid
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseAndroidProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseIosProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
@@ -172,6 +173,12 @@ class AndroidOptionsBuilder {
     var purchaseTokenAndroid: String? = null
     var replacementModeAndroid: Int? = null
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
+    /**
+     * Developer billing option for External Payments (Billing Library 8.3.0+, Japan only).
+     * When set, the purchase dialog shows side-by-side choice between Google Play
+     * and developer's external payment option.
+     */
+    var developerBillingOption: DeveloperBillingOptionParamsAndroid? = null
 
     internal fun build(): BuiltAndroidOptions? {
         if (skus.isEmpty()) return null
@@ -180,7 +187,8 @@ class AndroidOptionsBuilder {
             skus = skus,
             obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
             obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
-            isOfferPersonalized = isOfferPersonalized
+            isOfferPersonalized = isOfferPersonalized,
+            developerBillingOption = developerBillingOption
         )
 
         val subscription = RequestSubscriptionAndroidProps(
@@ -190,7 +198,8 @@ class AndroidOptionsBuilder {
             isOfferPersonalized = isOfferPersonalized,
             purchaseTokenAndroid = purchaseTokenAndroid,
             replacementModeAndroid = replacementModeAndroid,
-            subscriptionOffers = if (subscriptionOffers.isNotEmpty()) subscriptionOffers else null
+            subscriptionOffers = if (subscriptionOffers.isNotEmpty()) subscriptionOffers else null,
+            developerBillingOption = developerBillingOption
         )
 
         return BuiltAndroidOptions(purchase = purchase, subscription = subscription)

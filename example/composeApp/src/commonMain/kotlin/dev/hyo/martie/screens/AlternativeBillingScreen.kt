@@ -55,6 +55,13 @@ private val PRODUCT_IDS = listOf("dev.hyo.martie.10bulbs", "dev.hyo.martie.30bul
  * - Google shows selection dialog automatically
  * - If user selects Google Play: onPurchaseUpdated callback
  * - If user selects alternative: No callback (manual flow required)
+ *
+ * Android (External Payments - Billing Library 8.3.0+):
+ * - Japan only - side-by-side choice billing
+ * - Enable with InitConnectionConfig.enableBillingProgramAndroid
+ * - Use developerBillingOption in requestPurchase
+ * - Listen via developerProvidedBillingListener for external token
+ * - Report externalTransactionToken to Google within 24 hours
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +72,7 @@ fun AlternativeBillingScreen(navController: NavController) {
     var externalUrl by remember { mutableStateOf("https://openiap.dev") }
     var selectedProduct by remember { mutableStateOf<ProductCommon?>(null) }
     var billingMode by remember { mutableStateOf(AlternativeBillingModeAndroid.AlternativeOnly) }
+    var useExternalPayments by remember { mutableStateOf(false) }
     var showModeSelector by remember { mutableStateOf(false) }
     var purchaseResult by remember { mutableStateOf("") }
     var lastPurchase by remember { mutableStateOf<Purchase?>(null) }
@@ -80,7 +88,11 @@ fun AlternativeBillingScreen(navController: NavController) {
 
         try {
             val config = if (currentPlatform == "Android") {
-                InitConnectionConfig(alternativeBillingModeAndroid = billingMode)
+                if (useExternalPayments) {
+                    InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)
+                } else {
+                    InitConnectionConfig(alternativeBillingModeAndroid = billingMode)
+                }
             } else null
 
             connected = kmpIapInstance.initConnection(config)
@@ -153,8 +165,14 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
+    // Listen for developer provided billing (External Payments - Android 8.3.0+)
+    // Note: On Android, listen to kmpIapInstance.developerProvidedBillingListener
+    // to receive DeveloperProvidedBillingDetailsAndroid with externalTransactionToken
+    // when user selects developer billing in External Payments mode.
+    // This is done via platform-specific code since the listener is Android-only.
+
     // Reconnect with new billing mode
-    fun reconnectWithMode(newMode: AlternativeBillingModeAndroid) {
+    fun reconnectWithMode(newMode: AlternativeBillingModeAndroid?, externalPayments: Boolean = false) {
         scope.launch {
             try {
                 isReconnecting = true
@@ -168,15 +186,20 @@ fun AlternativeBillingScreen(navController: NavController) {
 
                 // Reinitialize with new mode
                 val config = if (currentPlatform == "Android") {
-                    InitConnectionConfig(alternativeBillingModeAndroid = newMode)
+                    if (externalPayments) {
+                        InitConnectionConfig(enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments)
+                    } else {
+                        InitConnectionConfig(alternativeBillingModeAndroid = newMode)
+                    }
                 } else null
 
                 connected = kmpIapInstance.initConnection(config)
 
                 purchaseResult = "✅ Reconnected with ${
-                    when (newMode) {
-                        AlternativeBillingModeAndroid.AlternativeOnly -> "Alternative Only"
-                        AlternativeBillingModeAndroid.UserChoice -> "User Choice"
+                    when {
+                        externalPayments -> "External Payments (Japan)"
+                        newMode == AlternativeBillingModeAndroid.AlternativeOnly -> "Alternative Only"
+                        newMode == AlternativeBillingModeAndroid.UserChoice -> "User Choice"
                         else -> "None"
                     }
                 } mode"
@@ -356,15 +379,58 @@ fun AlternativeBillingScreen(navController: NavController) {
         }
     }
 
+    // Handle Android External Payments (Billing Library 8.3.0+ - Japan only)
+    fun handleAndroidExternalPayments(product: ProductCommon) {
+        scope.launch {
+            isProcessing = true
+            purchaseResult = "Showing side-by-side choice dialog..."
+
+            try {
+                kmpIapInstance.requestPurchase {
+                    type = ProductType.InApp
+                    android {
+                        skus = listOf(product.id)
+                        developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                            billingProgram = BillingProgramAndroid.ExternalPayments,
+                            launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                            linkUri = externalUrl
+                        )
+                    }
+                }
+
+                purchaseResult = """
+                    🔄 External Payments dialog shown
+
+                    Product: ${product.id}
+                    External URL: $externalUrl
+
+                    If user selects:
+                    - Google Play: onPurchaseUpdated callback
+                    - Developer billing: developerProvidedBillingListener callback
+
+                    ⚠️ Japan users only
+                    ⚠️ Billing Library 8.3.0+ required
+                """.trimIndent()
+            } catch (e: Exception) {
+                purchaseResult = "❌ Error: ${e.message}"
+                isProcessing = false
+            }
+        }
+    }
+
     // Handle purchase based on platform and mode
     fun handlePurchase(product: ProductCommon) {
         if (currentPlatform == "iOS") {
             handleIOSAlternativeBillingPurchase(product)
         } else if (currentPlatform == "Android") {
-            when (billingMode) {
-                AlternativeBillingModeAndroid.AlternativeOnly -> handleAndroidAlternativeBillingOnly(product)
-                AlternativeBillingModeAndroid.UserChoice -> handleAndroidUserChoiceBilling(product)
-                else -> {}
+            if (useExternalPayments) {
+                handleAndroidExternalPayments(product)
+            } else {
+                when (billingMode) {
+                    AlternativeBillingModeAndroid.AlternativeOnly -> handleAndroidAlternativeBillingOnly(product)
+                    AlternativeBillingModeAndroid.UserChoice -> handleAndroidUserChoiceBilling(product)
+                    else -> {}
+                }
             }
         }
     }
@@ -429,7 +495,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Info Card
-                InfoCard(currentPlatform, billingMode)
+                InfoCard(currentPlatform, billingMode, useExternalPayments)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -437,13 +503,14 @@ fun AlternativeBillingScreen(navController: NavController) {
                 if (currentPlatform == "Android") {
                     ModeSelectorCard(
                         billingMode = billingMode,
+                        useExternalPayments = useExternalPayments,
                         onModeClick = { showModeSelector = true }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // External URL Input (iOS only)
-                if (currentPlatform == "iOS") {
+                // External URL Input (iOS and Android External Payments)
+                if (currentPlatform == "iOS" || (currentPlatform == "Android" && useExternalPayments)) {
                     ExternalUrlCard(
                         url = externalUrl,
                         onUrlChange = { externalUrl = it }
@@ -469,7 +536,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                 }
 
                 // Connection Status
-                ConnectionStatusCard(connected, currentPlatform, billingMode)
+                ConnectionStatusCard(connected, currentPlatform, billingMode, useExternalPayments)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -520,6 +587,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                             text = when {
                                 isProcessing -> "Processing..."
                                 currentPlatform == "iOS" -> "🛒 Buy (External URL)"
+                                useExternalPayments -> "🛒 Buy (External Payments)"
                                 billingMode == AlternativeBillingModeAndroid.AlternativeOnly -> "🛒 Buy (Alternative Only)"
                                 else -> "🛒 Buy (User Choice)"
                             },
@@ -565,8 +633,9 @@ fun AlternativeBillingScreen(navController: NavController) {
                     ModeSelectorOption(
                         title = "Alternative Billing Only",
                         description = "Only your payment system is available. Users cannot use Google Play.",
-                        isSelected = billingMode == AlternativeBillingModeAndroid.AlternativeOnly,
+                        isSelected = !useExternalPayments && billingMode == AlternativeBillingModeAndroid.AlternativeOnly,
                         onClick = {
+                            useExternalPayments = false
                             billingMode = AlternativeBillingModeAndroid.AlternativeOnly
                             showModeSelector = false
                             reconnectWithMode(AlternativeBillingModeAndroid.AlternativeOnly)
@@ -576,11 +645,23 @@ fun AlternativeBillingScreen(navController: NavController) {
                     ModeSelectorOption(
                         title = "User Choice Billing",
                         description = "Users can choose between Google Play and your payment system.",
-                        isSelected = billingMode == AlternativeBillingModeAndroid.UserChoice,
+                        isSelected = !useExternalPayments && billingMode == AlternativeBillingModeAndroid.UserChoice,
                         onClick = {
+                            useExternalPayments = false
                             billingMode = AlternativeBillingModeAndroid.UserChoice
                             showModeSelector = false
                             reconnectWithMode(AlternativeBillingModeAndroid.UserChoice)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ModeSelectorOption(
+                        title = "External Payments (Japan)",
+                        description = "Side-by-side choice in purchase dialog. Billing Library 8.3.0+ required.",
+                        isSelected = useExternalPayments,
+                        onClick = {
+                            useExternalPayments = true
+                            showModeSelector = false
+                            reconnectWithMode(null, externalPayments = true)
                         }
                     )
                 }
@@ -595,7 +676,7 @@ fun AlternativeBillingScreen(navController: NavController) {
 }
 
 @Composable
-private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroid) {
+private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroid, useExternalPayments: Boolean = false) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -637,8 +718,16 @@ private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroi
                     lineHeight = 18.sp
                 )
             } else {
-                val infoText = if (billingMode == AlternativeBillingModeAndroid.AlternativeOnly) {
-                    """
+                val infoText = when {
+                    useExternalPayments -> """
+                        • External Payments Mode (8.3.0+)
+                        • Japan users only
+                        • Side-by-side choice in purchase dialog
+                        • If Google Play: onPurchaseUpdated
+                        • If developer: developerProvidedBillingListener
+                        • Report externalTransactionToken to Google
+                    """.trimIndent()
+                    billingMode == AlternativeBillingModeAndroid.AlternativeOnly -> """
                         • Alternative Billing Only Mode
                         • Users CANNOT use Google Play billing
                         • Only your payment system available
@@ -646,8 +735,7 @@ private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroi
                         • No onPurchaseUpdated callback
                         • Must report to Google within 24h
                     """.trimIndent()
-                } else {
-                    """
+                    else -> """
                         • User Choice Billing Mode
                         • Users choose between:
                           - Google Play (30% fee)
@@ -666,7 +754,11 @@ private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroi
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = """
+                    text = if (useExternalPayments) """
+                        ⚠️ Billing Library 8.3.0+ required
+                        ⚠️ Japan users only
+                        ⚠️ Report token within 24 hours
+                    """.trimIndent() else """
                         ⚠️ Requires approval from Google
                         ⚠️ Must report tokens within 24 hours
                         ⚠️ Backend integration required
@@ -683,6 +775,7 @@ private fun InfoCard(platform: String, billingMode: AlternativeBillingModeAndroi
 @Composable
 private fun ModeSelectorCard(
     billingMode: AlternativeBillingModeAndroid,
+    useExternalPayments: Boolean,
     onModeClick: () -> Unit
 ) {
     Column {
@@ -703,10 +796,11 @@ private fun ModeSelectorCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (billingMode == AlternativeBillingModeAndroid.AlternativeOnly)
-                        "Alternative Billing Only"
-                    else
-                        "User Choice Billing",
+                    text = when {
+                        useExternalPayments -> "External Payments (Japan)"
+                        billingMode == AlternativeBillingModeAndroid.AlternativeOnly -> "Alternative Billing Only"
+                        else -> "User Choice Billing"
+                    },
                     fontSize = 14.sp
                 )
                 Text("▼", fontSize = 12.sp, color = Color.Gray)
@@ -744,7 +838,8 @@ private fun ExternalUrlCard(url: String, onUrlChange: (String) -> Unit) {
 private fun ConnectionStatusCard(
     connected: Boolean,
     platform: String,
-    billingMode: AlternativeBillingModeAndroid
+    billingMode: AlternativeBillingModeAndroid,
+    useExternalPayments: Boolean = false
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -764,9 +859,10 @@ private fun ConnectionStatusCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Current mode: ${
-                        when (billingMode) {
-                            AlternativeBillingModeAndroid.AlternativeOnly -> "ALTERNATIVE_ONLY"
-                            AlternativeBillingModeAndroid.UserChoice -> "USER_CHOICE"
+                        when {
+                            useExternalPayments -> "EXTERNAL_PAYMENTS"
+                            billingMode == AlternativeBillingModeAndroid.AlternativeOnly -> "ALTERNATIVE_ONLY"
+                            billingMode == AlternativeBillingModeAndroid.UserChoice -> "USER_CHOICE"
                             else -> "NONE"
                         }
                     }",

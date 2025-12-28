@@ -49,6 +49,7 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProp
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -143,6 +144,9 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"
+                                                is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
+                                                    "Success: ${result.success}\n" +
+                                                    "Grant Time: ${result.grantTime ?: "N/A"}"
                                             }
                                         }
                                         VerificationMethod.IAPKit -> {
