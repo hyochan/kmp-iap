@@ -72,7 +72,7 @@ Get started with kmp-iap in minutes:
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.2.1")
+    implementation("io.github.hyochan:kmp-iap:1.2.2")
 }
 ```
 

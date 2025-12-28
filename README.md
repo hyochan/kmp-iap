@@ -23,7 +23,7 @@ Visit the documentation site for installation guides, API reference, and example
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.2.1")
+    implementation("io.github.hyochan:kmp-iap:1.2.2")
 }
 ```
 
