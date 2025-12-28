@@ -311,6 +311,173 @@ scope.launch {
 }
 ```
 
+### Mode 3: External Payments (8.3.0+, Japan Only)
+
+External Payments is a new billing program introduced in Google Play Billing Library 8.3.0 that presents a side-by-side choice between Google Play Billing and the developer's external payment option directly in the purchase flow.
+
+:::info Japan Only
+The External Payments program is currently only available for users in Japan.
+:::
+
+#### Official Documentation
+
+- [External Payment Links](https://developer.android.com/google/play/billing/externalpaymentlinks) - Official Google Play documentation
+
+#### Configuration
+
+Enable the External Payments program in the `InitConnectionConfig`:
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
+
+// Enable External Payments during connection initialization
+val config = InitConnectionConfig(
+    enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+)
+
+val connected = kmpIapInstance.initConnection(config)
+```
+
+#### Usage
+
+When making a purchase, provide `developerBillingOption` to enable the side-by-side choice:
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.requestPurchase
+import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingLaunchModeAndroid
+import io.github.hyochan.kmpiap.openiap.DeveloperBillingOptionParamsAndroid
+import kotlinx.coroutines.launch
+
+suspend fun handleExternalPaymentsPurchase(productId: String) {
+    try {
+        val purchase = kmpIapInstance.requestPurchase {
+            android {
+                skus = listOf(productId)
+                developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                    billingProgram = BillingProgramAndroid.ExternalPayments,
+                    launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                    linkUri = "https://your-site.com/checkout"
+                )
+            }
+        }
+        println("Purchase completed via Google Play: $purchase")
+    } catch (e: Exception) {
+        println("Purchase error: ${e.message}")
+    }
+}
+```
+
+#### Listening for Developer Billing Selection
+
+When the user selects the developer billing option instead of Google Play:
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+
+// Listen for developer provided billing events
+scope.launch {
+    kmpIapInstance.developerProvidedBillingListener.collect { details ->
+        println("User selected developer billing")
+        println("External Transaction Token: ${details.externalTransactionToken}")
+
+        // IMPORTANT: Process payment on your external site
+        // The externalTransactionToken must be reported to Google within 24 hours
+
+        // After successful payment on your site:
+        reportToGoogleBackend(details.externalTransactionToken)
+    }
+}
+```
+
+#### Key Differences from User Choice Billing
+
+| Feature | User Choice Billing | External Payments |
+|---------|---------------------|-------------------|
+| Billing Library | 7.0+ | 8.3.0+ |
+| Availability | Eligible regions | Japan only |
+| UI | Separate dialog | Side-by-side in purchase dialog |
+| Token Source | `userChoiceBillingListener` | `developerProvidedBillingListener` |
+
+#### Complete Example
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.openiap.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+
+class ExternalPaymentsManager {
+    private val kmpIAP = KmpIAP()
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    suspend fun initialize() {
+        // Initialize connection with External Payments enabled
+        val config = InitConnectionConfig(
+            enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
+        )
+        val connected = kmpIAP.initConnection(config)
+        if (!connected) {
+            println("Failed to connect")
+            return
+        }
+
+        // Listen for developer billing selection
+        scope.launch {
+            kmpIAP.developerProvidedBillingListener.collect { details ->
+                handleDeveloperBilling(details)
+            }
+        }
+
+        // Listen for regular purchases (when user selects Google Play)
+        scope.launch {
+            kmpIAP.purchaseUpdatedListener.collect { purchase ->
+                handleGooglePlayPurchase(purchase)
+            }
+        }
+    }
+
+    suspend fun purchaseWithExternalPaymentsOption(productId: String) {
+        try {
+            kmpIAP.requestPurchase {
+                android {
+                    skus = listOf(productId)
+                    developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                        billingProgram = BillingProgramAndroid.ExternalPayments,
+                        launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                        linkUri = "https://your-site.com/checkout?product=$productId"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            println("Purchase request failed: ${e.message}")
+        }
+    }
+
+    private fun handleDeveloperBilling(details: DeveloperProvidedBillingDetailsAndroid) {
+        println("User selected developer billing")
+        // Process payment on your external site
+        // Report token to Google within 24 hours
+        reportToGoogleBackend(details.externalTransactionToken)
+    }
+
+    private fun handleGooglePlayPurchase(purchase: Purchase) {
+        println("Purchase completed via Google Play: ${purchase.productId}")
+        // Handle Google Play purchase normally
+    }
+
+    private fun reportToGoogleBackend(token: String) {
+        // Report the external transaction token to Google
+        // This must be done within 24 hours of the transaction
+    }
+}
+```
+
 ## Complete Cross-Platform Example
 
 See the [AlternativeBillingScreen.kt](https://github.com/hyochan/kmp-iap/blob/main/example/composeApp/src/commonMain/kotlin/dev/hyo/martie/screens/AlternativeBillingScreen.kt) in the example app for a complete implementation:
@@ -500,6 +667,19 @@ suspend fun handleAndroidUserChoice(product: ProductCommon) {
 - `showAlternativeBillingDialogAndroid(): Boolean`
 - `createAlternativeBillingTokenAndroid(): String?`
 - `userChoiceBillingListener: Flow<UserChoiceBillingDetails>`
+- `developerProvidedBillingListener: Flow<DeveloperProvidedBillingDetailsAndroid>` (8.3.0+)
+
+### InitConnectionConfig Options
+
+- `alternativeBillingModeAndroid: AlternativeBillingModeAndroid` - Set alternative billing mode
+- `enableBillingProgramAndroid: BillingProgramAndroid` - Enable a billing program (8.2.0+)
+
+### Android Types (External Payments)
+
+- `BillingProgramAndroid.ExternalPayments` - External Payments program type (8.3.0+)
+- `DeveloperBillingOptionParamsAndroid` - Parameters for enabling External Payments in purchase flow
+- `DeveloperBillingLaunchModeAndroid` - How to launch the external payment link
+- `DeveloperProvidedBillingDetailsAndroid` - Contains `externalTransactionToken` when user selects developer billing
 
 ## See Also
 

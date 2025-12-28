@@ -42,6 +42,7 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGooglePro
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
+import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
 import io.github.hyochan.kmpiap.getCurrentPlatform
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
@@ -152,6 +153,9 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                 is VerifyPurchaseResultAndroid -> "📱 Local Verification (Android):\n" +
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${result.receiptId}"
+                                                is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
+                                                    "Success: ${result.success}\n" +
+                                                    "Grant Time: ${result.grantTime ?: "N/A"}"
                                             }
                                         }
                                         VerificationMethod.IAPKit -> {
