@@ -55,8 +55,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                 // Show active purchases (purchased or restored state)
                 when (purchase) {
                     is PurchaseIOS -> {
-                        val isPurchased = purchase.purchaseState == PurchaseState.Purchased ||
-                                        purchase.purchaseState == PurchaseState.Restored
+                        val isPurchased = purchase.purchaseState == PurchaseState.Purchased
                         if (!isPurchased) return@filter false
 
                         // Determine if it's a subscription
@@ -77,9 +76,8 @@ fun AvailablePurchasesScreen(navController: NavController) {
                             }
                             return@filter true  // Show if no expiry info
                         } else {
-                            // Consumables: show if not acknowledged
-                            val isAcknowledged = purchase.purchaseState == PurchaseState.Restored
-                            return@filter !isAcknowledged
+                            // Consumables: always show purchased items that need to be finished
+                            return@filter true
                         }
                     }
                     is PurchaseAndroid -> {
@@ -463,7 +461,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
 
                         val isAcknowledged = when (purchase) {
                             is PurchaseAndroid -> purchase.isAcknowledgedAndroid == true
-                            is PurchaseIOS -> purchase.purchaseState == PurchaseState.Restored
+                            is PurchaseIOS -> false // iOS purchases show as Purchased; finished state not tracked via PurchaseState
                         }
 
                         PurchaseCard(
@@ -525,12 +523,8 @@ fun needsFinishButton(purchase: Purchase): Boolean {
     return when (purchase) {
         is PurchaseIOS -> {
             // For iOS: Don't show button for:
-            // 1. Restored purchases (already finished)
-            // 2. Auto-renewing subscriptions (managed by system)
-            // 3. Non-consumable purchases (permanent purchases)
-            if (purchase.purchaseState == PurchaseState.Restored) {
-                return false
-            }
+            // 1. Auto-renewing subscriptions (managed by system)
+            // 2. Non-consumable purchases (permanent purchases)
 
             // Check if it's a subscription
             val isSubscription = purchase.productId.contains("premium") ||

@@ -238,6 +238,14 @@ class InAppPurchaseTest {
         assertEquals("unspecified", BillingProgramAndroid.Unspecified.rawValue)
         assertEquals("external-content-link", BillingProgramAndroid.ExternalContentLink.rawValue)
         assertEquals("external-offer", BillingProgramAndroid.ExternalOffer.rawValue)
+        assertEquals("user-choice-billing", BillingProgramAndroid.UserChoiceBilling.rawValue)
+    }
+
+    @Test
+    fun testPurchaseStateEnum() {
+        assertEquals("pending", PurchaseState.Pending.rawValue)
+        assertEquals("purchased", PurchaseState.Purchased.rawValue)
+        assertEquals("unknown", PurchaseState.Unknown.rawValue)
     }
 
     @Test

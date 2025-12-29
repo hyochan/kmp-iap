@@ -349,7 +349,7 @@ fun PurchaseButton(productId: String) {
     Button(onClick = {
         scope.launch {
             kmpIapInstance.requestPurchase {
-                apple {
+                ios {
                     sku = productId
                     quantity = 1
                 }

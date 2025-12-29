@@ -60,7 +60,7 @@ kmpIapInstance.purchaseErrorListener.collect { error ->
 
 ```kotlin
 kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "coins_100"
         // Optional: Attribution tracking (v1.3.7+)
         // advancedCommerceData = "campaign_id"

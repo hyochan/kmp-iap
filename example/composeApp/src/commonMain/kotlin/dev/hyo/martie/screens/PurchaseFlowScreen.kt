@@ -101,7 +101,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                 currentPurchase = purchase
 
                 when (purchase.purchaseState) {
-                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                    PurchaseState.Purchased -> {
                         isProcessing = false
 
                         println("\n========== PURCHASE SUCCESS (JSON) ==========")
@@ -207,15 +207,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                             }
                         }
                     }
-                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                    PurchaseState.Pending -> {
                         isProcessing = true
                         purchaseResult = "⏳ Purchase is pending user confirmation..."
                     }
-                    PurchaseState.Failed -> {
-                        isProcessing = false
-                        purchaseResult = "❌ Purchase failed"
-                    }
-                    else -> {
+                    PurchaseState.Unknown -> {
                         isProcessing = false
                         purchaseResult = null
                     }

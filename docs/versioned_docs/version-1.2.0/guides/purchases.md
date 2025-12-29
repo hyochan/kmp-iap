@@ -135,7 +135,7 @@ suspend fun handlePurchase(productId: String) {
 
         // Request purchase
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
                 // Optional: Pass attribution data (v1.3.7+)
@@ -216,7 +216,7 @@ suspend fun loadSubscriptions() {
 suspend fun requestSubscription(productId: String) {
     try {
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
             }
@@ -237,7 +237,7 @@ suspend fun requestSubscriptionWithOffer(
     offerToken: String
 ) {
     kmpIapInstance.requestPurchase {
-        apple {
+        ios {
             sku = productId
             quantity = 1
         }
@@ -672,7 +672,7 @@ class PurchaseService : ViewModel() {
     
     suspend fun purchaseProduct(productId: String) {
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
             }

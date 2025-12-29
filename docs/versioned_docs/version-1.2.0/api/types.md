@@ -9,7 +9,7 @@ import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 <IapKitBanner />
 
-Comprehensive type definitions for kmp-iap v1.3.0 following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
+Comprehensive type definitions for kmp-iap v1.0.0-rc following [OpenIAP specification](https://openiap.dev). All types are fully documented with Kotlin data classes for complete type safety and cross-platform compatibility.
 
 ## OpenIAP Base Interfaces
 
@@ -46,7 +46,6 @@ interface PurchaseCommon {
     val transactionReceipt: String
     val purchaseToken: String?  // Unified token field
     val platform: String?
-    val purchaseState: PurchaseState  // v1.3.0: Now a common field (pending, purchased, unknown)
 }
 ```
 
@@ -98,7 +97,7 @@ data class ProductAndroid(
 
     // Android-specific fields
     val nameAndroid: String,
-    val oneTimePurchaseOfferDetailsAndroid: ProductAndroidOneTimePurchaseOfferDetail? = null,
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>? = null
 ) : ProductCommon
 ```
@@ -118,13 +117,12 @@ data class PurchaseIOS(
     override val transactionReceipt: String,
     override val purchaseToken: String? = null,
     override val platform: String = "ios",
-    override val purchaseState: PurchaseState,  // v1.3.0: Common field
 
     // iOS-specific fields
     val jwsRepresentationIOS: String? = null,
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
-    val transactionState: TransactionStateIOS? = null  // @deprecated in StoreKit 2
+    val transactionState: TransactionStateIOS? = null
 ) : PurchaseCommon
 ```
 
@@ -143,10 +141,9 @@ data class PurchaseAndroid(
     override val transactionReceipt: String,
     override val purchaseToken: String? = null,
     override val platform: String = "android",
-    override val purchaseState: PurchaseState,  // v1.3.0: Common field
 
     // Android-specific fields
-    // Note: purchaseStateAndroid was removed in v1.3.0, use purchaseState instead
+    val purchaseStateAndroid: AndroidPurchaseState? = null,
     val acknowledgedAndroid: Boolean? = null,
     val autoRenewingAndroid: Boolean? = null,
     val obfuscatedAccountIdAndroid: String? = null,
@@ -225,7 +222,7 @@ Support for StoreKit 2's `Product.PurchaseOption.custom` API to pass attribution
 **Example**:
 ```kotlin
 kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "com.example.premium"
         advancedCommerceData = "campaign_summer_2025"
     }
@@ -591,51 +588,9 @@ enum class ProductType {
 }
 ```
 
-### PurchaseState
-
-Unified purchase state for cross-platform use.
-
-:::warning Breaking Change (v1.3.0)
-`PurchaseState` enum has been simplified. The following states were removed:
-- `Failed` - Both platforms return errors instead of Purchase objects on failure
-- `Restored` - Restored purchases return as `Purchased` state
-- `Deferred` - iOS StoreKit 2 has no transaction state; Android uses `Pending`
-
-**Migration Guide:**
-```kotlin
-// Before (v1.2.x)
-when (purchase.purchaseState) {
-    PurchaseState.Purchased, PurchaseState.Restored -> handleSuccess()
-    PurchaseState.Pending, PurchaseState.Deferred -> handlePending()
-    PurchaseState.Failed -> handleFailure()
-    else -> {}
-}
-
-// After (v1.3.0)
-when (purchase.purchaseState) {
-    PurchaseState.Purchased -> handleSuccess()
-    PurchaseState.Pending -> handlePending()
-    PurchaseState.Unknown -> {}
-}
-// Handle failures via purchaseErrorListener instead
-```
-:::
-
-```kotlin
-enum class PurchaseState(val rawValue: String) {
-    Pending("pending"),     // Purchase is being processed
-    Purchased("purchased"), // Purchase completed successfully (includes restored)
-    Unknown("unknown")      // Unknown state
-}
-```
-
 ### TransactionStateIOS
 
 iOS transaction states from StoreKit.
-
-:::info Deprecated in StoreKit 2
-Apple's StoreKit 1 `SKPaymentTransactionState` is fully deprecated. StoreKit 2 uses `Product.PurchaseResult` instead, which only provides a `Transaction` on success.
-:::
 
 ```kotlin
 enum class TransactionStateIOS {
@@ -695,58 +650,19 @@ enum class DiscountTypeIOS {
 }
 ```
 
-## Billing Programs API Types (v1.2.0+)
+## Billing Programs API Types (v1.2.0)
 
 New types for Google Play Billing Programs API (Android 8.2.0+).
 
-### BillingProgramAndroid
+### BillingProgram
 
 Billing program types for external billing.
 
-:::warning Breaking Change (v1.3.0)
-`AlternativeBillingModeAndroid` is deprecated. Use `BillingProgramAndroid` with `enableBillingProgramAndroid` in `InitConnectionConfig` instead.
-
-**Migration Guide:**
 ```kotlin
-// Before (deprecated)
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-)
-
-// After (recommended)
-val config = InitConnectionConfig(
-    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-)
-```
-
-| Before (Deprecated) | After (Recommended) |
-|---------------------|---------------------|
-| `alternativeBillingModeAndroid: USER_CHOICE` | `enableBillingProgramAndroid: USER_CHOICE_BILLING` |
-| `alternativeBillingModeAndroid: ALTERNATIVE_ONLY` | `enableBillingProgramAndroid: EXTERNAL_OFFER` |
-:::
-
-```kotlin
-enum class BillingProgramAndroid(val rawValue: String) {
-    Unspecified("unspecified"),
-    ExternalContentLink("external-content-link"),
-    ExternalOffer("external-offer"),
-    ExternalPayments("external-payments"),      // 8.3.0+ (Japan only)
-    UserChoiceBilling("user-choice-billing")    // 7.0+ (New in v1.3.0)
-}
-```
-
-### AlternativeBillingModeAndroid (Deprecated)
-
-:::caution Deprecated
-Use `BillingProgramAndroid` with `enableBillingProgramAndroid` instead.
-:::
-
-```kotlin
-@Deprecated("Use BillingProgramAndroid with enableBillingProgramAndroid instead")
-enum class AlternativeBillingModeAndroid(val rawValue: String) {
-    None("none"),
-    UserChoice("user-choice"),
-    AlternativeOnly("alternative-only")
+enum class BillingProgram {
+    Unspecified,
+    ExternalContentLink,  // External content link programs
+    ExternalOffer         // External offer programs
 }
 ```
 

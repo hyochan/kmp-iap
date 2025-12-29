@@ -78,7 +78,7 @@ class IAPManager {
 
     suspend fun purchase(productId: String) {
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
             }
         }

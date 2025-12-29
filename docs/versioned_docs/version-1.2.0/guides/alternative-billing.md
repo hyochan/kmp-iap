@@ -179,32 +179,16 @@ Android supports two alternative billing modes:
 
 Set the billing mode when initializing the connection:
 
-:::warning API Change (v1.3.0)
-`AlternativeBillingModeAndroid` is deprecated. Use `BillingProgramAndroid` with `enableBillingProgramAndroid` instead.
-
-```kotlin
-// Before (deprecated)
-val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
-)
-
-// After (recommended)
-val config = InitConnectionConfig(
-    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-)
-```
-:::
-
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 
-// Initialize with User Choice Billing (v1.3.0+)
+// Initialize with alternative billing mode
 val config = InitConnectionConfig(
-    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-    // Or: BillingProgramAndroid.ExternalOffer
-    // Or: BillingProgramAndroid.ExternalPayments (Japan only, 8.3.0+)
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
+    // Or: AlternativeBillingModeAndroid.UserChoice
+    // Or: AlternativeBillingModeAndroid.None (default)
 )
 
 val connected = kmpIapInstance.initConnection(config)
@@ -259,14 +243,14 @@ With user choice, Google automatically shows a selection dialog:
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.requestPurchase
-import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-// Initialize with user choice mode (v1.3.0+)
+// Initialize with user choice mode
 val config = InitConnectionConfig(
-    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
 )
 kmpIapInstance.initConnection(config)
 
@@ -506,15 +490,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun AlternativeBillingScreen() {
     var selectedProduct by remember { mutableStateOf<ProductCommon?>(null) }
-    var billingProgram by remember {
-        mutableStateOf(BillingProgramAndroid.ExternalOffer)
+    var billingMode by remember {
+        mutableStateOf(AlternativeBillingModeAndroid.AlternativeOnly)
     }
     var externalUrl by remember { mutableStateOf("https://your-site.com") }
 
     LaunchedEffect(Unit) {
-        // Initialize connection with billing program (v1.3.0+)
+        // Initialize connection with alternative billing
         val config = if (getPlatformName() == "Android") {
-            InitConnectionConfig(enableBillingProgramAndroid = billingProgram)
+            InitConnectionConfig(alternativeBillingModeAndroid = billingMode)
         } else null
 
         kmpIapInstance.initConnection(config)
@@ -534,19 +518,16 @@ fun AlternativeBillingScreen() {
                     println("Error: ${result.error}")
                 }
             } else {
-                // Android: Handle based on billing program
-                when (billingProgram) {
-                    BillingProgramAndroid.ExternalOffer -> {
-                        handleAndroidExternalOffer(product)
+                // Android: Handle based on billing mode
+                when (billingMode) {
+                    AlternativeBillingModeAndroid.AlternativeOnly -> {
+                        handleAndroidAlternativeBillingOnly(product)
                     }
-                    BillingProgramAndroid.UserChoiceBilling -> {
+                    AlternativeBillingModeAndroid.UserChoice -> {
                         handleAndroidUserChoice(product)
                     }
-                    BillingProgramAndroid.ExternalPayments -> {
-                        handleAndroidExternalPayments(product)
-                    }
                     else -> {
-                        println("Billing program not configured")
+                        println("Alternative billing not configured")
                     }
                 }
             }
@@ -662,9 +643,9 @@ suspend fun handleAndroidUserChoice(product: ProductCommon) {
 
 #### "User choice dialog not showing"
 
-- Verify `BillingProgramAndroid.UserChoiceBilling` is set via `enableBillingProgramAndroid`
+- Verify `AlternativeBillingModeAndroid.UserChoice` is set
 - Ensure Google Play configuration is correct
-- Check device compatibility (Billing Library 7.0+ required)
+- Check device compatibility
 
 ## Platform Requirements
 
@@ -690,18 +671,8 @@ suspend fun handleAndroidUserChoice(product: ProductCommon) {
 
 ### InitConnectionConfig Options
 
-- `alternativeBillingModeAndroid: AlternativeBillingModeAndroid` - **Deprecated**. Use `enableBillingProgramAndroid` instead
-- `enableBillingProgramAndroid: BillingProgramAndroid` - Enable a billing program (7.0+ for UserChoiceBilling, 8.2.0+ for others)
-
-### BillingProgramAndroid Values (v1.3.0)
-
-| Value | Description | Min Version |
-|-------|-------------|-------------|
-| `Unspecified` | No billing program | - |
-| `UserChoiceBilling` | User Choice Billing (replaces deprecated `AlternativeBillingModeAndroid.UserChoice`) | 7.0+ |
-| `ExternalContentLink` | External content link programs | 8.2.0+ |
-| `ExternalOffer` | External offer programs (replaces deprecated `AlternativeBillingModeAndroid.AlternativeOnly`) | 8.2.0+ |
-| `ExternalPayments` | Developer Provided Billing (Japan only) | 8.3.0+ |
+- `alternativeBillingModeAndroid: AlternativeBillingModeAndroid` - Set alternative billing mode
+- `enableBillingProgramAndroid: BillingProgramAndroid` - Enable a billing program (8.2.0+)
 
 ### Android Types (External Payments)
 
