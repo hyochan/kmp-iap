@@ -1000,6 +1000,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
         // Convert our enum to BillingClient.BillingProgram constant
         val billingProgramConstant = when (program) {
+            BillingProgramAndroid.UserChoiceBilling -> 2 // USER_CHOICE_BILLING (7.0+)
             BillingProgramAndroid.ExternalContentLink -> 1 // EXTERNAL_CONTENT_LINK
             BillingProgramAndroid.ExternalOffer -> 3 // EXTERNAL_OFFER
             BillingProgramAndroid.ExternalPayments -> 4 // EXTERNAL_PAYMENTS (8.3.0+)
@@ -1071,6 +1072,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         )
 
         val billingProgramConstant = when (program) {
+            BillingProgramAndroid.UserChoiceBilling -> 2
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
             BillingProgramAndroid.ExternalPayments -> 4
@@ -1178,6 +1180,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
         // Convert enums to BillingClient constants
         val billingProgramConstant = when (params.billingProgram) {
+            BillingProgramAndroid.UserChoiceBilling -> 2
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
             BillingProgramAndroid.ExternalPayments -> 4
@@ -1385,6 +1388,17 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
      */
     private fun enableBillingProgram(builder: BillingClient.Builder, program: BillingProgramAndroid) {
         val programConstant = when (program) {
+            BillingProgramAndroid.UserChoiceBilling -> {
+                // UserChoiceBilling uses enableUserChoiceBilling() instead of enableBillingProgram()
+                builder.enableUserChoiceBilling { userChoiceDetails ->
+                    val details = UserChoiceBillingDetails(
+                        externalTransactionToken = userChoiceDetails.externalTransactionToken,
+                        products = userChoiceDetails.products.map { it.id }
+                    )
+                    _userChoiceBillingListener.tryEmit(details)
+                }
+                return
+            }
             BillingProgramAndroid.ExternalContentLink -> 1
             BillingProgramAndroid.ExternalOffer -> 3
             BillingProgramAndroid.ExternalPayments -> {
@@ -1422,6 +1436,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             // Set billing program (EXTERNAL_PAYMENTS = 4)
             val billingProgramConstant = when (option.billingProgram) {
+                BillingProgramAndroid.UserChoiceBilling -> 2
                 BillingProgramAndroid.ExternalPayments -> 4
                 BillingProgramAndroid.ExternalContentLink -> 1
                 BillingProgramAndroid.ExternalOffer -> 3

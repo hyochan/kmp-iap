@@ -80,7 +80,7 @@ class IAPManager {
         try {
             // v1.0.0-rc - DSL API
             kmpIapInstance.requestPurchase {
-                apple {
+                ios {
                     sku = productId
                     quantity = 1
                 }
@@ -167,7 +167,7 @@ class IAPManager {
         try {
             // Request purchase - v1.0.0-rc DSL API
             kmpIapInstance.requestPurchase {
-                apple {
+                ios {
                     sku = productId
                     quantity = 1
                 }
@@ -252,7 +252,7 @@ class IAPService {
     suspend fun purchaseItem(productId: String) {
         // v1.0.0-rc - DSL API
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
             }
@@ -313,7 +313,7 @@ fun StoreScreen() {
                     scope.launch {
                         // v1.0.0-rc - DSL API
                         kmpIapInstance.requestPurchase {
-                            apple {
+                            ios {
                                 sku = product.id
                                 quantity = 1
                             }

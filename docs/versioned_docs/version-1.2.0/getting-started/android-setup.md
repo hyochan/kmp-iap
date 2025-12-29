@@ -1,23 +1,23 @@
 ---
-title: iOS Setup
-sidebar_label: iOS Setup
-sidebar_position: 2
+title: Android Setup
+sidebar_label: Android Setup
+sidebar_position: 3
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
 
-# iOS Setup
+# Android Setup
 
 <IapKitBanner />
 
-For complete iOS setup instructions including App Store Connect configuration, Xcode setup, and testing guidelines, please visit:
+For complete Android setup instructions including Google Play Console configuration, app setup, and testing guidelines, please visit:
 
-👉 **[iOS Setup Guide - openiap.dev](https://openiap.dev/docs/ios-setup)**
+👉 **[Android Setup Guide - openiap.dev](https://openiap.dev/docs/android-setup)**
 
 The guide covers:
-- App Store Connect configuration
-- Xcode project setup
-- Sandbox testing
+- Google Play Console configuration
+- App bundle setup and signing
+- Testing with internal testing tracks
 - Common troubleshooting steps
 
 ## Code Implementation
@@ -78,8 +78,8 @@ class IAPManager {
 
     suspend fun purchase(productId: String) {
         kmpIapInstance.requestPurchase {
-            apple {
-                sku = productId
+            android {
+                skus = listOf(productId)
             }
         }
     }
@@ -87,7 +87,7 @@ class IAPManager {
 ```
 
 :::tip Cross-Platform Note
-This example shows iOS-specific usage with `sku`. For cross-platform compatibility, include both `ios` and `android` blocks in your request. See the [Core Methods](/docs/api/core-methods) documentation for details.
+This example shows Android-specific usage with `skus`. For cross-platform compatibility, include both `ios` and `android` blocks in your request. See the [Core Methods](/docs/api/core-methods) documentation for details.
 :::
 
 :::info Full Examples
@@ -104,52 +104,50 @@ For complete implementation examples including purchase flow, subscription handl
 
 **Solutions:**
 
-1. **Check Prerequisites (Most common cause):**
-   - Verify ALL agreements are signed in App Store Connect > Business
-   - Ensure ALL banking, legal, and tax information is completed AND approved by Apple
-   - These are the most commonly overlooked requirements
+1. **Check App Signing:**
+   - Ensure your app is signed with the same key uploaded to Play Console
+   - Debug builds must use the same signing key for testing
 
 2. **Verify Product Configuration:**
-   - Product IDs match exactly between code and App Store Connect
-   - Products are in "Ready to Submit" or "Approved" state
-   - Bundle identifier matches
+   - Product IDs match exactly between code and Play Console
+   - Products are in "Active" state
+   - App must be published (at least to internal testing)
 
-3. **Use Proper Sandbox Testing:**
-   - Sign in via Settings > Developer > Sandbox Apple Account
-   - NOT through the App Store app
+3. **Wait for Propagation:**
+   - New products may take 2-3 hours to become available
+   - App must be uploaded to at least internal testing track
 
-### Sandbox Testing Issues
+### Billing Unavailable
 
-**Problem:** "Cannot connect to iTunes Store" error
-
-**Solution:**
-- Use a dedicated sandbox test user
-- Sign out of regular App Store account
-- Verify internet connection
-- Try on a real device (simulator may have issues)
-
-### Purchase Verification Failures
-
-**Problem:** Purchase verification returns invalid
+**Problem:** "Billing unavailable" or "Service unavailable" errors
 
 **Solution:**
-- Check if app is properly signed
-- Verify receipt data is not corrupted
-- Ensure proper error handling for network issues
+- Test on a real device (not emulator)
+- Ensure Google Play Store is installed and up-to-date
+- Check that the Google account is added to license testers in Play Console
+
+### Purchase Not Acknowledged
+
+**Problem:** Purchases are refunded after 3 days
+
+**Solution:**
+- Always call `finishTransaction()` after successful purchase
+- For non-consumables, ensure acknowledgment is completed
+- For consumables, ensure consumption is completed
 
 ## Best Practices
 
 - Always verify purchases server-side for production apps
 - Handle all error cases gracefully
-- Test thoroughly with sandbox users
+- Test with license testers in Play Console
 - Provide restore functionality for non-consumable products
 
 ## Next Steps
 
-- **[Android Setup](/docs/getting-started/android-setup)** - Configure for Android platform
+- **[iOS Setup](/docs/getting-started/ios-setup)** - Configure for iOS platform
 - **[Basic Implementation](/docs/guides/purchases)** - Start implementing purchases
 - **[Troubleshooting](/docs/guides/troubleshooting)** - Common issues and solutions
 
 ---
 
-For detailed platform configuration, product setup, and testing instructions, visit the [iOS Setup Guide at openiap.dev](https://openiap.dev/docs/ios-setup).
+For detailed platform configuration, product setup, and testing instructions, visit the [Android Setup Guide at openiap.dev](https://openiap.dev/docs/android-setup).

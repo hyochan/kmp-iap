@@ -48,7 +48,7 @@ val product = subscriptions.find { it.productId == "premium_monthly" }
 val offerToken = product?.subscriptionOffers?.firstOrNull()?.offerToken
 
 kmpIapInstance.requestPurchase {
-    apple { sku = "premium_monthly" }
+    ios { sku = "premium_monthly" }
     google {  // Recommended (v1.3.15+)
         skus = listOf("premium_monthly")
         subscriptionOffers = offerToken?.let {

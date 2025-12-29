@@ -65,146 +65,246 @@ fun IOSAlternativeBilling(product: ProductCommon) {
 - **No Callback**: `purchaseUpdatedListener` will NOT fire when using external URLs
 - **Deep Linking**: Implement deep linking to return users to your app
 
-## Android - Alternative Billing Only
+## Android - Billing Programs
 
-Manual 3-step flow for alternative billing only:
-
-```kotlin
-import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.ProductCommon
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-
-@Composable
-fun AndroidAlternativeBillingOnly(product: ProductCommon) {
-    val scope = rememberCoroutineScope()
-
-    Button(
-        onClick = {
-            scope.launch {
-                try {
-                    // Step 1: Check availability
-                    val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
-                    if (!isAvailable) {
-                        println("Alternative billing not available")
-                        return@launch
-                    }
-
-                    // Step 2: Show information dialog
-                    val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
-                    if (!userAccepted) {
-                        println("User declined")
-                        return@launch
-                    }
-
-                    // Step 2.5: Process payment with your payment system
-                    // ... your payment processing logic here ...
-                    println("Processing payment...")
-
-                    // Step 3: Create reporting token (after successful payment)
-                    val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
-                    println("Token created: $token")
-
-                    // Step 4: Report token to Google Play backend within 24 hours
-                    // reportToGoogleBackend(token)
-
-                    println("Alternative billing completed")
-                } catch (e: Exception) {
-                    println("Error: ${e.message}")
-                }
-            }
-        }
-    ) {
-        Text("Buy (Alternative Only)")
-    }
-}
-```
-
-### Flow Steps
-
-1. **Check availability** - Verify alternative billing is enabled
-2. **Show info dialog** - Display Google's information dialog
-3. **Process payment** - Handle payment with your system
-4. **Create token** - Generate reporting token
-5. **Report to Google** - Send token to Google within 24 hours
-
-## Android - User Choice Billing
-
-Let users choose between Google Play and alternative billing:
+Select a billing program and handle purchases accordingly (v1.3.0+):
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
 import io.github.hyochan.kmpiap.requestPurchase
 import io.github.hyochan.kmpiap.openiap.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 
 @Composable
-fun AndroidUserChoiceBilling(product: ProductCommon) {
+fun AndroidBillingPrograms(product: ProductCommon) {
     val scope = rememberCoroutineScope()
-    // Initialize with user choice mode
-    LaunchedEffect(Unit) {
+    var billingProgram by remember { mutableStateOf(BillingProgramAndroid.ExternalOffer) }
+    var showProgramSelector by remember { mutableStateOf(false) }
+    var connected by remember { mutableStateOf(false) }
+
+    // Initialize with selected billing program
+    LaunchedEffect(billingProgram) {
         val config = InitConnectionConfig(
-            alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+            enableBillingProgramAndroid = billingProgram
         )
-        kmpIapInstance.initConnection(config)
-
-        // Listen for user choice events
-        kmpIapInstance.userChoiceBillingListener.collect { details ->
-            println("User selected alternative billing")
-            println("Products: ${details.products}")
-            // Handle alternative billing flow
-        }
+        connected = kmpIapInstance.initConnection(config)
     }
 
-    // Listen for Google Play purchases
+    // Listen for purchase events
     LaunchedEffect(Unit) {
-        kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
-            // Fires if user selects Google Play
-            println("Google Play purchase: ${purchase.productId}")
-        }
-    }
-
-    Button(
-        onClick = {
-            scope.launch {
-                try {
-                    // Google will show selection dialog automatically
-                    kmpIapInstance.requestPurchase {
-                        google {  // Recommended (v1.3.15+)
-                            skus = listOf(product.id)
-                        }
-                    }
-                    // If user selects Google Play: purchaseUpdatedListener fires
-                    // If user selects alternative: userChoiceBillingListener fires
-                } catch (e: Exception) {
-                    println("Purchase error: ${e.message}")
-                }
+        // Google Play purchases (UserChoiceBilling, ExternalPayments)
+        launch {
+            kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+                println("Google Play purchase: ${purchase.productId}")
             }
         }
-    ) {
-        Text("Buy (User Choice)")
+
+        // User choice events (UserChoiceBilling)
+        launch {
+            kmpIapInstance.userChoiceBillingListener.collect { details ->
+                println("User selected alternative billing: ${details.products}")
+            }
+        }
+
+        // Developer provided billing (ExternalPayments - Japan only)
+        launch {
+            kmpIapInstance.developerProvidedBillingListener.collect { details ->
+                println("Developer billing selected: ${details.externalTransactionToken}")
+            }
+        }
+    }
+
+    Column {
+        // Billing Program Selector (Dropdown)
+        Text("Billing Program:", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showProgramSelector = true }
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = when (billingProgram) {
+                        BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
+                        BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing (7.0+)"
+                        BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
+                        else -> "Select Program"
+                    }
+                )
+                Text("▼", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        // Program Selector Dialog
+        if (showProgramSelector) {
+            AlertDialog(
+                onDismissRequest = { showProgramSelector = false },
+                title = { Text("Select Billing Program") },
+                text = {
+                    Column {
+                        // Option 1: External Offer
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    billingProgram = BillingProgramAndroid.ExternalOffer
+                                    showProgramSelector = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "External Offer (8.2.0+)",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    "Only your payment system. Manual 3-step flow required.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Option 2: User Choice Billing
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    billingProgram = BillingProgramAndroid.UserChoiceBilling
+                                    showProgramSelector = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "User Choice Billing (7.0+)",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    "Users choose between Google Play or your payment system.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Option 3: External Payments
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    billingProgram = BillingProgramAndroid.ExternalPayments
+                                    showProgramSelector = false
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "External Payments (8.3.0+, Japan)",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    "Side-by-side choice in purchase dialog. Japan users only.",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showProgramSelector = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Purchase button
+        Button(
+            onClick = {
+                scope.launch {
+                    when (billingProgram) {
+                        BillingProgramAndroid.ExternalOffer -> {
+                            // Manual 3-step flow
+                            val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+                            if (!isAvailable) return@launch
+
+                            val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+                            if (!userAccepted) return@launch
+
+                            // Process payment with your system...
+                            val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+                            println("Token: $token")
+                        }
+                        BillingProgramAndroid.UserChoiceBilling -> {
+                            // Google shows selection dialog
+                            kmpIapInstance.requestPurchase {
+                                google { skus = listOf(product.id) }
+                            }
+                        }
+                        BillingProgramAndroid.ExternalPayments -> {
+                            // Japan: Side-by-side choice in dialog
+                            kmpIapInstance.requestPurchase {
+                                google {
+                                    skus = listOf(product.id)
+                                    developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                                        billingProgram = BillingProgramAndroid.ExternalPayments,
+                                        launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                                        linkUri = "https://your-site.com/checkout"
+                                    )
+                                }
+                            }
+                        }
+                        else -> println("Select a billing program")
+                    }
+                }
+            },
+            enabled = connected
+        ) {
+            Text(
+                when (billingProgram) {
+                    BillingProgramAndroid.ExternalOffer -> "Buy (External Offer)"
+                    BillingProgramAndroid.UserChoiceBilling -> "Buy (User Choice)"
+                    BillingProgramAndroid.ExternalPayments -> "Buy (External Payments)"
+                    else -> "Buy"
+                }
+            )
+        }
     }
 }
 ```
 
-### Selection Dialog
+### Billing Program Options
 
-- Google shows automatic selection dialog
-- User chooses: Google Play (30% fee) or Alternative (lower fee)
-- Different callbacks based on user choice
+| Program | Min Version | Description |
+|---------|-------------|-------------|
+| `ExternalOffer` | 8.2.0+ | Only your payment system. Manual 3-step flow required. |
+| `UserChoiceBilling` | 7.0+ | Users choose between Google Play or your payment system via dialog. |
+| `ExternalPayments` | 8.3.0+ | Side-by-side choice in purchase dialog. Japan users only. |
+
+### Event Listeners by Program
+
+| Program | `purchaseUpdatedListener` | `userChoiceBillingListener` | `developerProvidedBillingListener` |
+|---------|---------------------------|-----------------------------|------------------------------------|
+| `ExternalOffer` | ❌ | ❌ | ❌ |
+| `UserChoiceBilling` | ✅ (Google Play) | ✅ (Alternative) | ❌ |
+| `ExternalPayments` | ✅ (Google Play) | ❌ | ✅ (Developer billing) |
 
 ## Complete Cross-Platform Example
 
 ```kotlin
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -217,17 +317,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun AlternativeBillingScreen() {
     val scope = rememberCoroutineScope()
-    var billingMode by remember {
-        mutableStateOf(AlternativeBillingModeAndroid.AlternativeOnly)
-    }
+    var billingProgram by remember { mutableStateOf(BillingProgramAndroid.ExternalOffer) }
+    var showProgramSelector by remember { mutableStateOf(false) }
     var products by remember { mutableStateOf<List<ProductCommon>>(emptyList()) }
     var connected by remember { mutableStateOf(false) }
     var externalUrl by remember { mutableStateOf("https://your-site.com") }
 
-    // Initialize connection
-    LaunchedEffect(billingMode) {
+    // Initialize connection (v1.3.0+)
+    LaunchedEffect(billingProgram) {
         val config = if (getPlatformName() == "Android") {
-            InitConnectionConfig(alternativeBillingModeAndroid = billingMode)
+            InitConnectionConfig(enableBillingProgramAndroid = billingProgram)
         } else null
 
         connected = kmpIapInstance.initConnection(config)
@@ -254,11 +353,16 @@ fun AlternativeBillingScreen() {
             }
         }
 
-        // Android user choice listener
+        // Android listeners
         if (getPlatformName() == "Android") {
             launch {
                 kmpIapInstance.userChoiceBillingListener.collect { details ->
                     println("User chose alternative billing: ${details.products}")
+                }
+            }
+            launch {
+                kmpIapInstance.developerProvidedBillingListener.collect { details ->
+                    println("Developer billing: ${details.externalTransactionToken}")
                 }
             }
         }
@@ -278,33 +382,37 @@ fun AlternativeBillingScreen() {
         }
     }
 
-    fun handleAndroidAlternativeOnly(product: ProductCommon) {
+    fun handleAndroidPurchase(product: ProductCommon) {
         scope.launch {
-            val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
-            if (!isAvailable) {
-                println("Alternative billing not available")
-                return@launch
-            }
+            when (billingProgram) {
+                BillingProgramAndroid.ExternalOffer -> {
+                    val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+                    if (!isAvailable) return@launch
 
-            val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
-            if (!userAccepted) return@launch
+                    val userAccepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+                    if (!userAccepted) return@launch
 
-            // Process payment...
-            val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
-            println("Token created: ${token?.substring(0, 20)}...")
-        }
-    }
-
-    fun handleAndroidUserChoice(product: ProductCommon) {
-        scope.launch {
-            try {
-                kmpIapInstance.requestPurchase {
-                    google {  // Recommended (v1.3.15+)
-                        skus = listOf(product.id)
+                    val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+                    println("Token: $token")
+                }
+                BillingProgramAndroid.UserChoiceBilling -> {
+                    kmpIapInstance.requestPurchase {
+                        google { skus = listOf(product.id) }
                     }
                 }
-            } catch (e: Exception) {
-                println("Error: ${e.message}")
+                BillingProgramAndroid.ExternalPayments -> {
+                    kmpIapInstance.requestPurchase {
+                        google {
+                            skus = listOf(product.id)
+                            developerBillingOption = DeveloperBillingOptionParamsAndroid(
+                                billingProgram = BillingProgramAndroid.ExternalPayments,
+                                launchMode = DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+                                linkUri = externalUrl
+                            )
+                        }
+                    }
+                }
+                else -> println("Select a billing program")
             }
         }
     }
@@ -312,17 +420,7 @@ fun AlternativeBillingScreen() {
     fun handlePurchase(product: ProductCommon) {
         when (getPlatformName()) {
             "iOS" -> handleIOSPurchase(product)
-            "Android" -> {
-                when (billingMode) {
-                    AlternativeBillingModeAndroid.AlternativeOnly -> {
-                        handleAndroidAlternativeOnly(product)
-                    }
-                    AlternativeBillingModeAndroid.UserChoice -> {
-                        handleAndroidUserChoice(product)
-                    }
-                    else -> println("Alternative billing not configured")
-                }
-            }
+            "Android" -> handleAndroidPurchase(product)
         }
     }
 
@@ -340,40 +438,83 @@ fun AlternativeBillingScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Android: Mode selector
+        // Android: Billing Program selector dropdown (v1.3.0+)
         if (getPlatformName() == "Android") {
-            Text("Billing Mode:", style = MaterialTheme.typography.titleMedium)
-            Row {
-                Button(
-                    onClick = {
-                        billingMode = AlternativeBillingModeAndroid.AlternativeOnly
-                    }
+            Text("Billing Program:", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showProgramSelector = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Alternative Only")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        billingMode = AlternativeBillingModeAndroid.UserChoice
-                    }
-                ) {
-                    Text("User Choice")
+                    Text(
+                        when (billingProgram) {
+                            BillingProgramAndroid.ExternalOffer -> "External Offer (8.2.0+)"
+                            BillingProgramAndroid.UserChoiceBilling -> "User Choice Billing (7.0+)"
+                            BillingProgramAndroid.ExternalPayments -> "External Payments (8.3.0+, Japan)"
+                            else -> "Select Program"
+                        }
+                    )
+                    Text("▼", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Text("Current: $billingMode", style = MaterialTheme.typography.bodySmall)
+
+            // Program Selector Dialog
+            if (showProgramSelector) {
+                AlertDialog(
+                    onDismissRequest = { showProgramSelector = false },
+                    title = { Text("Select Billing Program") },
+                    text = {
+                        Column {
+                            listOf(
+                                Triple(BillingProgramAndroid.ExternalOffer, "External Offer (8.2.0+)", "Only your payment system. Manual 3-step flow."),
+                                Triple(BillingProgramAndroid.UserChoiceBilling, "User Choice Billing (7.0+)", "Users choose Google Play or your system."),
+                                Triple(BillingProgramAndroid.ExternalPayments, "External Payments (8.3.0+, Japan)", "Side-by-side choice. Japan only.")
+                            ).forEach { (program, title, desc) ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .clickable {
+                                            billingProgram = program
+                                            showProgramSelector = false
+                                        }
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(title, style = MaterialTheme.typography.titleSmall)
+                                        Text(desc, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showProgramSelector = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // iOS: External URL input
-        if (getPlatformName() == "iOS") {
+        // External URL input (iOS and Android ExternalPayments)
+        val needsExternalUrl = getPlatformName() == "iOS" ||
+            (getPlatformName() == "Android" && billingProgram == BillingProgramAndroid.ExternalPayments)
+
+        if (needsExternalUrl) {
             OutlinedTextField(
                 value = externalUrl,
                 onValueChange = { externalUrl = it },
                 label = { Text("External URL") },
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -405,7 +546,15 @@ fun AlternativeBillingScreen() {
                         onClick = { handlePurchase(product) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Purchase")
+                        Text(
+                            when {
+                                getPlatformName() == "iOS" -> "Buy (External URL)"
+                                billingProgram == BillingProgramAndroid.ExternalOffer -> "Buy (External Offer)"
+                                billingProgram == BillingProgramAndroid.UserChoiceBilling -> "Buy (User Choice)"
+                                billingProgram == BillingProgramAndroid.ExternalPayments -> "Buy (External Payments)"
+                                else -> "Purchase"
+                            }
+                        )
                     }
                 }
             }
@@ -431,18 +580,19 @@ actual fun getPlatformName(): String = "iOS"
 
 ## Configuration
 
-### Initialize with Alternative Billing Mode
+### Initialize with Billing Program (v1.3.0+)
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
+import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 
-// Android with alternative billing
+// Android with billing program
 val config = InitConnectionConfig(
-    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.AlternativeOnly
-    // Or: AlternativeBillingModeAndroid.UserChoice
-    // Or: AlternativeBillingModeAndroid.None (default)
+    enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    // Or: BillingProgramAndroid.UserChoiceBilling (7.0+)
+    // Or: BillingProgramAndroid.ExternalPayments (8.3.0+, Japan only)
+    // Or: BillingProgramAndroid.Unspecified (default)
 )
 
 val connected = kmpIapInstance.initConnection(config)
@@ -547,10 +697,10 @@ LaunchedEffect(Unit) {
 
 ### Android
 
-- Configure alternative billing in Google Play Console
-- Test both modes separately (Alternative Only & User Choice)
-- Verify token generation
-- Test user choice dialog behavior
+- Configure billing program in Google Play Console
+- Test each billing program separately (ExternalOffer, UserChoiceBilling, ExternalPayments)
+- Verify token generation and reporting
+- Test dialog behavior for each program type
 
 ## Best Practices
 

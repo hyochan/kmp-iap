@@ -141,7 +141,7 @@ object IAPManager {
     
     suspend fun purchaseProduct(productId: String) {
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
             }
@@ -153,7 +153,7 @@ object IAPManager {
 
     suspend fun purchaseSubscription(productId: String) {
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 sku = productId
                 quantity = 1
             }

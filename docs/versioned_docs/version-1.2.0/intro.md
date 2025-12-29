@@ -93,7 +93,7 @@ val products = kmpIapInstance.fetchProducts {
 
 // Request purchase using DSL
 val purchase = kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "product_id"
         quantity = 1
     }
@@ -129,7 +129,7 @@ val products = kmpIAP.fetchProducts {
 
 // Request purchase using DSL
 val purchase = kmpIAP.requestPurchase {
-    apple {
+    ios {
         sku = "product_id"
         quantity = 1
     }

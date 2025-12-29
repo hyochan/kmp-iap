@@ -162,7 +162,7 @@ import io.github.hyochan.kmpiap.*
 
 // Cross-platform purchase using DSL
 kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "premium_upgrade"
         quantity = 1
     }
@@ -173,7 +173,7 @@ kmpIapInstance.requestPurchase {
 
 // iOS-only purchase with Advanced Commerce Data (v1.3.7+)
 kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "coins_100"
         quantity = 5
         appAccountToken = "token_456"
@@ -201,7 +201,7 @@ suspend fun requestPurchase(request: RequestPurchaseProps): Purchase
 **Example**:
 ```kotlin
 kmpIapInstance.requestPurchase {
-    apple {
+    ios {
         sku = "premium_upgrade"
         quantity = 1
     }
@@ -676,28 +676,26 @@ if (token != null) {
 
 #### Alternative Billing Configuration
 
-Configure billing program when initializing the connection (v1.3.0+):
+Configure alternative billing mode when initializing the connection:
 
 ```kotlin
 import io.github.hyochan.kmpiap.kmpIapInstance
-import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
+import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
 
-// Initialize with billing program (v1.3.0+)
+// Initialize with alternative billing mode
 val config = InitConnectionConfig(
-    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-    // Or: BillingProgramAndroid.ExternalOffer
-    // Or: BillingProgramAndroid.ExternalPayments (Japan only, 8.3.0+)
+    alternativeBillingModeAndroid = AlternativeBillingModeAndroid.UserChoice
+    // Or: AlternativeBillingModeAndroid.AlternativeOnly
 )
 
 val connected = kmpIapInstance.initConnection(config)
 ```
 
-**Billing Programs (v1.3.0+)**:
-- `UserChoiceBilling` - Users choose between Google Play billing or your payment system (7.0+)
-- `ExternalOffer` - Only your payment system is available (8.2.0+)
-- `ExternalPayments` - Side-by-side choice in purchase dialog, Japan only (8.3.0+)
-- `Unspecified` - Default, no billing program
+**Billing Modes**:
+- `UserChoice` - Users choose between Google Play billing or your payment system
+- `AlternativeOnly` - Only your payment system is available
+- `None` - Default, no alternative billing
 
 ---
 

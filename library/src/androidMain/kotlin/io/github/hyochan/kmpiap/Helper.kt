@@ -335,6 +335,7 @@ internal fun BillingProgramAndroid.toOpenIapProgram(): OpenIapBillingProgram = w
     BillingProgramAndroid.ExternalContentLink -> OpenIapBillingProgram.ExternalContentLink
     BillingProgramAndroid.ExternalOffer -> OpenIapBillingProgram.ExternalOffer
     BillingProgramAndroid.ExternalPayments -> OpenIapBillingProgram.ExternalPayments
+    BillingProgramAndroid.UserChoiceBilling -> OpenIapBillingProgram.UserChoiceBilling
 }
 
 /**

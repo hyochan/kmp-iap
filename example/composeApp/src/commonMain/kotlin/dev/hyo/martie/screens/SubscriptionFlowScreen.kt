@@ -103,7 +103,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 currentPurchase = purchase
 
                 when (purchase.purchaseState) {
-                    PurchaseState.Purchased, PurchaseState.Restored -> {
+                    PurchaseState.Purchased -> {
                         isProcessing = false
 
                         val dateText = purchase.transactionDate?.let {
@@ -201,15 +201,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                             }
                         }
                     }
-                    PurchaseState.Pending, PurchaseState.Deferred -> {
+                    PurchaseState.Pending -> {
                         isProcessing = true
                         purchaseResult = "⏳ Subscription is pending user confirmation..."
                     }
-                    PurchaseState.Failed -> {
-                        isProcessing = false
-                        purchaseResult = "❌ Subscription failed"
-                    }
-                    else -> {
+                    PurchaseState.Unknown -> {
                         isProcessing = false
                         purchaseResult = null
                     }

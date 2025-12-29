@@ -194,7 +194,7 @@ The `requestPurchaseOnPromotedProductIOS()` / `buyPromotedProductIOS()` API is n
 kmpIapInstance.promotedProductListener.collect { productId ->
     productId?.let { sku ->
         kmpIapInstance.requestPurchase {
-            apple {
+            ios {
                 this.sku = sku
             }
         }
@@ -221,7 +221,7 @@ if (getCurrentPlatform() == IapPlatform.IOS) {
                 // Purchase directly using requestPurchase (recommended)
                 if (userSettings.autoPromotedPurchase) {
                     kmpIapInstance.requestPurchase {
-                        apple {
+                        ios {
                             this.sku = sku
                         }
                     }

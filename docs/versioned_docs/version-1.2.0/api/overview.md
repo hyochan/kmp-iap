@@ -191,7 +191,7 @@ data class Subscription(
     override val localizedPrice: String,
     override val title: String,
     override val description: String,
-    val subscriptionOfferDetailsAndroid: List<SubscriptionOfferDetails>?
+    val subscriptionOfferDetails: List<SubscriptionOfferDetails>?
 ) : BaseProduct
 ```
 
