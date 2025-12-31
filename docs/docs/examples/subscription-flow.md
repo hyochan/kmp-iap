@@ -4,6 +4,7 @@ title: Subscription Flow
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Subscription Flow
 
@@ -90,7 +91,7 @@ For subscription apps, server-side verification is critical for managing access 
 
 ### Setup
 
-1. Get your API key from [iapkit.com](https://iapkit.com)
+1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
 2. Configure environment variables (see [Purchase Flow](./purchase-flow.md#setup) for details)
 
 ### Subscription Verification
@@ -192,10 +193,160 @@ suspend fun validateActiveSubscriptions() {
 
 | State | Description | Action |
 |-------|-------------|--------|
-| `Entitled` | Active subscription | Grant access |
-| `Expired` | Subscription ended | Revoke access |
-| `Canceled` | User canceled | Access until period ends |
-| `Inauthentic` | Fraudulent | Revoke immediately |
+| `entitled` | User has an active, valid subscription | Grant access |
+| `expired` | Subscription has expired and not renewed | Remove access |
+| `canceled` | User cancelled but may still have access until period ends | Check expiration date |
+| `pending` | Payment is pending (e.g., awaiting parental approval) | Show pending UI |
+| `pending-acknowledgment` | Purchase needs acknowledgment (Android) | Call `finishTransaction()` |
+| `inauthentic` | Purchase could not be verified / fraudulent | Deny access |
+
+## Checking Subscription Status on App Launch
+
+:::warning Android Renewal Detection
+On Android, `purchaseUpdatedListener` does **not** fire for renewals that occurred while the app was closed. Always verify subscription status on app launch.
+:::
+
+```kotlin
+class SubscriptionViewModel : ViewModel() {
+    private val subscriptionIds = listOf("premium_monthly", "premium_yearly")
+
+    init {
+        viewModelScope.launch {
+            kmpIapInstance.initConnection()
+            checkSubscriptionStatusOnLaunch()
+        }
+    }
+
+    private suspend fun checkSubscriptionStatusOnLaunch() {
+        try {
+            val purchases = kmpIapInstance.getAvailablePurchases()
+
+            val subscriptionPurchase = purchases.find {
+                subscriptionIds.contains(it.productId)
+            }
+
+            if (subscriptionPurchase == null) {
+                // No subscription found
+                updateUIForExpiredSubscription()
+                return
+            }
+
+            // Verify with IAPKit for authoritative status
+            val result = kmpIapInstance.verifyPurchaseWithProvider(
+                VerifyPurchaseWithProviderProps(
+                    provider = PurchaseVerificationProvider.Iapkit,
+                    iapkit = RequestVerifyPurchaseWithIapkitProps(
+                        apiKey = AppConfig.iapkitApiKey,
+                        apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                            jws = subscriptionPurchase.purchaseToken
+                        ),
+                        google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                            purchaseToken = subscriptionPurchase.purchaseToken
+                        )
+                    )
+                )
+            )
+
+            when (result.iapkit?.state) {
+                IapkitPurchaseState.Entitled -> {
+                    grantSubscriptionAccess(subscriptionPurchase.productId)
+                }
+                IapkitPurchaseState.Expired -> {
+                    revokeSubscriptionAccess(subscriptionPurchase.productId)
+                    showRenewalPrompt()
+                }
+                IapkitPurchaseState.Canceled -> {
+                    // Still has access until period ends
+                    showCancellationNotice()
+                }
+                else -> {
+                    handleUnknownState(result.iapkit?.state)
+                }
+            }
+        } catch (e: Exception) {
+            // Grant temporary access on error to avoid penalizing users
+            grantTemporaryAccess()
+        }
+    }
+}
+```
+
+## Complete Verification Flow
+
+Here's a complete example of handling subscription verification within `purchaseUpdatedListener`:
+
+```kotlin
+private suspend fun onPurchaseSuccess(purchase: Purchase) {
+    val purchaseToken = purchase.purchaseToken
+    if (purchaseToken.isNullOrEmpty()) {
+        showError("No purchase token available")
+        return
+    }
+
+    try {
+        val result = kmpIapInstance.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey = AppConfig.iapkitApiKey,
+                    apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = purchaseToken),
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = purchaseToken)
+                )
+            )
+        )
+
+        when (result.iapkit?.state) {
+            IapkitPurchaseState.Entitled -> {
+                // 1. Grant access
+                grantSubscriptionAccess(purchase.productId)
+
+                // 2. Finish the transaction
+                kmpIapInstance.finishTransaction(
+                    purchase = purchase.toPurchaseInput(),
+                    isConsumable = false
+                )
+
+                // 3. Show success message
+                showSuccess("Subscription activated!")
+            }
+
+            IapkitPurchaseState.PendingAcknowledgment -> {
+                // Android: Transaction needs acknowledgment
+                kmpIapInstance.finishTransaction(
+                    purchase = purchase.toPurchaseInput(),
+                    isConsumable = false
+                )
+                grantSubscriptionAccess(purchase.productId)
+            }
+
+            IapkitPurchaseState.Pending -> {
+                // Purchase still processing (e.g., pending payment)
+                showPendingUI(purchase.productId)
+            }
+
+            IapkitPurchaseState.Expired,
+            IapkitPurchaseState.Canceled -> {
+                revokeSubscriptionAccess(purchase.productId)
+            }
+
+            IapkitPurchaseState.Inauthentic -> {
+                revokeSubscriptionAccess(purchase.productId)
+                logSecurityEvent("Inauthentic purchase detected", purchase)
+            }
+
+            else -> {
+                showError("Unexpected state: ${result.iapkit?.state}")
+            }
+        }
+    } catch (e: Exception) {
+        // Handle verification errors gracefully
+        // Consider granting temporary access rather than blocking the user
+        showError("Verification error: ${e.message}")
+    }
+}
+```
+
+> For more details on subscription validation patterns, see [Subscription Validation](../guides/subscription-validation.md).
 
 ## Android basePlanId Limitation {#baseplanid-limitation}
 
@@ -247,7 +398,7 @@ The server response includes `offerDetails.basePlanId` in the `lineItems` array,
 When fetching products, each subscription offer includes: `basePlanId`, `offerId?`, `offerTags`, `offerToken`, and `pricingPhases`. See [ProductSubscriptionAndroidOfferDetails](https://www.openiap.dev/docs/types#productsubscriptionandroidofferdetails) for more details.
 :::
 
-> See [IAPKit documentation](https://iapkit.com) for setup instructions and API details.
+> See <IapKitLink>IAPKit documentation</IapKitLink> for setup instructions and API details.
 
 ## Next Steps
 

@@ -4,6 +4,7 @@ title: Subscription Flow
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Subscription Flow
 
@@ -90,7 +91,7 @@ For subscription apps, server-side verification is critical for managing access 
 
 ### Setup
 
-1. Get your API key from [iapkit.com](https://iapkit.com)
+1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
 2. Configure environment variables (see [Purchase Flow](./purchase-flow.md#setup) for details)
 
 ### Subscription Verification
@@ -247,7 +248,7 @@ The server response includes `offerDetails.basePlanId` in the `lineItems` array,
 When fetching products, each subscription offer includes: `basePlanId`, `offerId?`, `offerTags`, `offerToken`, and `pricingPhases`. See [ProductSubscriptionAndroidOfferDetails](https://www.openiap.dev/docs/types#productsubscriptionandroidofferdetails) for more details.
 :::
 
-> See [IAPKit documentation](https://iapkit.com) for setup instructions and API details.
+> See <IapKitLink>IAPKit documentation</IapKitLink> for setup instructions and API details.
 
 ## Next Steps
 

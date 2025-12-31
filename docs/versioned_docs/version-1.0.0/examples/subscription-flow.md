@@ -4,6 +4,7 @@ title: Subscription Flow
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Subscription Flow
 
@@ -90,7 +91,7 @@ For subscription apps, server-side verification is critical for managing access 
 
 ### Setup
 
-1. Get your API key from [iapkit.com](https://iapkit.com)
+1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
 2. Configure environment variables (see [Purchase Flow](./purchase-flow.md#setup) for details)
 
 ### Subscription Verification

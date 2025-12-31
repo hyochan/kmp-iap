@@ -4,6 +4,7 @@ sidebar_position: 3
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Core Methods
 
@@ -1064,7 +1065,7 @@ The `accessToken` for Google and Horizon verification must be obtained from your
 :::
 
 :::tip Recommendation
-For production apps, use [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) with [IAPKit](https://iapkit.com) for secure server-side verification without managing your own backend.
+For production apps, use [`verifyPurchaseWithProvider()`](#verifypurchasewithprovider) with <IapKitLink>IAPKit</IapKitLink> for secure server-side verification without managing your own backend.
 :::
 
 ---
@@ -1172,7 +1173,7 @@ IAPKIT_API_KEY=your_iapkit_api_key_here
 Never hardcode API keys in your source code.
 :::
 
-**Note**: You need an IAPKit API key to use this feature. Visit [iapkit.com](https://iapkit.com) to get started.
+**Note**: You need an IAPKit API key to use this feature. Visit <IapKitLink>iapkit.com</IapKitLink> to get started.
 
 :::warning Error Handling Best Practice
 **Verification error ≠ Invalid purchase**. When verification fails due to network issues or server errors, don't penalize the customer. Use a "fail-open" approach.

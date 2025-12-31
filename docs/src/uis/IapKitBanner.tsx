@@ -1,5 +1,6 @@
 import React from 'react';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import {IAPKIT_URL, TRACKING_URL} from '../constants';
 
 interface IapKitBannerProps {
   className?: string;
@@ -14,7 +15,7 @@ export default function IapKitBanner({
 
   const handleClick = async () => {
     try {
-      await fetch('https://www.hyo.dev/api/ad-banner/cmjf0l20n0002249hjrwmgob3', {
+      await fetch(TRACKING_URL, {
         method: 'POST',
         mode: 'no-cors',
       });
@@ -27,7 +28,7 @@ export default function IapKitBanner({
   return (
     <div className={className} style={style}>
       <a
-        href="https://iapkit.com"
+        href={IAPKIT_URL}
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}

@@ -55,7 +55,7 @@ const FeatureList: FeatureItem[] = [
     emoji: '🛡️',
     description: (
       <>
-        Built with the latest StoreKit 2 and Google Play Billing v7 APIs. 
+        Built with the latest StoreKit 2 and Google Play Billing v8 APIs.
         Battle-tested by thousands of apps in production.
       </>
     ),

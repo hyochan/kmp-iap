@@ -12,7 +12,7 @@ import Logo from '@site/static/img/logo.png';
 <IapKitBanner />
 
 :::info Version
-This documentation is for **kmp-iap v1.2.0** which includes Google Play Billing 8.2.0 features: Billing Programs API and one-time product discounts. Native code is powered by [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
+This documentation is for **kmp-iap v1.3.0** which includes Google Play Billing 8.3.0 features and External Payments support. Native code is powered by [openiap-google](https://github.com/hyodotdev/openiap-google) and [openiap-apple](https://github.com/hyodotdev/openiap-apple) modules.
 :::
 
 A comprehensive Kotlin Multiplatform library for in-app purchases on iOS and Android that **conforms to the [Open IAP specification](https://openiap.dev)**.
@@ -60,7 +60,7 @@ We will keep working on it as time goes by just like we did in **flutter_inapp_p
 
 ## 🔄 Version Information
 
-- **Current Version**: 1.2.0
+- **Current Version**: 1.3.0
 - **Kotlin Compatibility**: Kotlin 2.1.10+
 - **iOS Requirements**: iOS 15.0+ (via [openiap-apple](https://github.com/hyodotdev/openiap-apple))
 - **Android Requirements**: API level 24+ (via [openiap-google](https://github.com/hyodotdev/openiap-google))
@@ -148,28 +148,28 @@ kmpIAP.finishTransaction(
 ## 🚀 Start Building Today
 
 <div className="next-steps-grid-intro">
-  <a href="/docs/getting-started/installation" className="next-step-card-intro gradient-purple">
+  <a href="getting-started/installation" className="next-step-card-intro gradient-purple">
     <div className="next-step-icon-intro">🚀</div>
     <h3 className="next-step-title-intro">Quick Start</h3>
     <p className="next-step-desc-intro">Get up and running with kmp-iap in minutes</p>
     <span className="next-step-arrow-intro">→</span>
   </a>
-  
-  <a href="/docs/guides/purchases" className="next-step-card-intro gradient-pink">
+
+  <a href="guides/purchases" className="next-step-card-intro gradient-pink">
     <div className="next-step-icon-intro">📚</div>
     <h3 className="next-step-title-intro">Guides</h3>
     <p className="next-step-desc-intro">Step-by-step tutorials and best practices</p>
     <span className="next-step-arrow-intro">→</span>
   </a>
-  
-  <a href="/docs/api" className="next-step-card-intro gradient-blue">
+
+  <a href="api" className="next-step-card-intro gradient-blue">
     <div className="next-step-icon-intro">⚡</div>
     <h3 className="next-step-title-intro">API Reference</h3>
     <p className="next-step-desc-intro">Complete API documentation with examples</p>
     <span className="next-step-arrow-intro">→</span>
   </a>
-  
-  <a href="/docs/examples/purchase-flow" className="next-step-card-intro gradient-green">
+
+  <a href="examples/purchase-flow" className="next-step-card-intro gradient-green">
     <div className="next-step-icon-intro">💻</div>
     <h3 className="next-step-title-intro">Examples</h3>
     <p className="next-step-desc-intro">Production-ready code samples</p>
@@ -328,4 +328,4 @@ This project is maintained by [hyochan](https://github.com/hyochan).
 
 ---
 
-Ready to implement in-app purchases in your Kotlin Multiplatform app? Let's [get started](/docs/getting-started/installation)! 🚀
+Ready to implement in-app purchases in your Kotlin Multiplatform app? Let's [get started](getting-started/installation)! 🚀

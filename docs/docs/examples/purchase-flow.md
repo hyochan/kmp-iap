@@ -5,6 +5,7 @@ sidebar_position: 1
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Purchase Flow
 
@@ -86,11 +87,11 @@ kmpIapInstance.endConnection()
 
 ## IAPKit Server Verification
 
-For production apps, always verify purchases server-side. [IAPKit](https://iapkit.com) provides a simple unified API for both iOS and Android verification.
+For production apps, always verify purchases server-side. <IapKitLink>IAPKit</IapKitLink> provides a simple unified API for both iOS and Android verification.
 
 ### Setup
 
-1. Get your API key from [iapkit.com](https://iapkit.com)
+1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
 2. Configure environment variables:
 
 **Android** (`.env` or `local.properties`):
@@ -177,17 +178,17 @@ val store = result.iapkit?.store         // IapStore.Apple or IapStore.Google
 - Sandbox/Production environment detection
 - No backend infrastructure needed
 
-For more details, visit the [IAPKit Documentation](https://iapkit.com/docs).
+For more details, visit the <IapKitLink href="https://iapkit.com/docs">IAPKit Documentation</IapKitLink>.
 
 ## IAPKit Purchase States
 
 | State | Description |
 |-------|-------------|
-| `Entitled` | Valid access |
-| `Expired` | Subscription expired |
-| `Canceled` | Purchase canceled |
-| `Consumed` | Consumable used |
-| `Inauthentic` | Fraudulent |
+| `entitled` | Valid access |
+| `expired` | Subscription expired |
+| `canceled` | Purchase canceled |
+| `consumed` | Consumable used |
+| `inauthentic` | Fraudulent |
 
 ## Next Steps
 

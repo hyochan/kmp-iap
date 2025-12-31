@@ -4,6 +4,7 @@ title: FAQ
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Frequently Asked Questions
 
@@ -125,6 +126,55 @@ scope.launch {
 ```
 
 Implement server-side receipt validation for accurate expiration checking.
+
+## Subscription Renewals
+
+### Q: Are subscription renewals automatically detected when the app launches?
+
+**A:** It depends on the platform:
+
+| Platform | Behavior |
+|----------|----------|
+| **iOS** | Yes - StoreKit 2 automatically delivers renewal transactions on app launch |
+| **Android** | No - `purchaseUpdatedListener` does **not** fire for renewals that occurred while the app was closed |
+
+**Recommended Solution:** Use `getAvailablePurchases()` combined with <IapKitLink>IAPKit</IapKitLink>'s `verifyPurchaseWithProvider()` to get authoritative subscription status on app launch:
+
+```kotlin
+suspend fun checkSubscriptionOnLaunch() {
+    val purchases = kmpIapInstance.getAvailablePurchases()
+
+    purchases.forEach { purchase ->
+        val result = kmpIapInstance.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey = AppConfig.iapkitApiKey,
+                    apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = purchase.purchaseToken),
+                    google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = purchase.purchaseToken)
+                )
+            )
+        )
+
+        when (result.iapkit?.state) {
+            IapkitPurchaseState.Entitled -> grantAccess(purchase.productId)
+            IapkitPurchaseState.Expired -> revokeAccess(purchase.productId)
+            else -> { /* Handle other states */ }
+        }
+    }
+}
+```
+
+> See [Subscription Validation](./subscription-validation.md) for complete renewal detection implementation.
+
+### Q: Why doesn't my Android app detect subscription renewals?
+
+**A:** This is a limitation of Google Play Billing Library. The `purchaseUpdatedListener` only fires for purchases and renewals that occur while the app is actively running.
+
+**Solution:** Always verify subscription status using `getAvailablePurchases()` + <IapKitLink>IAPKit</IapKitLink> verification on:
+- App launch
+- App returning from background
+- Periodically (e.g., every 24 hours for long sessions)
 
 ## Purchases & Transactions
 
@@ -387,7 +437,7 @@ actual class IAPManager {
 
 **A:** Google Play Billing Library does not include the `basePlanId` in the `Purchase` object. When a purchase is completed, you only receive the `productId` but not which specific base plan was purchased.
 
-**Solution:** Use server-side verification with [IAPKit](https://iapkit.com) to get the complete subscription details including `basePlanId`.
+**Solution:** Use server-side verification with <IapKitLink>IAPKit</IapKitLink> to get the complete subscription details including `basePlanId`.
 
 > See [Android basePlanId Limitation](../examples/subscription-flow.md#baseplanid-limitation) for full details and code examples.
 

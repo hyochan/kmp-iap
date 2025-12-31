@@ -4,6 +4,7 @@ title: FAQ
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Frequently Asked Questions
 
@@ -387,7 +388,7 @@ actual class IAPManager {
 
 **A:** Google Play Billing Library does not include the `basePlanId` in the `Purchase` object. When a purchase is completed, you only receive the `productId` but not which specific base plan was purchased.
 
-**Solution:** Use server-side verification with [IAPKit](https://iapkit.com) to get the complete subscription details including `basePlanId`.
+**Solution:** Use server-side verification with <IapKitLink>IAPKit</IapKitLink> to get the complete subscription details including `basePlanId`.
 
 > See [Android basePlanId Limitation](../examples/subscription-flow.md#baseplanid-limitation) for full details and code examples.
 

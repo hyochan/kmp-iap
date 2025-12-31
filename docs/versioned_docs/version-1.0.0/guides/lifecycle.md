@@ -4,6 +4,7 @@ title: Lifecycle
 ---
 
 import IapKitBanner from '@site/src/uis/IapKitBanner';
+import IapKitLink from '@site/src/uis/IapKitLink';
 
 # Lifecycle
 
@@ -404,7 +405,7 @@ class SecurePurchaseValidator(
 ```
 
 :::tip Using IAPKit for Verification
-Instead of implementing your own backend, you can use [IAPKit](https://iapkit.com) with `verifyPurchaseWithProvider()` for hassle-free server-side verification.
+Instead of implementing your own backend, you can use <IapKitLink>IAPKit</IapKitLink> with `verifyPurchaseWithProvider()` for hassle-free server-side verification.
 :::
 
 ### Purchase State Management
