@@ -20,6 +20,16 @@ Visit the documentation site for installation guides, API reference, and example
 
 ### **[hyochan.github.io/kmp-iap](https://hyochan.github.io/kmp-iap)**
 
+## Using with AI Assistants
+
+kmp-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
+
+**[📖 AI Assistants Guide →](https://hyochan.github.io/kmp-iap/docs/guides/ai-assistants)**
+
+Quick links:
+- [llms.txt](https://hyochan.github.io/kmp-iap/llms.txt) - Quick reference (~300 lines)
+- [llms-full.txt](https://hyochan.github.io/kmp-iap/llms-full.txt) - Full API reference (~1000 lines)
+
 ## 📦 Installation
 
 ```kotlin

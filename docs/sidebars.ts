@@ -49,6 +49,7 @@ const sidebars: SidebarsConfig = {
         'examples/alternative-billing',
       ],
     },
+    'guides/ai-assistants',
   ],
 };
 
