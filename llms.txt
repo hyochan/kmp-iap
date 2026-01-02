@@ -1,0 +1,346 @@
+# kmp-iap - Quick Reference for AI Assistants
+
+> Kotlin Multiplatform In-App Purchase Library for Android & iOS
+> OpenIAP Specification Compliant: https://openiap.dev
+> Version: 1.3.0
+
+## Overview
+
+kmp-iap is a Kotlin Multiplatform library for in-app purchases supporting:
+- Android: Google Play Billing Library 8.x
+- iOS: StoreKit 2 (iOS 15+)
+
+## Installation
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("io.github.hyochan:kmp-iap:1.3.0")
+}
+```
+
+## Quick Start
+
+### Option 1: Global Instance
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.*
+
+// Initialize connection
+kmpIapInstance.initConnection()
+
+// Fetch products
+val products = kmpIapInstance.fetchProducts {
+    skus = listOf("product_id")
+    type = ProductQueryType.InApp
+}
+
+// Request purchase
+val purchase = kmpIapInstance.requestPurchase {
+    ios { sku = "product_id" }
+    android { skus = listOf("product_id") }
+}
+
+// Finish transaction after validation
+kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)
+```
+
+### Option 2: Custom Instance (Recommended for Testing)
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+
+val kmpIAP = KmpIAP()
+kmpIAP.initConnection()
+```
+
+## Core API Reference
+
+### Connection Management
+
+```kotlin
+// Initialize store connection
+suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
+
+// End connection
+suspend fun endConnection(): Boolean
+
+// Check if payments available
+suspend fun canMakePayments(): Boolean
+```
+
+### Product Loading
+
+```kotlin
+// Fetch products with DSL
+suspend fun fetchProducts(builder: ProductsRequestBuilder.() -> Unit): FetchProductsResult
+
+// DSL Example
+val products = kmpIapInstance.fetchProducts {
+    skus = listOf("coins_100", "premium_monthly")
+    type = ProductQueryType.All  // InApp, Subs, or All
+}
+```
+
+### Purchase Operations
+
+```kotlin
+// Request purchase with platform-specific options
+suspend fun requestPurchase(builder: PurchaseRequestBuilder.() -> Unit): RequestPurchaseResult
+
+// Cross-platform purchase
+kmpIapInstance.requestPurchase {
+    ios {
+        sku = "premium"
+        quantity = 1
+        appAccountToken = "user_token"  // Optional
+    }
+    android {
+        skus = listOf("premium")
+        obfuscatedAccountIdAndroid = "user_id"  // Optional
+    }
+}
+
+// Finish transaction
+suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean? = null): Boolean
+
+// Restore purchases
+suspend fun restorePurchases(): Unit
+
+// Get available purchases
+suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+```
+
+### Subscription Management
+
+```kotlin
+// Get active subscriptions
+suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription>
+
+// Check if user has active subscriptions
+suspend fun hasActiveSubscriptions(subscriptionIds: List<String>? = null): Boolean
+
+// Deep link to subscription management
+suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null): Unit
+```
+
+### Purchase Verification
+
+```kotlin
+// Verify with IAPKit provider
+suspend fun verifyPurchaseWithProvider(
+    options: VerifyPurchaseWithProviderProps
+): VerifyPurchaseWithProviderResult
+
+// Example
+val result = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-api-key",
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(jws = purchase.jwsRepresentationIOS),
+            google = null
+        )
+    )
+)
+```
+
+## Key Types
+
+### Product Types
+
+```kotlin
+sealed interface Product : ProductCommon
+
+data class ProductIOS(
+    val id: String,
+    val title: String,
+    val description: String,
+    val displayPrice: String,
+    val currency: String,
+    val price: Double?,
+    val type: ProductType,
+    val isFamilyShareableIOS: Boolean,
+    val subscriptionInfoIOS: SubscriptionInfoIOS?
+) : Product
+
+data class ProductAndroid(
+    val id: String,
+    val title: String,
+    val description: String,
+    val displayPrice: String,
+    val currency: String,
+    val price: Double?,
+    val type: ProductType,
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>?,
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?
+) : Product
+```
+
+### Purchase Types
+
+```kotlin
+sealed interface Purchase : PurchaseCommon
+
+data class PurchaseIOS(
+    val id: String,
+    val productId: String,
+    val transactionDate: Double,
+    val purchaseToken: String?,
+    val purchaseState: PurchaseState,
+    val jwsRepresentationIOS: String?,
+    val originalTransactionIdentifierIOS: String?,
+    val expirationDateIOS: Double?
+) : Purchase
+
+data class PurchaseAndroid(
+    val id: String,
+    val productId: String,
+    val transactionDate: Double,
+    val purchaseToken: String?,
+    val purchaseState: PurchaseState,
+    val acknowledgedAndroid: Boolean?,
+    val autoRenewingAndroid: Boolean?,
+    val orderIdAndroid: String?
+) : Purchase
+```
+
+### Enums
+
+```kotlin
+enum class ProductType { InApp, Subs }
+enum class ProductQueryType { InApp, Subs, All }
+enum class PurchaseState { Pending, Purchased, Unknown }
+enum class Store { NONE, PLAY_STORE, AMAZON, APP_STORE }
+```
+
+## Event Listeners
+
+```kotlin
+// Listen for purchase updates
+scope.launch {
+    kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
+        // Handle successful purchase
+        validateAndFinish(purchase)
+    }
+}
+
+// Listen for errors
+scope.launch {
+    kmpIapInstance.purchaseErrorListener.collectLatest { error ->
+        when (error.code) {
+            ErrorCode.E_USER_CANCELLED.name -> { /* User cancelled */ }
+            else -> { /* Handle error */ }
+        }
+    }
+}
+
+// Listen for promoted products (iOS)
+scope.launch {
+    kmpIapInstance.promotedProductListener.collectLatest { productId ->
+        // Handle App Store promoted product
+    }
+}
+```
+
+## Common Patterns
+
+### Complete Purchase Flow
+
+```kotlin
+// 1. Initialize
+kmpIapInstance.initConnection()
+
+// 2. Fetch products
+val products = kmpIapInstance.fetchProducts {
+    skus = listOf("premium_monthly")
+    type = ProductQueryType.Subs
+}
+
+// 3. Listen for purchases
+scope.launch {
+    kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
+        // 4. Validate on server
+        val isValid = validateOnServer(purchase)
+
+        if (isValid) {
+            // 5. Grant entitlement
+            grantAccess(purchase.productId)
+
+            // 6. Finish transaction
+            kmpIapInstance.finishTransaction(
+                purchase = purchase.toPurchaseInput(),
+                isConsumable = false  // Subscription
+            )
+        }
+    }
+}
+
+// 7. Request purchase
+kmpIapInstance.requestPurchase {
+    ios { sku = "premium_monthly" }
+    android { skus = listOf("premium_monthly") }
+}
+```
+
+### Check Active Subscriptions
+
+```kotlin
+val activeSubscriptions = kmpIapInstance.getActiveSubscriptions(
+    listOf("premium_monthly", "premium_yearly")
+)
+
+activeSubscriptions.forEach { sub ->
+    println("Product: ${sub.productId}")
+    println("Active: ${sub.isActive}")
+    println("Expires soon: ${sub.willExpireSoon}")
+}
+```
+
+## Error Handling
+
+```kotlin
+try {
+    val purchase = kmpIapInstance.requestPurchase { /* ... */ }
+} catch (e: PurchaseException) {
+    when (e.error.code) {
+        ErrorCode.E_USER_CANCELLED -> { /* Silent */ }
+        ErrorCode.E_NETWORK_ERROR -> { /* Retry */ }
+        ErrorCode.E_ALREADY_OWNED -> { /* Restore */ }
+        ErrorCode.E_ITEM_UNAVAILABLE -> { /* Product issue */ }
+        else -> { /* Log and show error */ }
+    }
+}
+```
+
+### Key Error Codes
+
+- `E_USER_CANCELLED` - User cancelled purchase
+- `E_NETWORK_ERROR` - Network connection error
+- `E_ALREADY_OWNED` - Item already purchased
+- `E_ITEM_UNAVAILABLE` - Product not available
+- `E_NOT_PREPARED` - Connection not initialized
+- `E_DEFERRED_PAYMENT` - Pending approval (Ask to Buy)
+
+## Platform Requirements
+
+### Android
+- minSdk: 21
+- Google Play Billing Library 8.x
+- Kotlin 2.0+
+
+### iOS
+- iOS 15.0+
+- StoreKit 2
+
+## Links
+
+- GitHub: https://github.com/hyochan/kmp-iap
+- Documentation: https://hyochan.github.io/kmp-iap
+- OpenIAP Specification: https://openiap.dev
+- IAPKit (Verification): https://iapkit.com
+- Maven Central: https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
