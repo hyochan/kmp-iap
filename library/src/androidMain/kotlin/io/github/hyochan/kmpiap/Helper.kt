@@ -28,6 +28,9 @@ import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.PricingPhaseAndroid
 import io.github.hyochan.kmpiap.openiap.PricingPhasesAndroid
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
+import io.github.hyochan.kmpiap.openiap.PaymentMode
+import io.github.hyochan.kmpiap.openiap.DiscountOfferType
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
@@ -297,8 +300,63 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
         platform = product.platform,
         price = product.price,
         subscriptionOfferDetailsAndroid = offers,
+        subscriptionOffers = offers.map { it.toSubscriptionOffer() },
         title = product.title,
         type = product.type
+    )
+}
+
+/**
+ * Convert ProductSubscriptionAndroidOfferDetails to SubscriptionOffer.
+ * Maps Android-specific offer details to cross-platform SubscriptionOffer type.
+ */
+internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
+    // Determine payment mode from pricing phases
+    val paymentMode = if (pricingPhases.pricingPhaseList.isNotEmpty()) {
+        val firstPhase = pricingPhases.pricingPhaseList.first()
+        val priceAmount = firstPhase.priceAmountMicros.toLongOrNull() ?: 0L
+        val recurrenceMode = firstPhase.recurrenceMode
+
+        when {
+            priceAmount == 0L -> PaymentMode.FreeTrial
+            recurrenceMode == 3 -> PaymentMode.PayUpFront  // NON_RECURRING
+            else -> PaymentMode.PayAsYouGo
+        }
+    } else {
+        null
+    }
+
+    // Get price from first pricing phase
+    val (displayPrice, price, currency) = if (pricingPhases.pricingPhaseList.isNotEmpty()) {
+        val firstPhase = pricingPhases.pricingPhaseList.first()
+        val micros = firstPhase.priceAmountMicros.toLongOrNull() ?: 0L
+        Triple(
+            firstPhase.formattedPrice,
+            micros.toDouble() / 1_000_000.0,
+            firstPhase.priceCurrencyCode
+        )
+    } else {
+        Triple("", 0.0, null)
+    }
+
+    // Determine offer type
+    val type = when {
+        offerId != null && offerId.isNotEmpty() -> DiscountOfferType.Promotional
+        paymentMode == PaymentMode.FreeTrial -> DiscountOfferType.Introductory
+        else -> DiscountOfferType.Introductory
+    }
+
+    return SubscriptionOffer(
+        id = offerId ?: basePlanId,
+        displayPrice = displayPrice,
+        price = price,
+        currency = currency,
+        type = type,
+        paymentMode = paymentMode,
+        basePlanIdAndroid = basePlanId,
+        offerTokenAndroid = offerToken,
+        offerTagsAndroid = offerTags,
+        pricingPhasesAndroid = pricingPhases
     )
 }
 
