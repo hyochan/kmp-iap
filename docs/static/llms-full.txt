@@ -1379,6 +1379,194 @@ data class ActiveSubscription(
     val purchaseTokenAndroid: String?,
     val basePlanIdAndroid: String?
 )
+```
+
+## Cross-Platform Offer Types
+
+### SubscriptionOffer
+
+Cross-platform type for subscription promotional/introductory offers with platform-specific fields.
+
+```kotlin
+data class SubscriptionOffer(
+    /**
+     * Unique identifier for the offer.
+     * - iOS: Discount identifier from App Store Connect
+     * - Android: offerId from ProductSubscriptionAndroidOfferDetails
+     */
+    val id: String,
+
+    /**
+     * Formatted display price string (e.g., "$9.99/month")
+     */
+    val displayPrice: String,
+
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String?,
+
+    /**
+     * Type of subscription offer (Introductory or Promotional)
+     */
+    val type: DiscountOfferType,
+
+    /**
+     * Payment mode during the offer period
+     */
+    val paymentMode: PaymentMode?,
+
+    /**
+     * Subscription period for this offer
+     */
+    val period: SubscriptionPeriod?,
+
+    /**
+     * Number of periods the offer applies
+     */
+    val periodCount: Int?,
+
+    // iOS-specific fields
+    val keyIdentifierIOS: String?,       // Key identifier for signature validation
+    val nonceIOS: String?,               // UUID nonce for signature validation
+    val signatureIOS: String?,           // Server-generated signature for promotional offers
+    val timestampIOS: Double?,           // Timestamp when signature was generated
+    val localizedPriceIOS: String?,      // Localized price string
+    val numberOfPeriodsIOS: Int?,        // Number of billing periods
+
+    // Android-specific fields
+    val basePlanIdAndroid: String?,      // Base plan identifier
+    val offerTokenAndroid: String?,      // Offer token required for purchase
+    val offerTagsAndroid: List<String>?, // Tags associated with this offer
+    val pricingPhasesAndroid: PricingPhasesAndroid? // Pricing phases for this offer
+)
+```
+
+**Usage Example:**
+
+```kotlin
+// Access subscription offers from a product
+val product = fetchProducts { skus = listOf("premium_monthly") }.products.first()
+
+when (product) {
+    is ProductSubscriptionAndroid -> {
+        product.subscriptionOffers.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")  // Introductory, Promotional
+            println("Payment Mode: ${offer.paymentMode}")  // FreeTrial, PayAsYouGo, PayUpFront
+
+            // Use offer token for purchase
+            offer.offerTokenAndroid?.let { token ->
+                requestSubscription {
+                    android {
+                        skus = listOf("premium_monthly")
+                        subscriptionOffers = listOf(
+                            AndroidSubscriptionOfferInput(
+                                sku = "premium_monthly",
+                                offerToken = token
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+    is ProductSubscriptionIOS -> {
+        product.subscriptionOffers?.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")
+        }
+    }
+}
+```
+
+### DiscountOffer
+
+Cross-platform type for one-time purchase discounts (primarily Android).
+
+```kotlin
+data class DiscountOffer(
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String,
+
+    /**
+     * Formatted display price string (e.g., "$4.99")
+     */
+    val displayPrice: String,
+
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+
+    /**
+     * Type of discount offer
+     */
+    val type: DiscountOfferType,
+
+    /**
+     * Unique identifier for the offer
+     */
+    val id: String?,
+
+    // Android-specific fields
+    val discountAmountMicrosAndroid: String?,      // Fixed discount in micro-units
+    val formattedDiscountAmountAndroid: String?,   // Formatted discount string (e.g., "$5.00 OFF")
+    val fullPriceMicrosAndroid: String?,           // Original price in micro-units
+    val offerTagsAndroid: List<String>?,           // Tags for this offer
+    val offerTokenAndroid: String?,                // Token required for purchase
+    val percentageDiscountAndroid: Int?,           // Percentage discount (e.g., 33 for 33% off)
+    val validTimeWindowAndroid: ValidTimeWindowAndroid? // Offer validity window
+)
+```
+
+### Supporting Enums
+
+```kotlin
+/**
+ * Type of discount/offer
+ */
+enum class DiscountOfferType {
+    Introductory,   // First-time subscriber discount
+    Promotional,    // Promotional/winback offer
+    OneTime         // One-time purchase discount (Android)
+}
+
+/**
+ * Payment mode during offer period
+ */
+enum class PaymentMode {
+    FreeTrial,    // Free trial period
+    PayAsYouGo,   // Pay each billing cycle
+    PayUpFront    // Pay full amount upfront
+}
+
+/**
+ * Subscription period unit
+ */
+enum class SubscriptionPeriodUnit {
+    Day,
+    Week,
+    Month,
+    Year
+}
+
+/**
+ * Subscription period
+ */
+data class SubscriptionPeriod(
+    val value: Int,           // Number of units
+    val unit: SubscriptionPeriodUnit
+)
 
 data class SubscriptionInfoIOS(
     val subscriptionGroupId: String,

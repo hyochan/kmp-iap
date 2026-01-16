@@ -770,6 +770,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 val map = dict.mapKeys { it.key.toString() }
                 println("[KMP-IAP] convertAnyListToProducts: map keys = ${map.keys}")
 
+                // Parse subscription offers from the data (if product has subscription info)
+                val subscriptionOffers = convertAnyListToSubscriptionOffers(
+                    map["subscriptionOffers"] ?: map["offers"]
+                )
+
                 ProductIOS(
                     currency = map["currency"] as? String ?: "",
                     debugDescription = map["debugDescription"] as? String,
@@ -783,6 +788,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     platform = IapPlatform.Ios,
                     price = (map["price"] as? Number)?.toDouble(),
                     subscriptionInfoIOS = null, // Complex object, handle separately if needed
+                    subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     title = map["title"] as? String ?: "",
                     type = (map["type"] as? String)?.let { ProductType.fromJson(it) }
                         ?: ProductType.InApp,
@@ -808,11 +814,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
                 val map = dict.mapKeys { it.key.toString() }
 
+                // Parse subscription offers from the data
+                val subscriptionOffers = convertAnyListToSubscriptionOffers(
+                    map["subscriptionOffers"] ?: map["offers"]
+                )
+
                 ProductSubscriptionIOS(
                     currency = map["currency"] as? String ?: "",
                     debugDescription = map["debugDescription"] as? String,
                     description = map["description"] as? String ?: "",
-                    discountsIOS = null, // Complex array
+                    discountsIOS = null, // Complex array (deprecated, use subscriptionOffers)
                     displayName = map["displayName"] as? String,
                     displayNameIOS = map["displayNameIOS"] as? String ?: "",
                     displayPrice = map["displayPrice"] as? String ?: "",
@@ -827,6 +838,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     platform = IapPlatform.Ios,
                     price = (map["price"] as? Number)?.toDouble(),
                     subscriptionInfoIOS = null, // Complex object
+                    subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     subscriptionPeriodNumberIOS = map["subscriptionPeriodNumberIOS"] as? String,
                     subscriptionPeriodUnitIOS = null, // Complex enum
                     title = map["title"] as? String ?: "",
@@ -983,5 +995,98 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid {
         throw UnsupportedOperationException("developerProvidedBillingAndroid is only available on Android")
+    }
+
+    // -------------------------------------------------------------------------
+    // iOS Subscription Offer Conversion Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Convert iOS subscription offer dictionary to SubscriptionOffer.
+     * Maps iOS-specific offer details to cross-platform SubscriptionOffer type.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyToSubscriptionOffer(data: Any?): SubscriptionOffer? {
+        if (data == null) return null
+
+        return try {
+            val dict = (data as? Map<*, *>) ?: return null
+            val map = dict.mapKeys { it.key.toString() }
+
+            // Determine payment mode
+            val paymentModeString = map["paymentMode"] as? String
+            val paymentMode = when (paymentModeString?.lowercase()) {
+                "freetrial", "free_trial", "free-trial" -> PaymentMode.FreeTrial
+                "payasyougo", "pay_as_you_go", "pay-as-you-go" -> PaymentMode.PayAsYouGo
+                "payupfront", "pay_up_front", "pay-up-front" -> PaymentMode.PayUpFront
+                else -> null
+            }
+
+            // Determine offer type
+            val typeString = map["type"] as? String
+            val offerType = when (typeString?.lowercase()) {
+                "introductory" -> DiscountOfferType.Introductory
+                "promotional" -> DiscountOfferType.Promotional
+                else -> DiscountOfferType.Introductory
+            }
+
+            // Parse subscription period
+            val periodDict = map["period"] as? Map<*, *>
+            val period = if (periodDict != null) {
+                val periodMap = periodDict.mapKeys { it.key.toString() }
+                val value = (periodMap["value"] as? Number)?.toInt() ?: 1
+                val unitString = periodMap["unit"] as? String
+                val unit = when (unitString?.lowercase()) {
+                    "day" -> SubscriptionPeriodUnit.Day
+                    "week" -> SubscriptionPeriodUnit.Week
+                    "month" -> SubscriptionPeriodUnit.Month
+                    "year" -> SubscriptionPeriodUnit.Year
+                    else -> SubscriptionPeriodUnit.Month
+                }
+                SubscriptionPeriod(value = value, unit = unit)
+            } else {
+                null
+            }
+
+            SubscriptionOffer(
+                id = map["id"] as? String ?: "",
+                displayPrice = map["displayPrice"] as? String ?: "",
+                price = (map["price"] as? Number)?.toDouble() ?: 0.0,
+                currency = map["currency"] as? String,
+                type = offerType,
+                paymentMode = paymentMode,
+                period = period,
+                periodCount = (map["periodCount"] as? Number)?.toInt(),
+                numberOfPeriodsIOS = (map["numberOfPeriods"] as? Number)?.toInt()
+                    ?: (map["numberOfPeriodsIOS"] as? Number)?.toInt(),
+                localizedPriceIOS = map["localizedPrice"] as? String
+                    ?: map["localizedPriceIOS"] as? String,
+                keyIdentifierIOS = map["keyIdentifier"] as? String
+                    ?: map["keyIdentifierIOS"] as? String,
+                nonceIOS = map["nonce"] as? String ?: map["nonceIOS"] as? String,
+                signatureIOS = map["signature"] as? String ?: map["signatureIOS"] as? String,
+                timestampIOS = (map["timestamp"] as? Number)?.toDouble()
+                    ?: (map["timestampIOS"] as? Number)?.toDouble()
+            )
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to SubscriptionOffer: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Convert a list of iOS subscription offers to SubscriptionOffer list.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun convertAnyListToSubscriptionOffers(data: Any?): List<SubscriptionOffer> {
+        if (data == null) return emptyList()
+
+        return try {
+            val list = data as? List<*> ?: return emptyList()
+            list.mapNotNull { convertAnyToSubscriptionOffer(it) }
+        } catch (e: Exception) {
+            println("[KMP-IAP] Error converting to SubscriptionOffer list: ${e.message}")
+            emptyList()
+        }
     }
 }
