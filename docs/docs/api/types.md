@@ -695,6 +695,153 @@ enum class DiscountTypeIOS {
 }
 ```
 
+## Cross-Platform Offer Types (v1.3.12+)
+
+These types provide a unified way to work with subscription and discount offers across both iOS and Android platforms.
+
+### SubscriptionOffer
+
+Cross-platform subscription offer type with platform-specific fields. Available on both `ProductSubscriptionIOS` and `ProductSubscriptionAndroid`.
+
+```kotlin
+data class SubscriptionOffer(
+    val id: String,                           // Offer identifier
+    val displayPrice: String,                 // Formatted price (e.g., "$9.99/month")
+    val price: Double,                        // Numeric price value
+    val currency: String?,                    // ISO 4217 currency code (e.g., "USD")
+    val type: DiscountOfferType,              // Introductory, Promotional, or OneTime
+    val paymentMode: PaymentMode?,            // FreeTrial, PayAsYouGo, or PayUpFront
+    val period: SubscriptionPeriod?,          // Subscription period
+    val periodCount: Int?,                    // Number of periods
+
+    // iOS-specific fields
+    val keyIdentifierIOS: String?,            // Key identifier for signature validation
+    val nonceIOS: String?,                    // UUID nonce for signature validation
+    val signatureIOS: String?,                // Server-generated signature for promotional offers
+    val timestampIOS: Double?,                // Timestamp when signature was generated
+    val localizedPriceIOS: String?,           // Localized price string
+    val numberOfPeriodsIOS: Int?,             // Number of billing periods
+
+    // Android-specific fields
+    val basePlanIdAndroid: String?,           // Base plan identifier
+    val offerTokenAndroid: String?,           // Offer token required for purchase
+    val offerTagsAndroid: List<String>?,      // Tags associated with this offer
+    val pricingPhasesAndroid: PricingPhasesAndroid?  // Pricing phases for this offer
+)
+```
+
+**Usage Example:**
+
+```kotlin
+// Access subscription offers from a product
+val product = kmpIapInstance.fetchProducts { skus = listOf("premium_monthly") }.first()
+
+when (product) {
+    is ProductSubscriptionAndroid -> {
+        product.subscriptionOffers.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")  // Introductory, Promotional
+            println("Payment Mode: ${offer.paymentMode}")  // FreeTrial, PayAsYouGo, PayUpFront
+
+            // Use offer token for purchase
+            offer.offerTokenAndroid?.let { token ->
+                kmpIapInstance.requestSubscription {
+                    android {
+                        skus = listOf("premium_monthly")
+                        subscriptionOffers = listOf(
+                            AndroidSubscriptionOfferInput(
+                                sku = "premium_monthly",
+                                offerToken = token
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+    is ProductSubscriptionIOS -> {
+        product.subscriptionOffers?.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")
+            println("Period: ${offer.period?.value} ${offer.period?.unit}")
+        }
+    }
+}
+```
+
+### DiscountOffer
+
+Cross-platform discount offer type for one-time purchases (primarily Android).
+
+```kotlin
+data class DiscountOffer(
+    val currency: String,                     // ISO 4217 currency code
+    val displayPrice: String,                 // Formatted price string
+    val price: Double,                        // Numeric price value
+    val type: DiscountOfferType,              // Type of discount
+    val id: String?,                          // Offer identifier
+
+    // Android-specific fields
+    val discountAmountMicrosAndroid: String?,      // Fixed discount in micro-units
+    val formattedDiscountAmountAndroid: String?,   // Formatted discount (e.g., "$5.00 OFF")
+    val fullPriceMicrosAndroid: String?,           // Original price in micro-units
+    val offerTagsAndroid: List<String>?,           // Tags for this offer
+    val offerTokenAndroid: String?,                // Token required for purchase
+    val percentageDiscountAndroid: Int?,           // Percentage discount (e.g., 33 for 33% off)
+    val validTimeWindowAndroid: ValidTimeWindowAndroid?  // Offer validity window
+)
+```
+
+### DiscountOfferType
+
+Type of discount/subscription offer.
+
+```kotlin
+enum class DiscountOfferType(val rawValue: String) {
+    Introductory("introductory"),   // First-time subscriber discount
+    Promotional("promotional"),     // Promotional/winback offer
+    OneTime("one-time")             // One-time purchase discount (Android)
+}
+```
+
+### PaymentMode
+
+Payment mode during offer period.
+
+```kotlin
+enum class PaymentMode(val rawValue: String) {
+    FreeTrial("free-trial"),        // Free trial period
+    PayAsYouGo("pay-as-you-go"),    // Pay each billing cycle
+    PayUpFront("pay-up-front")      // Pay full amount upfront
+}
+```
+
+### SubscriptionPeriod
+
+Subscription period definition.
+
+```kotlin
+data class SubscriptionPeriod(
+    val value: Int,                  // Number of units
+    val unit: SubscriptionPeriodUnit // Period unit
+)
+```
+
+### SubscriptionPeriodUnit
+
+Unit for subscription period.
+
+```kotlin
+enum class SubscriptionPeriodUnit(val rawValue: String) {
+    Day("day"),
+    Week("week"),
+    Month("month"),
+    Year("year")
+}
+```
+
 ## Billing Programs API Types (v1.2.0+)
 
 New types for Google Play Billing Programs API (Android 8.2.0+).

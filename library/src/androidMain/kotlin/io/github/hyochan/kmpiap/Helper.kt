@@ -311,33 +311,27 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
  * Maps Android-specific offer details to cross-platform SubscriptionOffer type.
  */
 internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
-    // Determine payment mode from pricing phases
-    val paymentMode = if (pricingPhases.pricingPhaseList.isNotEmpty()) {
-        val firstPhase = pricingPhases.pricingPhaseList.first()
-        val priceAmount = firstPhase.priceAmountMicros.toLongOrNull() ?: 0L
-        val recurrenceMode = firstPhase.recurrenceMode
+    val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
 
+    // Determine payment mode from first pricing phase
+    val paymentMode = firstPhase?.let {
+        val priceAmount = it.priceAmountMicros.toLongOrNull() ?: 0L
         when {
             priceAmount == 0L -> PaymentMode.FreeTrial
-            recurrenceMode == 3 -> PaymentMode.PayUpFront  // NON_RECURRING
+            it.recurrenceMode == 3 -> PaymentMode.PayUpFront  // NON_RECURRING
             else -> PaymentMode.PayAsYouGo
         }
-    } else {
-        null
     }
 
     // Get price from first pricing phase
-    val (displayPrice, price, currency) = if (pricingPhases.pricingPhaseList.isNotEmpty()) {
-        val firstPhase = pricingPhases.pricingPhaseList.first()
-        val micros = firstPhase.priceAmountMicros.toLongOrNull() ?: 0L
+    val (displayPrice, price, currency) = firstPhase?.let {
+        val micros = it.priceAmountMicros.toLongOrNull() ?: 0L
         Triple(
-            firstPhase.formattedPrice,
+            it.formattedPrice,
             micros.toDouble() / 1_000_000.0,
-            firstPhase.priceCurrencyCode
+            it.priceCurrencyCode
         )
-    } else {
-        Triple("", 0.0, null)
-    }
+    } ?: Triple("", 0.0, null)
 
     // Determine offer type
     val type = when {
