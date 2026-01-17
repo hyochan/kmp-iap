@@ -28,10 +28,15 @@ import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.PricingPhaseAndroid
 import io.github.hyochan.kmpiap.openiap.PricingPhasesAndroid
 import io.github.hyochan.kmpiap.openiap.Purchase
+import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
+import io.github.hyochan.kmpiap.openiap.PaymentMode
+import io.github.hyochan.kmpiap.openiap.DiscountOfferType
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
+import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import kotlinx.coroutines.flow.MutableSharedFlow
+import com.android.billingclient.api.BillingFlowParams
 import dev.hyo.openiap.BillingProgramAndroid as OpenIapBillingProgram
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
@@ -89,6 +94,20 @@ internal fun mapBillingResponseCode(responseCode: Int): ErrorCode = when (respon
     BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> ErrorCode.ServiceDisconnected
     BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED -> ErrorCode.FeatureNotSupported
     else -> ErrorCode.Unknown
+}
+
+/**
+ * Maps SubscriptionReplacementModeAndroid enum to BillingFlowParams replacement mode int.
+ * Used for setSubscriptionReplacementMode in SubscriptionUpdateParams and SubscriptionProductReplacementParams.
+ */
+internal fun mapReplacementMode(mode: SubscriptionReplacementModeAndroid): Int? = when (mode) {
+    SubscriptionReplacementModeAndroid.UnknownReplacementMode -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.UNKNOWN_REPLACEMENT_MODE
+    SubscriptionReplacementModeAndroid.WithTimeProration -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION
+    SubscriptionReplacementModeAndroid.ChargeProratedPrice -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
+    SubscriptionReplacementModeAndroid.ChargeFullPrice -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE
+    SubscriptionReplacementModeAndroid.WithoutProration -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION
+    SubscriptionReplacementModeAndroid.Deferred -> BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED
+    SubscriptionReplacementModeAndroid.KeepExisting -> null // KEEP_EXISTING is not a standard replacement mode
 }
 
 internal fun enablePendingPurchasesCompat(builder: BillingClient.Builder): BillingClient.Builder {
@@ -297,8 +316,57 @@ internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid?
         platform = product.platform,
         price = product.price,
         subscriptionOfferDetailsAndroid = offers,
+        subscriptionOffers = offers.map { it.toSubscriptionOffer() },
         title = product.title,
         type = product.type
+    )
+}
+
+/**
+ * Convert ProductSubscriptionAndroidOfferDetails to SubscriptionOffer.
+ * Maps Android-specific offer details to cross-platform SubscriptionOffer type.
+ */
+internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
+    val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
+
+    // Determine payment mode from first pricing phase
+    val paymentMode = firstPhase?.let {
+        val priceAmount = it.priceAmountMicros.toLongOrNull() ?: 0L
+        when {
+            priceAmount == 0L -> PaymentMode.FreeTrial
+            it.recurrenceMode == 3 -> PaymentMode.PayUpFront  // NON_RECURRING
+            else -> PaymentMode.PayAsYouGo
+        }
+    }
+
+    // Get price from first pricing phase
+    val (displayPrice, price, currency) = firstPhase?.let {
+        val micros = it.priceAmountMicros.toLongOrNull() ?: 0L
+        Triple(
+            it.formattedPrice,
+            micros.toDouble() / 1_000_000.0,
+            it.priceCurrencyCode
+        )
+    } ?: Triple("", 0.0, null)
+
+    // Determine offer type
+    val type = when {
+        offerId != null && offerId.isNotEmpty() -> DiscountOfferType.Promotional
+        paymentMode == PaymentMode.FreeTrial -> DiscountOfferType.Introductory
+        else -> DiscountOfferType.Introductory
+    }
+
+    return SubscriptionOffer(
+        id = offerId ?: basePlanId,
+        displayPrice = displayPrice,
+        price = price,
+        currency = currency,
+        type = type,
+        paymentMode = paymentMode,
+        basePlanIdAndroid = basePlanId,
+        offerTokenAndroid = offerToken,
+        offerTagsAndroid = offerTags,
+        pricingPhasesAndroid = pricingPhases
     )
 }
 

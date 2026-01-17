@@ -85,6 +85,8 @@ import io.github.hyochan.kmpiap.openiap.DeveloperProvidedBillingDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
+import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
+import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as GoogleVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as GoogleVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit as verifyPurchaseWithIapkitGoogle
@@ -272,6 +274,7 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             val purchaseTokenAndroid = subscriptionAndroidOptions?.purchaseTokenAndroid
             val replacementModeAndroid = subscriptionAndroidOptions?.replacementModeAndroid
+            val subscriptionProductReplacementParams = subscriptionAndroidOptions?.subscriptionProductReplacementParams
 
             val targetSkus: List<String> =
                 purchaseAndroidOptions?.skus ?: subscriptionAndroidOptions?.skus ?: emptyList()
@@ -355,6 +358,16 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                         }
 
                         builder.setOfferToken(resolvedToken)
+
+                        // Apply item-level subscription replacement params (8.1.0+)
+                        subscriptionProductReplacementParams?.let { params ->
+                            val replacementParamsBuilder = BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.newBuilder()
+                                .setOldProductId(params.oldProductId)
+                            mapReplacementMode(params.replacementMode)?.let { mode ->
+                                replacementParamsBuilder.setReplacementMode(mode)
+                            }
+                            builder.setSubscriptionProductReplacementParams(replacementParamsBuilder.build())
+                        }
                     }
 
                     paramsList += builder.build()

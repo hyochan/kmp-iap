@@ -41,12 +41,74 @@ activeSubscriptions.forEach { sub ->
 }
 ```
 
+## Access Subscription Offers (v1.3.12+)
+
+Starting from v1.3.12, subscription products include a cross-platform `subscriptionOffers` field that provides unified access to introductory and promotional offers:
+
+```kotlin
+val subscriptions = kmpIapInstance.fetchProducts {
+    skus = listOf("premium_monthly", "premium_yearly")
+    type = ProductQueryType.Subs
+}
+
+subscriptions.forEach { product ->
+    when (product) {
+        is ProductSubscriptionAndroid -> {
+            // Android subscriptionOffers is a non-null list
+            product.subscriptionOffers.forEach { offer ->
+                println("Offer ID: ${offer.id}")
+                println("Price: ${offer.displayPrice}")
+                println("Type: ${offer.type}")  // Introductory, Promotional
+                println("Payment Mode: ${offer.paymentMode}")  // FreeTrial, PayAsYouGo, PayUpFront
+
+                // Android-specific fields
+                println("Base Plan: ${offer.basePlanIdAndroid}")
+                println("Token: ${offer.offerTokenAndroid}")
+            }
+        }
+        is ProductSubscriptionIOS -> {
+            // iOS subscriptionOffers is nullable
+            product.subscriptionOffers?.forEach { offer ->
+                println("Offer ID: ${offer.id}")
+                println("Price: ${offer.displayPrice}")
+                println("Type: ${offer.type}")
+                println("Payment Mode: ${offer.paymentMode}")
+
+                // iOS-specific fields
+                offer.period?.let { period ->
+                    println("Period: ${period.value} ${period.unit}")
+                }
+            }
+        }
+    }
+}
+```
+
+### Offer Types
+
+| Type | Description |
+|------|-------------|
+| `Introductory` | First-time subscriber discount (free trial, reduced price) |
+| `Promotional` | Winback or promotional offer for existing/lapsed subscribers |
+| `OneTime` | One-time purchase discount (Android only) |
+
+### Payment Modes
+
+| Mode | Description |
+|------|-------------|
+| `FreeTrial` | Free for a limited period |
+| `PayAsYouGo` | Reduced price for each billing cycle |
+| `PayUpFront` | Pay reduced price upfront for entire period |
+
 ## Request Subscription
 
 ```kotlin
 // Get offer token for Android
 val product = subscriptions.find { it.productId == "premium_monthly" }
-val offerToken = product?.subscriptionOffers?.firstOrNull()?.offerToken
+val offerToken = when (product) {
+    is ProductSubscriptionAndroid -> product.subscriptionOffers.firstOrNull()?.offerTokenAndroid
+    else -> null
+}
 
 kmpIapInstance.requestPurchase {
     apple { sku = "premium_monthly" }

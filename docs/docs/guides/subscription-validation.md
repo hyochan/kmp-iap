@@ -110,6 +110,121 @@ private suspend fun verifyAndUpdateSubscriptionStatus(purchase: Purchase) {
 }
 ```
 
+## Android basePlanId Limitation {#android-baseplanid-limitation}
+
+:::warning Critical Limitation
+On Android, the `basePlanId` field may return **incorrect values** for subscription groups with multiple base plans.
+:::
+
+**Root Cause:** Google Play Billing API's `Purchase` object does NOT include `basePlanId` information. When a subscription group has multiple base plans (weekly, monthly, yearly), there is no way to determine which specific plan was purchased from the client-side `Purchase` object.
+
+You may see this warning in logs:
+
+```
+Multiple offers (3) found for premium_subscription, using first basePlanId (may be inaccurate)
+```
+
+**What Works Correctly:**
+- `productId` - Subscription group ID
+- `purchaseToken` - Purchase token
+- `isActive` - Subscription active status
+- `transactionId` - Transaction ID
+
+**What May Be Incorrect:**
+- `basePlanIdAndroid` - May return first plan instead of purchased plan
+
+### Solutions
+
+#### 1. Client-side Tracking (Recommended for most apps)
+
+Track `basePlanId` yourself during the purchase flow:
+
+```kotlin
+// Track basePlanId BEFORE calling requestPurchase
+var purchasedBasePlanId: String? = null
+
+suspend fun handlePurchase(basePlanId: String) {
+    val product = subscriptions.find { it.productId == subscriptionGroupId }
+    if (product !is ProductSubscriptionAndroid) return
+
+    // Use cross-platform subscriptionOffers
+    val offers = product.subscriptionOffers
+    val offer = offers.find {
+        it.basePlanIdAndroid == basePlanId && it.id == null
+    }
+
+    if (offer?.offerTokenAndroid == null) return
+
+    // Store it before purchase
+    purchasedBasePlanId = basePlanId
+
+    kmpIapInstance.requestPurchase {
+        apple { sku = subscriptionGroupId }
+        google {
+            skus = listOf(subscriptionGroupId)
+            subscriptionOffers = listOf(
+                SubscriptionOfferAndroid(
+                    sku = subscriptionGroupId,
+                    offerToken = offer.offerTokenAndroid!!
+                )
+            )
+        }
+    }
+}
+
+// Use YOUR tracked value in purchase listener
+kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
+    // DON'T rely on purchase data for basePlanId - it may be wrong!
+    val actualBasePlanId = purchasedBasePlanId
+
+    saveToBackend(
+        purchaseToken = purchase.purchaseToken,
+        basePlanId = actualBasePlanId,  // Use YOUR tracked value
+        productId = purchase.productId
+    )
+}
+```
+
+#### 2. IAPKit Backend Validation (Recommended)
+
+Use [`verifyPurchaseWithProvider`](../apis#verifypurchasewithprovider) with <IapKitLink>IAPKit</IapKitLink> to get accurate `basePlanId` from Google Play Developer API:
+
+```kotlin
+val result = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = AppConfig.iapkitApiKey,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken
+            )
+        )
+    )
+)
+
+// Access basePlanId from the response
+val providerResponse = result.providerResponse as? Map<*, *>
+val lineItems = providerResponse?.get("lineItems") as? List<*>
+val firstItem = lineItems?.firstOrNull() as? Map<*, *>
+val offerDetails = firstItem?.get("offerDetails") as? Map<*, *>
+val basePlanId = offerDetails?.get("basePlanId") as? String
+
+println("Actual basePlanId: $basePlanId")
+```
+
+#### 3. Single Base Plan Per Subscription Group
+
+If your subscription group has only one base plan, the `basePlanId` will always be accurate. This is the simplest solution if your product design allows it.
+
+:::note
+This is a fundamental limitation of Google Play Billing API, not a bug in this library. The `Purchase` object from Google simply does not include `basePlanId` information.
+:::
+
+**See also:**
+- [SubscriptionOffer](../api/types#subscriptionoffer) - Each offer contains `id`, `displayPrice`, `paymentMode`, `period`, `basePlanIdAndroid`, `offerTokenAndroid`, and `pricingPhasesAndroid`.
+- [Subscription Offers Guide](./subscription-offers.md) - Complete guide on working with subscription offers.
+- [GitHub Issue #3096](https://github.com/hyochan/react-native-iap/issues/3096) - Original discussion about this limitation.
+
 ## IAPKit Purchase States
 
 When verifying purchases with <IapKitLink>IAPKit</IapKitLink>, you'll receive one of these states:
@@ -301,5 +416,6 @@ class SubscriptionCache(private val prefs: SharedPreferences) {
 ## Next Steps
 
 - [Subscription Flow](../examples/subscription-flow.md) - Complete subscription implementation
+- [Subscription Offers](./subscription-offers.md) - Working with subscription offers
 - [Purchase Flow](../examples/purchase-flow.md) - One-time purchase handling
 - [Error Codes](../api/error-codes.md) - Handle verification errors

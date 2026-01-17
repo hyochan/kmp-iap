@@ -209,6 +209,47 @@ data class PurchaseAndroid(
 ) : Purchase
 ```
 
+### Subscription/Discount Offers (Cross-Platform)
+
+```kotlin
+// Cross-platform subscription offer with platform-specific fields
+data class SubscriptionOffer(
+    val id: String,                     // Offer identifier
+    val displayPrice: String,           // e.g., "$9.99/month"
+    val price: Double,                  // Numeric price
+    val currency: String?,              // ISO 4217 (e.g., "USD")
+    val type: DiscountOfferType,        // Introductory, Promotional, OneTime
+    val paymentMode: PaymentMode?,      // FreeTrial, PayAsYouGo, PayUpFront
+    val period: SubscriptionPeriod?,    // Subscription period
+    val periodCount: Int?,              // Number of periods
+    // iOS-specific
+    val keyIdentifierIOS: String?,      // Key for signature validation
+    val nonceIOS: String?,              // UUID for signature
+    val signatureIOS: String?,          // Cryptographic signature
+    val timestampIOS: Double?,          // Signature timestamp
+    val localizedPriceIOS: String?,     // Localized price string
+    val numberOfPeriodsIOS: Int?,       // Billing periods
+    // Android-specific
+    val basePlanIdAndroid: String?,     // Base plan ID
+    val offerTokenAndroid: String?,     // Required for purchase
+    val offerTagsAndroid: List<String>?,// Offer tags
+    val pricingPhasesAndroid: PricingPhasesAndroid?
+)
+
+// Discount offer for one-time products (Android only)
+data class DiscountOffer(
+    val currency: String,
+    val displayPrice: String,
+    val price: Double,
+    val type: DiscountOfferType,
+    val id: String?,
+    // Android-specific
+    val offerTokenAndroid: String?,
+    val percentageDiscountAndroid: Int?,
+    val formattedDiscountAmountAndroid: String?
+)
+```
+
 ### Enums
 
 ```kotlin
@@ -216,6 +257,9 @@ enum class ProductType { InApp, Subs }
 enum class ProductQueryType { InApp, Subs, All }
 enum class PurchaseState { Pending, Purchased, Unknown }
 enum class Store { NONE, PLAY_STORE, AMAZON, APP_STORE }
+enum class DiscountOfferType { Introductory, Promotional, OneTime }
+enum class PaymentMode { FreeTrial, PayAsYouGo, PayUpFront }
+enum class SubscriptionPeriodUnit { Day, Week, Month, Year }
 ```
 
 ## Event Listeners

@@ -50,6 +50,9 @@ import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGooglePro
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
+import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
+import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
+import io.github.hyochan.kmpiap.openiap.ProductSubscriptionIOS
 import kotlinx.coroutines.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -964,10 +967,35 @@ fun SubscriptionCard(
 
                 // Platform-specific details
                 when (subscription) {
+                    is ProductSubscriptionAndroid -> {
+                        println("--- Android Specific ---")
+                        println("Subscription Offers: ${subscription.subscriptionOffers.size} offers")
+                        subscription.subscriptionOffers.forEach { offer ->
+                            println("  - Offer: ${offer.id}")
+                            println("    Price: ${offer.displayPrice}")
+                            println("    Type: ${offer.type}")
+                            println("    Payment Mode: ${offer.paymentMode}")
+                            offer.basePlanIdAndroid?.let { println("    Base Plan: $it") }
+                            offer.offerTokenAndroid?.let { println("    Token: ${it.take(30)}...") }
+                        }
+                    }
+                    is ProductSubscriptionIOS -> {
+                        println("--- iOS Specific ---")
+                        println("Subscription Info: ${subscription.subscriptionInfoIOS}")
+                        subscription.subscriptionOffers?.let { offers ->
+                            println("Subscription Offers: ${offers.size} offers")
+                            offers.forEach { offer ->
+                                println("  - Offer: ${offer.id}")
+                                println("    Price: ${offer.displayPrice}")
+                                println("    Type: ${offer.type}")
+                                println("    Payment Mode: ${offer.paymentMode}")
+                                offer.period?.let { println("    Period: ${it.value} ${it.unit}") }
+                            }
+                        }
+                    }
                     is ProductAndroid -> {
                         println("--- Android Specific ---")
                         println("One Time Purchase Offer: ${subscription.oneTimePurchaseOfferDetailsAndroid}")
-                        println("Subscription Offers: ${subscription.subscriptionOfferDetailsAndroid?.size ?: 0} offers")
                     }
                     is ProductIOS -> {
                         println("--- iOS Specific ---")
@@ -1041,7 +1069,7 @@ fun SubscriptionCard(
                     )
                     
                     Spacer(modifier = Modifier.height(4.dp))
-                    
+
                     Text(
                         text = "ID: ${subscription.id}",
                         fontSize = 12.sp,
@@ -1049,7 +1077,7 @@ fun SubscriptionCard(
                         color = AppColors.Secondary
                     )
                 }
-                
+
                 Column(
                     horizontalAlignment = Alignment.End
                 ) {
@@ -1061,7 +1089,98 @@ fun SubscriptionCard(
                     )
                 }
             }
-            
+
+            // Display subscription offers if available
+            val subscriptionOffers: List<SubscriptionOffer>? = when (subscription) {
+                is ProductSubscriptionAndroid -> subscription.subscriptionOffers.takeIf { it.isNotEmpty() }
+                is ProductSubscriptionIOS -> subscription.subscriptionOffers
+                else -> null
+            }
+
+            subscriptionOffers?.let { offers ->
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppColors.Background
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Available Offers (${offers.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.Primary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        offers.forEachIndexed { index, offer ->
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                    color = AppColors.Border.copy(alpha = 0.3f)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    // Offer type badge
+                                    val offerTypeLabel = when {
+                                        offer.paymentMode?.rawValue?.contains("free", ignoreCase = true) == true -> "🎁 Free Trial"
+                                        offer.type.rawValue.contains("intro", ignoreCase = true) -> "⭐ Introductory"
+                                        offer.type.rawValue.contains("promo", ignoreCase = true) -> "🔥 Promotional"
+                                        else -> "💰 ${offer.type.rawValue}"
+                                    }
+
+                                    Text(
+                                        text = offerTypeLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = when {
+                                            offer.paymentMode?.rawValue?.contains("free", ignoreCase = true) == true -> AppColors.Success
+                                            offer.type.rawValue.contains("intro", ignoreCase = true) -> AppColors.Orange
+                                            else -> AppColors.Primary
+                                        }
+                                    )
+
+                                    // Offer ID
+                                    Text(
+                                        text = offer.id.ifEmpty { "Default" },
+                                        fontSize = 10.sp,
+                                        color = AppColors.Secondary
+                                    )
+
+                                    // Period info if available
+                                    offer.period?.let { period ->
+                                        Text(
+                                            text = "${period.value} ${period.unit.rawValue}(s)",
+                                            fontSize = 10.sp,
+                                            color = AppColors.Secondary
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = offer.displayPrice,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.OnSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
             
             // Show subscribed status badge if active
