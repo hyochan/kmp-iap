@@ -1359,7 +1359,7 @@ public data class DiscountOffer(
         "fullPriceMicrosAndroid" to fullPriceMicrosAndroid,
         "id" to id,
         "limitedQuantityInfoAndroid" to limitedQuantityInfoAndroid?.toJson(),
-        "offerTagsAndroid" to offerTagsAndroid?.map { it },
+        "offerTagsAndroid" to offerTagsAndroid,
         "offerTokenAndroid" to offerTokenAndroid,
         "percentageDiscountAndroid" to percentageDiscountAndroid,
         "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
@@ -1834,7 +1834,7 @@ public data class ProductAndroidOneTimePurchaseOfferDetail(
         "fullPriceMicros" to fullPriceMicros,
         "limitedQuantityInfo" to limitedQuantityInfo?.toJson(),
         "offerId" to offerId,
-        "offerTags" to offerTags.map { it },
+        "offerTags" to offerTags,
         "offerToken" to offerToken,
         "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
         "priceAmountMicros" to priceAmountMicros,
@@ -2023,7 +2023,7 @@ public data class ProductSubscriptionAndroidOfferDetails(
         "__typename" to "ProductSubscriptionAndroidOfferDetails",
         "basePlanId" to basePlanId,
         "offerId" to offerId,
-        "offerTags" to offerTags.map { it },
+        "offerTags" to offerTags,
         "offerToken" to offerToken,
         "pricingPhases" to pricingPhases.toJson(),
     )
@@ -2196,7 +2196,7 @@ public data class PurchaseAndroid(
         "dataAndroid" to dataAndroid,
         "developerPayloadAndroid" to developerPayloadAndroid,
         "id" to id,
-        "ids" to ids?.map { it },
+        "ids" to ids,
         "isAcknowledgedAndroid" to isAcknowledgedAndroid,
         "isAutoRenewing" to isAutoRenewing,
         "isSuspendedAndroid" to isSuspendedAndroid,
@@ -2331,7 +2331,7 @@ public data class PurchaseIOS(
         "environmentIOS" to environmentIOS,
         "expirationDateIOS" to expirationDateIOS,
         "id" to id,
-        "ids" to ids?.map { it },
+        "ids" to ids,
         "isAutoRenewing" to isAutoRenewing,
         "isUpgradedIOS" to isUpgradedIOS,
         "offerIOS" to offerIOS?.toJson(),
@@ -2712,7 +2712,7 @@ public data class SubscriptionOffer(
         "localizedPriceIOS" to localizedPriceIOS,
         "nonceIOS" to nonceIOS,
         "numberOfPeriodsIOS" to numberOfPeriodsIOS,
-        "offerTagsAndroid" to offerTagsAndroid?.map { it },
+        "offerTagsAndroid" to offerTagsAndroid,
         "offerTokenAndroid" to offerTokenAndroid,
         "paymentMode" to paymentMode?.toJson(),
         "period" to period?.toJson(),
@@ -2865,7 +2865,7 @@ public data class UserChoiceBillingDetails(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "UserChoiceBillingDetails",
         "externalTransactionToken" to externalTransactionToken,
-        "products" to products.map { it },
+        "products" to products,
     )
 }
 
@@ -3315,7 +3315,7 @@ public data class ProductRequest(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "skus" to skus.map { it },
+        "skus" to skus,
         "type" to type?.toJson(),
     )
 }
@@ -3388,7 +3388,7 @@ public data class RequestPurchaseAndroidProps(
         "isOfferPersonalized" to isOfferPersonalized,
         "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
-        "skus" to skus.map { it },
+        "skus" to skus,
     )
 }
 
@@ -3607,7 +3607,7 @@ public data class RequestSubscriptionAndroidProps(
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "purchaseTokenAndroid" to purchaseTokenAndroid,
         "replacementModeAndroid" to replacementModeAndroid,
-        "skus" to skus.map { it },
+        "skus" to skus,
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionProductReplacementParams" to subscriptionProductReplacementParams?.toJson(),
     )
