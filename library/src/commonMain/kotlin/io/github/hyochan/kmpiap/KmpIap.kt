@@ -44,6 +44,13 @@ typealias SubscriptionStatusIOS = io.github.hyochan.kmpiap.openiap.SubscriptionS
 typealias SubscriptionPeriodValueIOS = io.github.hyochan.kmpiap.openiap.SubscriptionPeriodValueIOS
 typealias SubscriptionOfferTypeIOS = io.github.hyochan.kmpiap.openiap.SubscriptionOfferTypeIOS
 typealias AppTransaction = io.github.hyochan.kmpiap.openiap.AppTransaction
+typealias PromotionalOfferJWSInputIOS = io.github.hyochan.kmpiap.openiap.PromotionalOfferJWSInputIOS
+typealias WinBackOfferInputIOS = io.github.hyochan.kmpiap.openiap.WinBackOfferInputIOS
+
+// Re-export Android types (new in 1.3.13+)
+typealias ProductStatusAndroid = io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
+typealias SubResponseCodeAndroid = io.github.hyochan.kmpiap.openiap.SubResponseCodeAndroid
+typealias BillingResultAndroid = io.github.hyochan.kmpiap.openiap.BillingResultAndroid
 
 /**
  * Re-export the main interface

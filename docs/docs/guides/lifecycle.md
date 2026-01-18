@@ -485,23 +485,23 @@ class PurchaseErrorHandler {
         scope: CoroutineScope
     ) {
         val (message, actionLabel) = when (error.code) {
-            ErrorCode.USER_CANCELLED -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled - no message needed
                 return
             }
-            ErrorCode.NETWORK_ERROR -> {
+            ErrorCode.NetworkError -> {
                 "Network error. Please check your connection." to "Retry"
             }
-            ErrorCode.SERVICE_UNAVAILABLE -> {
+            ErrorCode.ServiceError -> {
                 "Store service unavailable. Please try later." to null
             }
-            ErrorCode.PRODUCT_NOT_AVAILABLE -> {
+            ErrorCode.ItemUnavailable -> {
                 "This item is currently unavailable" to null
             }
-            ErrorCode.DEVELOPER_ERROR -> {
+            ErrorCode.DeveloperError -> {
                 "Configuration error. Please update the app." to null
             }
-            ErrorCode.PRODUCT_ALREADY_OWNED -> {
+            ErrorCode.AlreadyOwned -> {
                 "You already own this item" to "Restore"
             }
             else -> {
@@ -518,8 +518,8 @@ class PurchaseErrorHandler {
             
             if (result == SnackbarResult.ActionPerformed) {
                 when (error.code) {
-                    ErrorCode.NETWORK_ERROR -> retryLastPurchase()
-                    ErrorCode.PRODUCT_ALREADY_OWNED -> restorePurchases()
+                    ErrorCode.NetworkError -> retryLastPurchase()
+                    ErrorCode.AlreadyOwned -> restorePurchases()
                     else -> {}
                 }
             }

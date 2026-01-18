@@ -497,12 +497,14 @@ Open native subscription management:
 ```kotlin
 suspend fun openSubscriptionManagement() {
     try {
-        when (kmpIapInstance.getCurrentPlatform()) {
+        when (getCurrentPlatform()) {
             IapPlatform.Ios -> {
                 kmpIapInstance.showManageSubscriptionsIOS()
             }
             IapPlatform.Android -> {
-                kmpIapInstance.deepLinkToSubscriptionsAndroid("premium_monthly")
+                kmpIapInstance.deepLinkToSubscriptions(
+                    DeepLinkOptions(skuAndroid = "premium_monthly")
+                )
             }
         }
     } catch (e: PurchaseError) {
@@ -523,7 +525,7 @@ suspend fun validatePurchaseReceipt(purchase: Purchase): Boolean {
             productId = purchase.productId,
             purchaseToken = purchase.purchaseToken,
             receipt = purchase.transactionReceipt,
-            platform = kmpIapInstance.getCurrentPlatform().name
+            platform = getCurrentPlatform().name
         )
 
         response.isValid

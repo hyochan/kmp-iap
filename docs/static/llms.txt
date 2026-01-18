@@ -2,7 +2,7 @@
 
 > Kotlin Multiplatform In-App Purchase Library for Android & iOS
 > OpenIAP Specification Compliant: https://openiap.dev
-> Version: 1.3.0
+> Version: 1.3.2
 
 ## Overview
 
@@ -15,7 +15,7 @@ kmp-iap is a Kotlin Multiplatform library for in-app purchases supporting:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.3.0")
+    implementation("io.github.hyochan:kmp-iap:1.3.2")
 }
 ```
 
@@ -113,6 +113,11 @@ suspend fun restorePurchases(): Unit
 
 // Get available purchases
 suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+
+// Get available purchases including suspended subscriptions (Android Billing 8.1+)
+val purchases = kmpIapInstance.getAvailablePurchases(
+    PurchaseOptions(includeSuspendedAndroid = true)
+)
 ```
 
 ### Subscription Management
@@ -177,7 +182,8 @@ data class ProductAndroid(
     val price: Double?,
     val type: ProductType,
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>?,
-    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?,
+    val productStatusAndroid: ProductStatusAndroid?  // v1.3.2+: Fetch status (Billing 8.0+)
 ) : Product
 ```
 
@@ -260,6 +266,10 @@ enum class Store { NONE, PLAY_STORE, AMAZON, APP_STORE }
 enum class DiscountOfferType { Introductory, Promotional, OneTime }
 enum class PaymentMode { FreeTrial, PayAsYouGo, PayUpFront }
 enum class SubscriptionPeriodUnit { Day, Week, Month, Year }
+
+// v1.3.2+ New Enums
+enum class ProductStatusAndroid { Ok, NotFound, NoOffersAvailable, Unknown }  // Billing 8.0+
+enum class SubscriptionOfferTypeIOS { Introductory, Promotional, WinBack }    // WinBack = iOS 18+
 ```
 
 ## Event Listeners
@@ -277,7 +287,7 @@ scope.launch {
 scope.launch {
     kmpIapInstance.purchaseErrorListener.collectLatest { error ->
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> { /* User cancelled */ }
+            ErrorCode.UserCancelled.name -> { /* User cancelled */ }
             else -> { /* Handle error */ }
         }
     }
@@ -352,10 +362,10 @@ try {
     val purchase = kmpIapInstance.requestPurchase { /* ... */ }
 } catch (e: PurchaseException) {
     when (e.error.code) {
-        ErrorCode.E_USER_CANCELLED -> { /* Silent */ }
-        ErrorCode.E_NETWORK_ERROR -> { /* Retry */ }
-        ErrorCode.E_ALREADY_OWNED -> { /* Restore */ }
-        ErrorCode.E_ITEM_UNAVAILABLE -> { /* Product issue */ }
+        ErrorCode.UserCancelled -> { /* Silent */ }
+        ErrorCode.NetworkError -> { /* Retry */ }
+        ErrorCode.AlreadyOwned -> { /* Restore */ }
+        ErrorCode.ItemUnavailable -> { /* Product issue */ }
         else -> { /* Log and show error */ }
     }
 }
@@ -363,12 +373,12 @@ try {
 
 ### Key Error Codes
 
-- `E_USER_CANCELLED` - User cancelled purchase
-- `E_NETWORK_ERROR` - Network connection error
-- `E_ALREADY_OWNED` - Item already purchased
-- `E_ITEM_UNAVAILABLE` - Product not available
-- `E_NOT_PREPARED` - Connection not initialized
-- `E_DEFERRED_PAYMENT` - Pending approval (Ask to Buy)
+- `UserCancelled` - User cancelled purchase
+- `NetworkError` - Network connection error
+- `AlreadyOwned` - Item already purchased
+- `ItemUnavailable` - Product not available
+- `NotPrepared` - Connection not initialized
+- `DeferredPayment` - Pending approval (Ask to Buy)
 
 ## Platform Requirements
 

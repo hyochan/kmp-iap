@@ -177,6 +177,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         )
                     }
 
+                    // TODO: iOS 15+/18+ options (introductoryOfferEligibility, promotionalOfferJWS, winBackOffer)
+                    // OpenIAP openiap-apple 1.3.13 now includes the updated ObjC bridge.
+                    // To use these options, update cinterop to call the new ObjC method signature:
+                    // requestSubscriptionWithSku(_:offer:introductoryOfferEligibility:promotionalOfferJWS:winBackOfferId:completion:)
+
                     openIapModule.requestSubscriptionWithSku(
                         sku,
                         offer = offer
