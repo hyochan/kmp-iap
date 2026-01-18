@@ -113,6 +113,11 @@ suspend fun restorePurchases(): Unit
 
 // Get available purchases
 suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
+
+// Get available purchases including suspended subscriptions (Android Billing 8.1+)
+val purchases = kmpIapInstance.getAvailablePurchases(
+    PurchaseOptions(includeSuspendedAndroid = true)
+)
 ```
 
 ### Subscription Management

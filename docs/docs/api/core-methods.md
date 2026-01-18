@@ -63,10 +63,10 @@ if (connected) {
 Ends the connection to the platform store and cleans up resources.
 
 ```kotlin
-suspend fun endConnection()
+suspend fun endConnection(): Boolean
 ```
 
-**Returns**: Unit (void)
+**Returns**: `true` if disconnection successful, `false` otherwise
 
 **Description**: Cleanly closes the store connection and frees resources. Should be called when IAP functionality is no longer needed.
 
@@ -350,7 +350,7 @@ scope.launch {
 scope.launch {
     kmpIapInstance.purchaseErrorListener.collectLatest { error ->
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
+            ErrorCode.UserCancelled.name -> {
                 println("User cancelled purchase")
             }
             else -> {
@@ -1261,9 +1261,9 @@ try {
     val purchase = kmpIapInstance.requestPurchase(request)
 } catch (e: PurchaseError) {
     when (e.code) {
-        ErrorCode.E_USER_CANCELLED.name -> handleCancellation()
-        ErrorCode.E_ITEM_UNAVAILABLE.name -> handleUnavailable()
-        ErrorCode.E_NETWORK_ERROR.name -> handleNetworkError()
+        ErrorCode.UserCancelled.name -> handleCancellation()
+        ErrorCode.ItemUnavailable.name -> handleUnavailable()
+        ErrorCode.NetworkError.name -> handleNetworkError()
         else -> handleGenericError(e)
     }
 }

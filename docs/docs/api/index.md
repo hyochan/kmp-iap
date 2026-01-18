@@ -17,7 +17,7 @@ Complete reference for kmp-iap - A unified Kotlin Multiplatform API for implemen
 Essential methods for initializing connections, loading products, and processing purchases.
 
 - **Connection Management**: `kmpIAP.initConnection()`, `kmpIAP.dispose()`
-- **Product Loading**: `kmpIAP.requestProducts()`, `kmpIAP.requestSubscriptions()`
+- **Product Loading**: `kmpIAP.fetchProducts { type = ProductQueryType.InApp }`, `kmpIAP.fetchProducts { type = ProductQueryType.Subs }`
 - **Purchase Processing**: `kmpIAP.requestPurchase()`, `kmpIAP.requestSubscription()`
 - **Transaction Management**: `kmpIAP.finishTransaction()`, `kmpIAP.acknowledgePurchase()`
 

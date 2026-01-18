@@ -93,7 +93,7 @@ enum class ErrorCode {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_UNKNOWN.name -> {
+    ErrorCode.Unknown.name -> {
         // Log full error details
         logger.error("Unknown IAP error", error)
         showError("An unexpected error occurred. Please try again.")
@@ -112,7 +112,7 @@ when (error.code) {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_DEVELOPER_ERROR.name -> {
+    ErrorCode.DeveloperError.name -> {
         if (BuildConfig.DEBUG) {
             println("Developer error - check configuration:")
             println("- App bundle ID matches store listing")
@@ -133,7 +133,7 @@ when (error.code) {
 ```kotlin
 kmpIapInstance.purchaseErrorListener.collect { error ->
     when (error.code) {
-        ErrorCode.E_USER_CANCELLED.name -> {
+        ErrorCode.UserCancelled.name -> {
             // Don't show error - user intended to cancel
             println("Purchase cancelled by user")
         }
@@ -157,7 +157,7 @@ kmpIapInstance.purchaseErrorListener.collect { error ->
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_DEFERRED_PAYMENT.name -> {
+    ErrorCode.DeferredPayment.name -> {
         showInfo("Purchase is pending approval. You'll be notified when approved.")
         // Store pending purchase for later processing
         savePendingPurchase(purchase)
@@ -193,7 +193,7 @@ try {
     val products = kmpIapInstance.requestProducts(listOf("invalid_sku"))
 } catch (e: PurchaseError) {
     when (e.code) {
-        ErrorCode.E_PRODUCT_NOT_AVAILABLE.name -> {
+        ErrorCode.ItemUnavailable.name -> {
             println("Product not found. Check product ID configuration.")
         }
     }
@@ -212,8 +212,8 @@ try {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_ALREADY_OWNED.name,
-    ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
+    ErrorCode.AlreadyOwned.name,
+    ErrorCode.AlreadyOwned.name -> {
         showInfo("You already own this product.")
         // Refresh purchase state
         kmpIapInstance.getAvailablePurchases()
@@ -239,7 +239,7 @@ private suspend fun handleNetworkError() {
             kmpIapInstance.initConnection()
             break // Success
         } catch (e: PurchaseError) {
-            if (e.code != ErrorCode.E_NETWORK_ERROR.name || ++retryCount >= maxRetries) {
+            if (e.code != ErrorCode.NetworkError.name || ++retryCount >= maxRetries) {
                 showError("Network error. Please check your connection.")
                 break
             }
@@ -291,7 +291,7 @@ private suspend fun handleNetworkError() {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_PURCHASE_VERIFICATION_FAILED.name -> {
+    ErrorCode.PurchaseVerificationFailed.name -> {
         println("Verification failed - check IAPKit API key and network")
         // Fall back to local validation or retry
     }
@@ -453,15 +453,15 @@ class IAPErrorHandler(
         
         // Handle by type
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> {
+            ErrorCode.UserCancelled.name -> {
                 // Silent - user action
             }
-            ErrorCode.E_NETWORK_ERROR.name,
+            ErrorCode.NetworkError.name,
             ErrorCode.E_SERVICE_ERROR.name -> {
                 showRetryableError(error)
             }
-            ErrorCode.E_ALREADY_OWNED.name,
-            ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
+            ErrorCode.AlreadyOwned.name,
+            ErrorCode.AlreadyOwned.name -> {
                 handleAlreadyOwned()
             }
             else -> {
@@ -490,14 +490,14 @@ class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
     suspend fun recoverFromError(error: PurchaseError) {
         when (error.code) {
             ErrorCode.E_CONNECTION_CLOSED.name,
-            ErrorCode.E_NETWORK_ERROR.name -> {
+            ErrorCode.NetworkError.name -> {
                 attemptReconnection()
             }
-            ErrorCode.E_ALREADY_OWNED.name,
-            ErrorCode.E_PRODUCT_ALREADY_OWNED.name -> {
+            ErrorCode.AlreadyOwned.name,
+            ErrorCode.AlreadyOwned.name -> {
                 refreshPurchases()
             }
-            ErrorCode.E_PURCHASE_VERIFICATION_FAILED.name,
+            ErrorCode.PurchaseVerificationFailed.name,
             ErrorCode.E_TRANSACTION_VALIDATION_FAILED.name -> {
                 revalidatePurchases()
             }
@@ -561,15 +561,15 @@ The library automatically maps platform-specific error codes to OpenIAP standard
 @Test
 fun testErrorHandling() = runTest {
     val error = PurchaseError(
-        code = ErrorCode.E_NETWORK_ERROR.name,
+        code = ErrorCode.NetworkError.name,
         message = "Network unavailable"
     )
     
     // Verify error code
-    assertEquals(ErrorCode.E_NETWORK_ERROR.name, error.code)
+    assertEquals(ErrorCode.NetworkError.name, error.code)
     
     // Verify error message utility
-    val message = ErrorCodeUtils.getErrorMessage(ErrorCode.E_NETWORK_ERROR)
+    val message = ErrorCodeUtils.getErrorMessage(ErrorCode.NetworkError)
     assertEquals("Network connection error", message)
 }
 ```
@@ -581,7 +581,7 @@ fun testErrorHandling() = runTest {
 fun testPurchaseErrorRecovery() = runTest {
     // Simulate network failure
     val error = PurchaseError(
-        code = ErrorCode.E_NETWORK_ERROR.name,
+        code = ErrorCode.NetworkError.name,
         message = "Connection failed"
     )
     

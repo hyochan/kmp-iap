@@ -91,17 +91,17 @@ scope.launch {
         println("Error code: \${error.code}")
         
         when (error.code) {
-            ErrorCode.USER_CANCELLED -> {
+            ErrorCode.UserCancelled -> {
                 // User cancelled, no action needed
                 println("User cancelled the purchase")
             }
-            ErrorCode.NETWORK_ERROR -> {
+            ErrorCode.NetworkError -> {
                 showRetryDialog("Network error. Please check your connection.")
             }
-            ErrorCode.ITEM_UNAVAILABLE -> {
+            ErrorCode.ItemUnavailable -> {
                 showError("This item is not available in your region.")
             }
-            ErrorCode.ALREADY_OWNED -> {
+            ErrorCode.AlreadyOwned -> {
                 showInfo("You already own this item.")
                 refreshOwnedPurchases()
             }
@@ -115,55 +115,51 @@ scope.launch {
 
 ---
 
-## Connection State Listener
+## Connection State Management
 
-### Connection State
+### Initializing and Managing Connection
 
-```kotlin
-suspend fun isConnected(): Boolean
-```
-
-**Type**: `suspend fun`  
-**Description**: Check connection state to the store service  
-**Returns**: `Boolean` - true if connected
+The kmp-iap library uses `initConnection()` to establish connection with the store. The connection state should be tracked in your application code.
 
 **Example**:
 ```kotlin
-// Check connection state
-scope.launch {
-    val connected = kmpIapInstance.isConnected()
-    if (connected) {
-        enablePurchaseButtons()
-        loadProducts()
-    } else {
-        disablePurchaseButtons()
-        showConnectionError()
-    }
-}
-
-// Connection state with retry
-class ConnectionManager(private val iap: InAppPurchase) {
+class ConnectionManager {
+    private val kmpIAP = KmpIAP()
+    private var isConnected = false
     private var retryCount = 0
     private val maxRetries = 3
-    
-    init {
-        monitorConnection()
+
+    suspend fun initializeConnection(): Boolean {
+        return try {
+            isConnected = kmpIAP.initConnection()
+            if (isConnected) {
+                retryCount = 0
+                enablePurchaseButtons()
+                loadProducts()
+            } else {
+                disablePurchaseButtons()
+                showConnectionError()
+            }
+            isConnected
+        } catch (e: Exception) {
+            isConnected = false
+            handleConnectionError(e)
+            false
+        }
     }
-    
-    private fun monitorConnection() {
-        scope.launch {
-            kmpIapInstance.isConnected.collectLatest { connected ->
-                if (!connected && retryCount < maxRetries) {
-                    delay(2000 * (retryCount + 1)) // Exponential backoff
-                    retryCount++
-                    try {
-                        kmpIapInstance.initConnection()
-                    } catch (e: Exception) {
-                        println("Retry failed: \${e.message}")
-                    }
-                } else if (connected) {
+
+    suspend fun retryConnection() {
+        if (!isConnected && retryCount < maxRetries) {
+            delay(2000L * (retryCount + 1)) // Exponential backoff
+            retryCount++
+            try {
+                isConnected = kmpIAP.initConnection()
+                if (isConnected) {
                     retryCount = 0
+                    println("Connection restored")
                 }
+            } catch (e: Exception) {
+                println("Retry failed: \${e.message}")
             }
         }
     }
@@ -250,17 +246,31 @@ if (getCurrentPlatform() == IapPlatform.IOS) {
 
 ### Android Billing Client State
 
-While not exposed as a direct flow, Android billing client state changes can be monitored:
+Android billing client state should be managed through application-level connection tracking:
 
 ```kotlin
-// Monitor through connection state
-scope.launch {
-    kmpIapInstance.isConnected.collectLatest { connected ->
-        if (connected) {
-            // BillingClient is ready
-            println("Google Play Billing connected")
-        } else {
-            // BillingClient disconnected
+class AndroidConnectionManager {
+    private val kmpIAP = KmpIAP()
+    private var isConnected = false
+
+    suspend fun initialize() {
+        try {
+            isConnected = kmpIAP.initConnection()
+            if (isConnected) {
+                println("Google Play Billing connected")
+            } else {
+                println("Google Play Billing connection failed")
+            }
+        } catch (e: Exception) {
+            isConnected = false
+            println("Google Play Billing disconnected: \${e.message}")
+        }
+    }
+
+    fun dispose() {
+        scope.launch {
+            kmpIAP.endConnection()
+            isConnected = false
             println("Google Play Billing disconnected")
         }
     }
@@ -320,8 +330,8 @@ kmpIapInstance.purchaseUpdatedListener
 kmpIAP.purchaseErrorListener
     .filter { error ->
         error.code in listOf(
-            ErrorCode.NETWORK_ERROR,
-            ErrorCode.SERVICE_UNAVAILABLE
+            ErrorCode.NetworkError,
+            ErrorCode.ServiceError
         )
     }
     .collectLatest { networkError ->
@@ -438,8 +448,8 @@ class ResilientPurchaseManager(private val iap: InAppPurchase) {
         scope.launch {
             kmpIapInstance.purchaseErrorListener.collectLatest { error ->
                 when (error.code) {
-                    ErrorCode.NETWORK_ERROR,
-                    ErrorCode.SERVICE_UNAVAILABLE -> {
+                    ErrorCode.NetworkError,
+                    ErrorCode.ServiceError -> {
                         scheduleRetry(error)
                     }
                     else -> {

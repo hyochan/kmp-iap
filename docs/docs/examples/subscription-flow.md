@@ -115,7 +115,7 @@ kmpIapInstance.requestPurchase {
     google {  // Recommended (v1.3.15+)
         skus = listOf("premium_monthly")
         subscriptionOffers = offerToken?.let {
-            listOf(SubscriptionOfferAndroid(sku = "premium_monthly", offerToken = it))
+            listOf(AndroidSubscriptionOfferInput(sku = "premium_monthly", offerToken = it))
         }
     }
 }
@@ -142,8 +142,10 @@ kmpIapInstance.finishTransaction(
 ## Android Subscription Management
 
 ```kotlin
-if (kmpIapInstance.getPlatform() == IapPlatform.Android) {
-    kmpIapInstance.deepLinkToSubscriptions("premium_monthly")
+if (getCurrentPlatform() == IapPlatform.Android) {
+    kmpIapInstance.deepLinkToSubscriptions(
+        DeepLinkOptions(skuAndroid = "premium_monthly")
+    )
 }
 ```
 

@@ -177,6 +177,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         )
                     }
 
+                    // TODO: iOS 15+/18+ options (introductoryOfferEligibility, promotionalOfferJWS, winBackOffer)
+                    // require OpenIAP openiap-apple 1.3.13+ with updated ObjC bridge.
+                    // The ObjC bridge update has been added but not yet published to CocoaPods.
+                    // These options are set in DSL but not passed to OpenIAP until next openiap release.
+
                     openIapModule.requestSubscriptionWithSku(
                         sku,
                         offer = offer

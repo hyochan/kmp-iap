@@ -24,17 +24,17 @@ import io.github.hyochan.kmpiap.KmpIAP
 // Create your own instance
 val kmpIAP = KmpIAP()
 kmpIAP.initConnection()
-kmpIAP.requestProducts(...)
+kmpIAP.fetchProducts { ... }
 ```
 
-#### 2. Singleton Pattern (Deprecated)
+#### 2. Global Instance Pattern
 
 ```kotlin
-import io.github.hyochan.kmpiap.KmpIAP
+import io.github.hyochan.kmpiap.kmpIapInstance
 
-// Use the global singleton instance (deprecated)
-KmpIAP.instance.initConnection()
-KmpIAP.instance.requestProducts(...)
+// Use the global instance
+kmpIapInstance.initConnection()
+kmpIapInstance.fetchProducts { ... }
 ```
 
 ### KmpInAppPurchase Interface
@@ -49,8 +49,8 @@ interface KmpInAppPurchase {
     fun getStore(): Store
     suspend fun canMakePayments(): Boolean
     
-    // Product management
-    suspend fun requestProducts(params: ProductRequest): List<Product>
+    // Product management (use fetchProducts extension for DSL API)
+    // suspend fun fetchProducts(builder: ProductsRequestBuilder.() -> Unit): List<Product>
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
     suspend fun getPurchaseHistories(options: PurchaseOptions? = null): List<ProductPurchase>
     
@@ -222,10 +222,10 @@ kmpIAP.purchaseUpdatedListener.collect { purchase ->
 val kmpIAP = KmpIAP()
 kmpIAP.purchaseErrorListener.collect { error ->
     when (error.code) {
-        ErrorCode.E_USER_CANCELLED -> {
+        ErrorCode.UserCancelled -> {
             // User cancelled the purchase
         }
-        ErrorCode.E_ITEM_UNAVAILABLE -> {
+        ErrorCode.ItemUnavailable -> {
             // Item not available
         }
         else -> {

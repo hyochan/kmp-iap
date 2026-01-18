@@ -608,13 +608,30 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
         }
     }
 
-    private val getAvailablePurchasesHandler: QueryGetAvailablePurchasesHandler = { _ ->
+    private val getAvailablePurchasesHandler: QueryGetAvailablePurchasesHandler = { options ->
         withContext(Dispatchers.IO) {
             ensureConnectedOrFail(isConnected, ::failWith)
             val client = billingClient ?: return@withContext emptyList()
+            val includeSuspended = options?.includeSuspendedAndroid == true
 
-            suspend fun query(type: String): List<Purchase> = suspendCancellableCoroutine { continuation ->
-                val params = QueryPurchasesParams.newBuilder().setProductType(type).build()
+            suspend fun query(type: String, includeSuspendedSubs: Boolean): List<Purchase> = suspendCancellableCoroutine { continuation ->
+                val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(type)
+
+                // Include suspended subscriptions (Google Play Billing Library 8.1+)
+                // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+                // Users should be directed to the subscription center to resolve payment issues.
+                if (type == BillingClient.ProductType.SUBS && includeSuspendedSubs) {
+                    runCatching {
+                        // Use reflection to maintain backward compatibility with older billing library versions
+                        val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
+                            "setIncludeSuspended",
+                            Boolean::class.javaPrimitiveType
+                        )
+                        setIncludeSuspendedMethod.invoke(paramsBuilder, true)
+                    }
+                }
+
+                val params = paramsBuilder.build()
                 client.queryPurchasesAsync(params) { result, purchases ->
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                         continuation.resume(purchases.map { it.toPurchase() })
@@ -625,8 +642,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             }
 
             val all = mutableListOf<Purchase>()
-            all += query(BillingClient.ProductType.INAPP)
-            all += query(BillingClient.ProductType.SUBS)
+            all += query(BillingClient.ProductType.INAPP, includeSuspendedSubs = false)
+            all += query(BillingClient.ProductType.SUBS, includeSuspendedSubs = includeSuspended)
             all
         }
     }
