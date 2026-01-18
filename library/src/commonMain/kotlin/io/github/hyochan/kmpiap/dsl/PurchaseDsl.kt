@@ -12,6 +12,8 @@ import io.github.hyochan.kmpiap.openiap.RequestSubscriptionAndroidProps
 import io.github.hyochan.kmpiap.openiap.RequestSubscriptionIosProps
 import io.github.hyochan.kmpiap.openiap.RequestSubscriptionPropsByPlatforms
 import io.github.hyochan.kmpiap.openiap.DiscountOfferInputIOS
+import io.github.hyochan.kmpiap.openiap.PromotionalOfferJWSInputIOS
+import io.github.hyochan.kmpiap.openiap.WinBackOfferInputIOS
 
 /**
  * DSL marker for type-safe builders
@@ -138,6 +140,28 @@ class IosOptionsBuilder {
      * Added in openiap-apple v1.3.7
      */
     var advancedCommerceData: String? = null
+    /**
+     * Override introductory offer eligibility (iOS 15+, WWDC 2025).
+     * Set to true to indicate the user is eligible for introductory offer,
+     * or false to indicate they are not. When null, the system determines eligibility.
+     * Back-deployed to iOS 15. Requires Xcode 16.4+ to compile.
+     * Added in openiap-gql v1.3.13 / openiap-apple v1.3.11
+     */
+    var introductoryOfferEligibility: Boolean? = null
+    /**
+     * JWS promotional offer (iOS 15+, WWDC 2025).
+     * New signature format using compact JWS string for promotional offers.
+     * Back-deployed to iOS 15. Requires Xcode 16.4+ to compile.
+     * Added in openiap-gql v1.3.13 / openiap-apple v1.3.11
+     */
+    var promotionalOfferJWS: PromotionalOfferJWSInputIOS? = null
+    /**
+     * Win-back offer to apply (iOS 18+).
+     * Used to re-engage churned subscribers with a discount or free trial.
+     * The offer is available when the customer is eligible.
+     * Added in openiap-gql v1.3.13 / openiap-apple v1.3.11
+     */
+    var winBackOffer: WinBackOfferInputIOS? = null
 
     internal fun build(): BuiltIosOptions? {
         val skuValue = sku ?: return null
@@ -155,7 +179,10 @@ class IosOptionsBuilder {
             appAccountToken = appAccountToken,
             andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
             withOffer = withOffer,
-            advancedCommerceData = advancedCommerceData
+            advancedCommerceData = advancedCommerceData,
+            introductoryOfferEligibility = introductoryOfferEligibility,
+            promotionalOfferJWS = promotionalOfferJWS,
+            winBackOffer = winBackOffer
         )
         return BuiltIosOptions(purchase = purchase, subscription = subscription)
     }

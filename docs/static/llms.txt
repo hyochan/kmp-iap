@@ -2,7 +2,7 @@
 
 > Kotlin Multiplatform In-App Purchase Library for Android & iOS
 > OpenIAP Specification Compliant: https://openiap.dev
-> Version: 1.3.0
+> Version: 1.3.2
 
 ## Overview
 
@@ -15,7 +15,7 @@ kmp-iap is a Kotlin Multiplatform library for in-app purchases supporting:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.3.0")
+    implementation("io.github.hyochan:kmp-iap:1.3.2")
 }
 ```
 
@@ -177,7 +177,8 @@ data class ProductAndroid(
     val price: Double?,
     val type: ProductType,
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>?,
-    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?,
+    val productStatusAndroid: ProductStatusAndroid?  // v1.3.2+: Fetch status (Billing 8.0+)
 ) : Product
 ```
 
@@ -260,6 +261,10 @@ enum class Store { NONE, PLAY_STORE, AMAZON, APP_STORE }
 enum class DiscountOfferType { Introductory, Promotional, OneTime }
 enum class PaymentMode { FreeTrial, PayAsYouGo, PayUpFront }
 enum class SubscriptionPeriodUnit { Day, Week, Month, Year }
+
+// v1.3.2+ New Enums
+enum class ProductStatusAndroid { Ok, NotFound, NoOffersAvailable, Unknown }  // Billing 8.0+
+enum class SubscriptionOfferTypeIOS { Introductory, Promotional, WinBack }    // WinBack = iOS 18+
 ```
 
 ## Event Listeners
