@@ -287,7 +287,7 @@ scope.launch {
 scope.launch {
     kmpIapInstance.purchaseErrorListener.collectLatest { error ->
         when (error.code) {
-            ErrorCode.E_USER_CANCELLED.name -> { /* User cancelled */ }
+            ErrorCode.UserCancelled.name -> { /* User cancelled */ }
             else -> { /* Handle error */ }
         }
     }
@@ -362,10 +362,10 @@ try {
     val purchase = kmpIapInstance.requestPurchase { /* ... */ }
 } catch (e: PurchaseException) {
     when (e.error.code) {
-        ErrorCode.E_USER_CANCELLED -> { /* Silent */ }
-        ErrorCode.E_NETWORK_ERROR -> { /* Retry */ }
-        ErrorCode.E_ALREADY_OWNED -> { /* Restore */ }
-        ErrorCode.E_ITEM_UNAVAILABLE -> { /* Product issue */ }
+        ErrorCode.UserCancelled -> { /* Silent */ }
+        ErrorCode.NetworkError -> { /* Retry */ }
+        ErrorCode.AlreadyOwned -> { /* Restore */ }
+        ErrorCode.ItemUnavailable -> { /* Product issue */ }
         else -> { /* Log and show error */ }
     }
 }
@@ -373,12 +373,12 @@ try {
 
 ### Key Error Codes
 
-- `E_USER_CANCELLED` - User cancelled purchase
-- `E_NETWORK_ERROR` - Network connection error
-- `E_ALREADY_OWNED` - Item already purchased
-- `E_ITEM_UNAVAILABLE` - Product not available
-- `E_NOT_PREPARED` - Connection not initialized
-- `E_DEFERRED_PAYMENT` - Pending approval (Ask to Buy)
+- `UserCancelled` - User cancelled purchase
+- `NetworkError` - Network connection error
+- `AlreadyOwned` - Item already purchased
+- `ItemUnavailable` - Product not available
+- `NotPrepared` - Connection not initialized
+- `DeferredPayment` - Pending approval (Ask to Buy)
 
 ## Platform Requirements
 

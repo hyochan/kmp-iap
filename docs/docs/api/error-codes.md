@@ -352,7 +352,7 @@ The new codes better reflect the provider-based verification approach used by IA
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_PENDING.name -> {
+    ErrorCode.Pending.name -> {
         if (getCurrentPlatform() == Platform.ANDROID) {
             showInfo("Purchase is pending. Check back later.")
         }
@@ -367,7 +367,7 @@ when (error.code) {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_NOT_ENDED.name -> {
+    ErrorCode.NotEnded.name -> {
         // Finish the pending transaction
         kmpIapInstance.finishTransaction(purchase)
     }
@@ -386,9 +386,9 @@ class IAPManager {
             try {
                 kmpIapInstance.initConnection()
             } catch (e: PurchaseError) {
-                if (e.code == ErrorCode.E_NOT_PREPARED.name) {
+                if (e.code == ErrorCode.NotPrepared.name) {
                     throw PurchaseError(
-                        code = ErrorCode.E_NOT_PREPARED.name,
+                        code = ErrorCode.NotPrepared.name,
                         message = "Failed to initialize IAP connection"
                     )
                 }
@@ -425,7 +425,7 @@ class IAPManager {
 
 ```kotlin
 when (error.code) {
-    ErrorCode.E_ACTIVITY_UNAVAILABLE.name -> {
+    ErrorCode.ActivityUnavailable.name -> {
         showError("Please ensure the app is in foreground and try again.")
     }
 }
@@ -457,7 +457,7 @@ class IAPErrorHandler(
                 // Silent - user action
             }
             ErrorCode.NetworkError.name,
-            ErrorCode.E_SERVICE_ERROR.name -> {
+            ErrorCode.ServiceError.name -> {
                 showRetryableError(error)
             }
             ErrorCode.AlreadyOwned.name,
@@ -489,7 +489,7 @@ class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
     
     suspend fun recoverFromError(error: PurchaseError) {
         when (error.code) {
-            ErrorCode.E_CONNECTION_CLOSED.name,
+            ErrorCode.ConnectionClosed.name,
             ErrorCode.NetworkError.name -> {
                 attemptReconnection()
             }
@@ -498,10 +498,10 @@ class ErrorRecoveryManager(private val kmpIap: KmpIAP) {
                 refreshPurchases()
             }
             ErrorCode.PurchaseVerificationFailed.name,
-            ErrorCode.E_TRANSACTION_VALIDATION_FAILED.name -> {
+            ErrorCode.TransactionValidationFailed.name -> {
                 revalidatePurchases()
             }
-            ErrorCode.E_NOT_PREPARED.name -> {
+            ErrorCode.NotPrepared.name -> {
                 kmpIap.initConnection()
             }
         }
