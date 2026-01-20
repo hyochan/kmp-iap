@@ -272,8 +272,8 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             val subscriptionOffers: List<AndroidSubscriptionOfferInput> =
                 subscriptionAndroidOptions?.subscriptionOffers.orEmpty()
 
-            val purchaseTokenAndroid = subscriptionAndroidOptions?.purchaseTokenAndroid
-            val replacementModeAndroid = subscriptionAndroidOptions?.replacementModeAndroid
+            val purchaseToken = subscriptionAndroidOptions?.purchaseToken
+            val replacementMode = subscriptionAndroidOptions?.replacementMode
             val subscriptionProductReplacementParams = subscriptionAndroidOptions?.subscriptionProductReplacementParams
 
             val targetSkus: List<String> =
@@ -281,10 +281,12 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
 
             val isOfferPersonalized = purchaseAndroidOptions?.isOfferPersonalized
                 ?: subscriptionAndroidOptions?.isOfferPersonalized
-            val obfuscatedAccountIdAndroid = purchaseAndroidOptions?.obfuscatedAccountIdAndroid
-                ?: subscriptionAndroidOptions?.obfuscatedAccountIdAndroid
-            val obfuscatedProfileIdAndroid = purchaseAndroidOptions?.obfuscatedProfileIdAndroid
-                ?: subscriptionAndroidOptions?.obfuscatedProfileIdAndroid
+            val obfuscatedAccountId = purchaseAndroidOptions?.obfuscatedAccountId
+                ?: subscriptionAndroidOptions?.obfuscatedAccountId
+            val obfuscatedProfileId = purchaseAndroidOptions?.obfuscatedProfileId
+                ?: subscriptionAndroidOptions?.obfuscatedProfileId
+            // offerToken for one-time purchase discounts (Android 7.0+)
+            val oneTimePurchaseOfferToken = purchaseAndroidOptions?.offerToken
             val developerBillingOption = purchaseAndroidOptions?.developerBillingOption
                 ?: subscriptionAndroidOptions?.developerBillingOption
             if (targetSkus.isEmpty()) {
@@ -368,6 +370,11 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                             }
                             builder.setSubscriptionProductReplacementParams(replacementParamsBuilder.build())
                         }
+                    } else {
+                        // Handle offerToken for one-time purchase discounts (Android 7.0+)
+                        oneTimePurchaseOfferToken?.let { token ->
+                            builder.setOfferToken(token)
+                        }
                     }
 
                     paramsList += builder.build()
@@ -381,17 +388,17 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
                 if (isOfferPersonalized == true) {
                     flowBuilder.setIsOfferPersonalized(true)
                 }
-                obfuscatedAccountIdAndroid?.let { accountId ->
+                obfuscatedAccountId?.let { accountId ->
                     flowBuilder.setObfuscatedAccountId(accountId)
                 }
-                obfuscatedProfileIdAndroid?.let { profileId ->
+                obfuscatedProfileId?.let { profileId ->
                     flowBuilder.setObfuscatedProfileId(profileId)
                 }
 
-                if (desiredProductType == BillingClient.ProductType.SUBS && !purchaseTokenAndroid.isNullOrEmpty()) {
+                if (desiredProductType == BillingClient.ProductType.SUBS && !purchaseToken.isNullOrEmpty()) {
                     val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-                        .setOldPurchaseToken(purchaseTokenAndroid)
-                    replacementModeAndroid?.let(updateParamsBuilder::setSubscriptionReplacementMode)
+                        .setOldPurchaseToken(purchaseToken)
+                    replacementMode?.let(updateParamsBuilder::setSubscriptionReplacementMode)
                     flowBuilder.setSubscriptionUpdateParams(updateParamsBuilder.build())
                 }
 

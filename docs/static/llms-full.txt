@@ -2,7 +2,7 @@
 
 > Kotlin Multiplatform In-App Purchase Library for Android & iOS
 > OpenIAP Specification Compliant: https://openiap.dev
-> Version: 1.3.0
+> Version: 1.3.3
 
 ================================================================================
 TABLE OF CONTENTS
@@ -47,7 +47,7 @@ standardized cross-platform IAP implementation.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.3.0")
+    implementation("io.github.hyochan:kmp-iap:1.3.3")
 }
 ```
 
@@ -56,7 +56,7 @@ dependencies {
 ```groovy
 // build.gradle
 dependencies {
-    implementation "io.github.hyochan:kmp-iap:1.3.0"
+    implementation "io.github.hyochan:kmp-iap:1.3.3"
 }
 ```
 
@@ -65,7 +65,7 @@ dependencies {
 ```toml
 # libs.versions.toml
 [versions]
-kmp-iap = "1.3.0"
+kmp-iap = "1.3.3"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
@@ -352,9 +352,10 @@ iOS:
 
 Android:
 - `skus: List<String>` - Product IDs (required)
-- `obfuscatedAccountIdAndroid: String?` - Obfuscated user ID
-- `obfuscatedProfileIdAndroid: String?` - Obfuscated profile ID
+- `obfuscatedAccountId: String?` - Obfuscated user ID
+- `obfuscatedProfileId: String?` - Obfuscated profile ID
 - `isOfferPersonalized: Boolean?` - EU personalized pricing disclosure
+- `offerToken: String?` - (v1.3.3+) Offer token for one-time purchase discounts (Android 7.0+)
 
 **Examples:**
 
@@ -384,9 +385,10 @@ val iosResult = kmpIapInstance.requestPurchase {
 val androidResult = kmpIapInstance.requestPurchase {
     android {
         skus = listOf("coins_100")
-        obfuscatedAccountIdAndroid = "obfuscated_user_123"
-        obfuscatedProfileIdAndroid = "obfuscated_profile_456"
+        obfuscatedAccountId = "obfuscated_user_123"
+        obfuscatedProfileId = "obfuscated_profile_456"
         isOfferPersonalized = true
+        offerToken = "discount_token"  // v1.3.3+: For one-time purchase discounts
     }
 }
 
@@ -409,8 +411,10 @@ suspend fun requestSubscription(
 ```
 
 **Android-specific options:**
-- `purchaseTokenAndroid: String?` - Token of existing subscription for upgrade/downgrade
-- `replacementModeAndroid: Int?` - Replacement mode for subscription changes
+- `purchaseToken: String?` - Token of existing subscription for upgrade/downgrade
+- `replacementMode: Int?` - Replacement mode for subscription changes
+- `obfuscatedAccountId: String?` - Obfuscated user ID
+- `obfuscatedProfileId: String?` - Obfuscated profile ID
 - `subscriptionOffers: List<SubscriptionOfferAndroid>` - Specific offer selection
 
 **Example:**
@@ -437,8 +441,8 @@ val newSub = kmpIapInstance.requestSubscription {
 val upgrade = kmpIapInstance.requestSubscription {
     android {
         skus = listOf("premium_yearly")
-        purchaseTokenAndroid = existingSubscription.purchaseToken
-        replacementModeAndroid = BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
+        purchaseToken = existingSubscription.purchaseToken
+        replacementMode = BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
         subscriptionOffers = listOf(offer)
     }
 }
@@ -1942,7 +1946,7 @@ android {
 }
 
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.3.0")
+    implementation("io.github.hyochan:kmp-iap:1.3.3")
 }
 ```
 
