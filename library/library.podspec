@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'library'
-    spec.version                  = '1.3.3'
+    spec.version                  = '1.3.4'
     spec.homepage                 = 'https://github.com/hyochan/kmp-iap'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''

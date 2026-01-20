@@ -31,7 +31,7 @@ Add kmp-iap to your project's dependencies:
 ```kotlin
 val commonMain by getting {
     dependencies {
-        implementation("io.github.hyochan:kmp-iap:1.3.3")
+        implementation("io.github.hyochan:kmp-iap:1.3.4")
     }
 }
 ```
@@ -41,7 +41,7 @@ Or if using version catalogs:
 ```toml
 # gradle/libs.versions.toml
 [versions]
-kmp-iap = "1.3.3"
+kmp-iap = "1.3.4"
 
 [libraries]
 kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
