@@ -3,7 +3,8 @@
 // Run `npm run generate` after updating any *.graphql schema file.
 // ============================================================================
 
-@file:Suppress("unused", "UNCHECKED_CAST")
+// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure
+@file:Suppress("UNCHECKED_CAST")
 
 package io.github.hyochan.kmpiap.openiap
 
@@ -3243,10 +3244,13 @@ public data class AndroidSubscriptionOfferInput(
     val sku: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): AndroidSubscriptionOfferInput {
+        fun fromJson(json: Map<String, Any?>): AndroidSubscriptionOfferInput? {
+            val offerToken = json["offerToken"] as? String
+            val sku = json["sku"] as? String
+            if (offerToken == null || sku == null) return null
             return AndroidSubscriptionOfferInput(
-                offerToken = json["offerToken"] as? String ?: "",
-                sku = json["sku"] as? String ?: "",
+                offerToken = offerToken,
+                sku = sku,
             )
         }
     }
@@ -3302,11 +3306,15 @@ public data class DeveloperBillingOptionParamsAndroid(
     val linkUri: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid {
+        fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid? {
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
+            val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) } ?: DeveloperBillingLaunchModeAndroid.Unspecified
+            val linkUri = json["linkUri"] as? String
+            if (linkUri == null) return null
             return DeveloperBillingOptionParamsAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
-                launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) } ?: DeveloperBillingLaunchModeAndroid.Unspecified,
-                linkUri = json["linkUri"] as? String ?: "",
+                billingProgram = billingProgram,
+                launchMode = launchMode,
+                linkUri = linkUri,
             )
         }
     }
@@ -3341,13 +3349,19 @@ public data class DiscountOfferInputIOS(
     val timestamp: Double
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): DiscountOfferInputIOS {
+        fun fromJson(json: Map<String, Any?>): DiscountOfferInputIOS? {
+            val identifier = json["identifier"] as? String
+            val keyIdentifier = json["keyIdentifier"] as? String
+            val nonce = json["nonce"] as? String
+            val signature = json["signature"] as? String
+            val timestamp = (json["timestamp"] as? Number)?.toDouble()
+            if (identifier == null || keyIdentifier == null || nonce == null || signature == null || timestamp == null) return null
             return DiscountOfferInputIOS(
-                identifier = json["identifier"] as? String ?: "",
-                keyIdentifier = json["keyIdentifier"] as? String ?: "",
-                nonce = json["nonce"] as? String ?: "",
-                signature = json["signature"] as? String ?: "",
-                timestamp = (json["timestamp"] as? Number)?.toDouble() ?: 0.0,
+                identifier = identifier,
+                keyIdentifier = keyIdentifier,
+                nonce = nonce,
+                signature = signature,
+                timestamp = timestamp,
             )
         }
     }
@@ -3421,12 +3435,17 @@ public data class LaunchExternalLinkParamsAndroid(
     val linkUri: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid {
+        fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid? {
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
+            val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified
+            val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified
+            val linkUri = json["linkUri"] as? String
+            if (linkUri == null) return null
             return LaunchExternalLinkParamsAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
-                launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified,
-                linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified,
-                linkUri = json["linkUri"] as? String ?: "",
+                billingProgram = billingProgram,
+                launchMode = launchMode,
+                linkType = linkType,
+                linkUri = linkUri,
             )
         }
     }
@@ -3444,10 +3463,13 @@ public data class ProductRequest(
     val type: ProductQueryType? = null
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): ProductRequest {
+        fun fromJson(json: Map<String, Any?>): ProductRequest? {
+            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
+            val type = (json["type"] as? String)?.let { ProductQueryType.fromJson(it) }
+            if (skus == null) return null
             return ProductRequest(
-                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                type = (json["type"] as? String)?.let { ProductQueryType.fromJson(it) },
+                skus = skus,
+                type = type,
             )
         }
     }
@@ -3477,10 +3499,13 @@ public data class PromotionalOfferJWSInputIOS(
     val offerId: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): PromotionalOfferJWSInputIOS {
+        fun fromJson(json: Map<String, Any?>): PromotionalOfferJWSInputIOS? {
+            val jws = json["jws"] as? String
+            val offerId = json["offerId"] as? String
+            if (jws == null || offerId == null) return null
             return PromotionalOfferJWSInputIOS(
-                jws = json["jws"] as? String ?: "",
-                offerId = json["offerId"] as? String ?: "",
+                jws = jws,
+                offerId = offerId,
             )
         }
     }
@@ -3535,30 +3560,45 @@ public data class RequestPurchaseAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag.
+     * When true, indicates the price was customized for this user.
      */
     val isOfferPersonalized: Boolean? = null,
     /**
      * Obfuscated account ID
      */
-    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedAccountId: String? = null,
     /**
      * Obfuscated profile ID
      */
-    val obfuscatedProfileIdAndroid: String? = null,
+    val obfuscatedProfileId: String? = null,
+    /**
+     * Offer token for one-time purchase discounts (7.0+).
+     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * to apply a discount offer to the purchase.
+     */
+    val offerToken: String? = null,
     /**
      * List of product SKUs
      */
     val skus: List<String>
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps {
+        fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
+            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
+            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
+            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
+            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
+            val offerToken = json["offerToken"] as? String
+            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
+            if (skus == null) return null
             return RequestPurchaseAndroidProps(
-                developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) },
-                isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
-                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
-                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
-                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
+                developerBillingOption = developerBillingOption,
+                isOfferPersonalized = isOfferPersonalized,
+                obfuscatedAccountId = obfuscatedAccountId,
+                obfuscatedProfileId = obfuscatedProfileId,
+                offerToken = offerToken,
+                skus = skus,
             )
         }
     }
@@ -3566,8 +3606,9 @@ public data class RequestPurchaseAndroidProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
-        "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
-        "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
+        "obfuscatedAccountId" to obfuscatedAccountId,
+        "obfuscatedProfileId" to obfuscatedProfileId,
+        "offerToken" to offerToken,
         "skus" to skus,
     )
 }
@@ -3603,14 +3644,21 @@ public data class RequestPurchaseIosProps(
     val withOffer: DiscountOfferInputIOS? = null
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestPurchaseIosProps {
+        fun fromJson(json: Map<String, Any?>): RequestPurchaseIosProps? {
+            val advancedCommerceData = json["advancedCommerceData"] as? String
+            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
+            val appAccountToken = json["appAccountToken"] as? String
+            val quantity = (json["quantity"] as? Number)?.toInt()
+            val sku = json["sku"] as? String
+            val withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) }
+            if (sku == null) return null
             return RequestPurchaseIosProps(
-                advancedCommerceData = json["advancedCommerceData"] as? String,
-                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
-                appAccountToken = json["appAccountToken"] as? String,
-                quantity = (json["quantity"] as? Number)?.toInt(),
-                sku = json["sku"] as? String ?: "",
-                withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
+                advancedCommerceData = advancedCommerceData,
+                andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
+                appAccountToken = appAccountToken,
+                quantity = quantity,
+                sku = sku,
+                withOffer = withOffer,
             )
         }
     }
@@ -3731,26 +3779,27 @@ public data class RequestSubscriptionAndroidProps(
      */
     val developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
     /**
-     * Personalized offer flag
+     * Personalized offer flag.
+     * When true, indicates the price was customized for this user.
      */
     val isOfferPersonalized: Boolean? = null,
     /**
      * Obfuscated account ID
      */
-    val obfuscatedAccountIdAndroid: String? = null,
+    val obfuscatedAccountId: String? = null,
     /**
      * Obfuscated profile ID
      */
-    val obfuscatedProfileIdAndroid: String? = null,
+    val obfuscatedProfileId: String? = null,
     /**
      * Purchase token for upgrades/downgrades
      */
-    val purchaseTokenAndroid: String? = null,
+    val purchaseToken: String? = null,
     /**
      * Replacement mode for subscription changes
      * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
      */
-    val replacementModeAndroid: Int? = null,
+    val replacementMode: Int? = null,
     /**
      * List of subscription SKUs
      */
@@ -3761,22 +3810,32 @@ public data class RequestSubscriptionAndroidProps(
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>? = null,
     /**
      * Product-level replacement parameters (8.1.0+)
-     * Use this instead of replacementModeAndroid for item-level replacement
+     * Use this instead of replacementMode for item-level replacement
      */
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps {
+        fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
+            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
+            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
+            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
+            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
+            val purchaseToken = json["purchaseToken"] as? String
+            val replacementMode = (json["replacementMode"] as? Number)?.toInt()
+            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
+            val subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } }
+            val subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) }
+            if (skus == null) return null
             return RequestSubscriptionAndroidProps(
-                developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) },
-                isOfferPersonalized = json["isOfferPersonalized"] as? Boolean,
-                obfuscatedAccountIdAndroid = json["obfuscatedAccountIdAndroid"] as? String,
-                obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
-                purchaseTokenAndroid = json["purchaseTokenAndroid"] as? String,
-                replacementModeAndroid = (json["replacementModeAndroid"] as? Number)?.toInt(),
-                skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AndroidSubscriptionOfferInput") },
-                subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) },
+                developerBillingOption = developerBillingOption,
+                isOfferPersonalized = isOfferPersonalized,
+                obfuscatedAccountId = obfuscatedAccountId,
+                obfuscatedProfileId = obfuscatedProfileId,
+                purchaseToken = purchaseToken,
+                replacementMode = replacementMode,
+                skus = skus,
+                subscriptionOffers = subscriptionOffers,
+                subscriptionProductReplacementParams = subscriptionProductReplacementParams,
             )
         }
     }
@@ -3784,10 +3843,10 @@ public data class RequestSubscriptionAndroidProps(
     fun toJson(): Map<String, Any?> = mapOf(
         "developerBillingOption" to developerBillingOption?.toJson(),
         "isOfferPersonalized" to isOfferPersonalized,
-        "obfuscatedAccountIdAndroid" to obfuscatedAccountIdAndroid,
-        "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
-        "purchaseTokenAndroid" to purchaseTokenAndroid,
-        "replacementModeAndroid" to replacementModeAndroid,
+        "obfuscatedAccountId" to obfuscatedAccountId,
+        "obfuscatedProfileId" to obfuscatedProfileId,
+        "purchaseToken" to purchaseToken,
+        "replacementMode" to replacementMode,
         "skus" to skus,
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionProductReplacementParams" to subscriptionProductReplacementParams?.toJson(),
@@ -3833,17 +3892,27 @@ public data class RequestSubscriptionIosProps(
     val withOffer: DiscountOfferInputIOS? = null
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestSubscriptionIosProps {
+        fun fromJson(json: Map<String, Any?>): RequestSubscriptionIosProps? {
+            val advancedCommerceData = json["advancedCommerceData"] as? String
+            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
+            val appAccountToken = json["appAccountToken"] as? String
+            val introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean
+            val promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) }
+            val quantity = (json["quantity"] as? Number)?.toInt()
+            val sku = json["sku"] as? String
+            val winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) }
+            val withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) }
+            if (sku == null) return null
             return RequestSubscriptionIosProps(
-                advancedCommerceData = json["advancedCommerceData"] as? String,
-                andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean,
-                appAccountToken = json["appAccountToken"] as? String,
-                introductoryOfferEligibility = json["introductoryOfferEligibility"] as? Boolean,
-                promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) },
-                quantity = (json["quantity"] as? Number)?.toInt(),
-                sku = json["sku"] as? String ?: "",
-                winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) },
-                withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) },
+                advancedCommerceData = advancedCommerceData,
+                andDangerouslyFinishTransactionAutomatically = andDangerouslyFinishTransactionAutomatically,
+                appAccountToken = appAccountToken,
+                introductoryOfferEligibility = introductoryOfferEligibility,
+                promotionalOfferJWS = promotionalOfferJWS,
+                quantity = quantity,
+                sku = sku,
+                winBackOffer = winBackOffer,
+                withOffer = withOffer,
             )
         }
     }
@@ -3913,9 +3982,11 @@ public data class RequestVerifyPurchaseWithIapkitAppleProps(
     val jws: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAppleProps {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAppleProps? {
+            val jws = json["jws"] as? String
+            if (jws == null) return null
             return RequestVerifyPurchaseWithIapkitAppleProps(
-                jws = json["jws"] as? String ?: "",
+                jws = jws,
             )
         }
     }
@@ -3932,9 +4003,11 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     val purchaseToken: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitGoogleProps {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitGoogleProps? {
+            val purchaseToken = json["purchaseToken"] as? String
+            if (purchaseToken == null) return null
             return RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = json["purchaseToken"] as? String ?: "",
+                purchaseToken = purchaseToken,
             )
         }
     }
@@ -3997,10 +4070,13 @@ public data class SubscriptionProductReplacementParamsAndroid(
     val replacementMode: SubscriptionReplacementModeAndroid
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid {
+        fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid? {
+            val oldProductId = json["oldProductId"] as? String
+            val replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            if (oldProductId == null) return null
             return SubscriptionProductReplacementParamsAndroid(
-                oldProductId = json["oldProductId"] as? String ?: "",
-                replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode,
+                oldProductId = oldProductId,
+                replacementMode = replacementMode,
             )
         }
     }
@@ -4022,9 +4098,11 @@ public data class VerifyPurchaseAppleOptions(
     val sku: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseAppleOptions? {
+            val sku = json["sku"] as? String
+            if (sku == null) return null
             return VerifyPurchaseAppleOptions(
-                sku = json["sku"] as? String ?: "",
+                sku = sku,
             )
         }
     }
@@ -4065,13 +4143,19 @@ public data class VerifyPurchaseGoogleOptions(
     val sku: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions? {
+            val accessToken = json["accessToken"] as? String
+            val isSub = json["isSub"] as? Boolean
+            val packageName = json["packageName"] as? String
+            val purchaseToken = json["purchaseToken"] as? String
+            val sku = json["sku"] as? String
+            if (accessToken == null || packageName == null || purchaseToken == null || sku == null) return null
             return VerifyPurchaseGoogleOptions(
-                accessToken = json["accessToken"] as? String ?: "",
-                isSub = json["isSub"] as? Boolean,
-                packageName = json["packageName"] as? String ?: "",
-                purchaseToken = json["purchaseToken"] as? String ?: "",
-                sku = json["sku"] as? String ?: "",
+                accessToken = accessToken,
+                isSub = isSub,
+                packageName = packageName,
+                purchaseToken = purchaseToken,
+                sku = sku,
             )
         }
     }
@@ -4108,11 +4192,15 @@ public data class VerifyPurchaseHorizonOptions(
     val userId: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseHorizonOptions {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseHorizonOptions? {
+            val accessToken = json["accessToken"] as? String
+            val sku = json["sku"] as? String
+            val userId = json["userId"] as? String
+            if (accessToken == null || sku == null || userId == null) return null
             return VerifyPurchaseHorizonOptions(
-                accessToken = json["accessToken"] as? String ?: "",
-                sku = json["sku"] as? String ?: "",
-                userId = json["userId"] as? String ?: "",
+                accessToken = accessToken,
+                sku = sku,
+                userId = userId,
             )
         }
     }
@@ -4167,10 +4255,12 @@ public data class VerifyPurchaseWithProviderProps(
     val provider: PurchaseVerificationProvider
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps {
+        fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps? {
+            val iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) }
+            val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit
             return VerifyPurchaseWithProviderProps(
-                iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) },
-                provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit,
+                iapkit = iapkit,
+                provider = provider,
             )
         }
     }
@@ -4194,9 +4284,11 @@ public data class WinBackOfferInputIOS(
     val offerId: String
 ) {
     companion object {
-        fun fromJson(json: Map<String, Any?>): WinBackOfferInputIOS {
+        fun fromJson(json: Map<String, Any?>): WinBackOfferInputIOS? {
+            val offerId = json["offerId"] as? String
+            if (offerId == null) return null
             return WinBackOfferInputIOS(
-                offerId = json["offerId"] as? String ?: "",
+                offerId = offerId,
             )
         }
     }

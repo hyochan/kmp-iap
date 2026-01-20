@@ -194,12 +194,18 @@ class IosOptionsBuilder {
 @IapDsl
 class AndroidOptionsBuilder {
     var skus: List<String> = emptyList()
-    var obfuscatedAccountIdAndroid: String? = null
-    var obfuscatedProfileIdAndroid: String? = null
+    var obfuscatedAccountId: String? = null
+    var obfuscatedProfileId: String? = null
     var isOfferPersonalized: Boolean? = null
-    var purchaseTokenAndroid: String? = null
-    var replacementModeAndroid: Int? = null
+    var purchaseToken: String? = null
+    var replacementMode: Int? = null
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
+    /**
+     * Offer token for one-time purchase discounts (Android 7.0+).
+     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * to apply a discount offer to the purchase.
+     */
+    var offerToken: String? = null
     /**
      * Developer billing option for External Payments (Billing Library 8.3.0+, Japan only).
      * When set, the purchase dialog shows side-by-side choice between Google Play
@@ -212,19 +218,20 @@ class AndroidOptionsBuilder {
 
         val purchase = RequestPurchaseAndroidProps(
             skus = skus,
-            obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
-            obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
+            obfuscatedAccountId = obfuscatedAccountId,
+            obfuscatedProfileId = obfuscatedProfileId,
             isOfferPersonalized = isOfferPersonalized,
+            offerToken = offerToken,
             developerBillingOption = developerBillingOption
         )
 
         val subscription = RequestSubscriptionAndroidProps(
             skus = skus,
-            obfuscatedAccountIdAndroid = obfuscatedAccountIdAndroid,
-            obfuscatedProfileIdAndroid = obfuscatedProfileIdAndroid,
+            obfuscatedAccountId = obfuscatedAccountId,
+            obfuscatedProfileId = obfuscatedProfileId,
             isOfferPersonalized = isOfferPersonalized,
-            purchaseTokenAndroid = purchaseTokenAndroid,
-            replacementModeAndroid = replacementModeAndroid,
+            purchaseToken = purchaseToken,
+            replacementMode = replacementMode,
             subscriptionOffers = if (subscriptionOffers.isNotEmpty()) subscriptionOffers else null,
             developerBillingOption = developerBillingOption
         )

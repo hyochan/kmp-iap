@@ -199,7 +199,7 @@ class InAppPurchaseTest {
             ),
             google = RequestPurchaseAndroidProps(
                 skus = listOf("android_premium"),
-                obfuscatedAccountIdAndroid = "user_123"
+                obfuscatedAccountId = "user_123"
             )
         )
 

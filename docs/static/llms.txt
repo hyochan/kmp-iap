@@ -2,7 +2,7 @@
 
 > Kotlin Multiplatform In-App Purchase Library for Android & iOS
 > OpenIAP Specification Compliant: https://openiap.dev
-> Version: 1.3.2
+> Version: 1.3.3
 
 ## Overview
 
@@ -15,7 +15,7 @@ kmp-iap is a Kotlin Multiplatform library for in-app purchases supporting:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:1.3.2")
+    implementation("io.github.hyochan:kmp-iap:1.3.3")
 }
 ```
 
@@ -101,7 +101,8 @@ kmpIapInstance.requestPurchase {
     }
     android {
         skus = listOf("premium")
-        obfuscatedAccountIdAndroid = "user_id"  // Optional
+        obfuscatedAccountId = "user_id"  // Optional
+        offerToken = "discount_token"   // v1.3.3+: For one-time purchase discounts (Android 7.0+)
     }
 }
 
