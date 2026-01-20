@@ -324,6 +324,20 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
             )
                 ?: return@withContext emptyList()
 
+            // Guard: oneTimePurchaseOfferToken requires exactly one SKU
+            if (desiredProductType == BillingClient.ProductType.INAPP &&
+                oneTimePurchaseOfferToken != null &&
+                targetSkus.size > 1
+            ) {
+                _purchaseErrorListener.tryEmit(
+                    PurchaseError(
+                        code = ErrorCode.SkuOfferMismatch,
+                        message = "oneTimePurchaseOfferToken requires a single in-app SKU"
+                    )
+                )
+                return@withContext emptyList()
+            }
+
             suspendCancellableCoroutine<List<Purchase>> { continuation ->
                 currentPurchaseCallback = { result ->
                     if (continuation.isActive) continuation.resume(result.getOrDefault(emptyList()))
