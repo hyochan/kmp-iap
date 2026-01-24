@@ -205,7 +205,7 @@ iOS-specific purchase request parameters.
 data class RequestPurchaseIosProps(
     val sku: String,
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
-    val appAccountToken: String? = null,
+    val appAccountToken: String? = null,  // Must be UUID format
     val quantity: Int? = null,
     val withOffer: PaymentDiscountIOS? = null,
     // New in v1.3.7 (openiap-apple)
@@ -286,7 +286,7 @@ iOS-specific subscription request parameters. Similar to `RequestPurchaseIosProp
 data class RequestSubscriptionIosProps(
     val sku: String,
     val andDangerouslyFinishTransactionAutomatically: Boolean? = null,
-    val appAccountToken: String? = null,
+    val appAccountToken: String? = null,  // Must be UUID format
     val quantity: Int? = null,
     val withOffer: PaymentDiscountIOS? = null,
     // New in v1.3.7 (openiap-apple)

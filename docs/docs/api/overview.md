@@ -151,7 +151,7 @@ data class UnifiedPurchaseRequest(
     val obfuscatedAccountIdAndroid: String? = null,
     val obfuscatedProfileIdAndroid: String? = null,
     val replacementMode: AndroidProrationMode? = null,
-    // iOS-specific
+    // iOS-specific (appAccountToken must be UUID format)
     val appAccountToken: String? = null,
     val discount: RequestedDiscount? = null,
     val requestId: String? = null

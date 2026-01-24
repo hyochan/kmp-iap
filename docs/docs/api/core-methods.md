@@ -177,7 +177,7 @@ kmpIapInstance.requestPurchase {
     apple {
         sku = "coins_100"
         quantity = 5
-        appAccountToken = "token_456"
+        appAccountToken = "550e8400-e29b-41d4-a716-446655440000"  // Must be UUID format
         advancedCommerceData = "campaign_summer_2025"  // Attribution tracking
     }
 }
@@ -213,7 +213,7 @@ kmpIapInstance.requestPurchase {
 ```
 
 **Platform Differences**:
-- **iOS**: Supports App Account Token for fraud prevention, `advancedCommerceData` for attribution tracking (v1.3.7+)
+- **iOS**: Supports App Account Token for fraud prevention (**must be UUID format** - non-UUID values result in `null`), `advancedCommerceData` for attribution tracking (v1.3.7+). See [OpenIAP Request Types](https://openiap.dev/docs/types/request) for details.
 - **Android**: Supports obfuscated user IDs and automatic Activity detection. Use `google { }` instead of `android { }` (v1.3.15+)
 
 ## Transaction Management
