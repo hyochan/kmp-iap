@@ -1731,7 +1731,7 @@ public data class ExternalPurchaseCustomLinkTokenResultIOS(
 }
 
 /**
- * Result of presenting an external purchase link
+ * Result of presenting an external purchase link (iOS 17.4+)
  */
 public data class ExternalPurchaseLinkResultIOS(
     /**
@@ -4593,7 +4593,7 @@ public interface MutationResolver {
      */
     suspend fun presentCodeRedemptionSheetIOS(): Boolean
     /**
-     * Present external purchase custom link with StoreKit UI
+     * Present external purchase custom link with StoreKit UI (iOS 17.4+)
      */
     suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
     /**

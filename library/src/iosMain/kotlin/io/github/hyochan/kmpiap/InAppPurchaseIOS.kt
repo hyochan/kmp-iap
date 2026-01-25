@@ -511,6 +511,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@showExternalPurchaseCustomLinkNoticeIOSWithNoticeType
                 }
 
+                if (result == null) {
+                    continuation.resume(
+                        ExternalPurchaseCustomLinkNoticeResultIOS(
+                            continued = false,
+                            error = "Null result from OpenIAP"
+                        )
+                    )
+                    return@showExternalPurchaseCustomLinkNoticeIOSWithNoticeType
+                }
+
                 val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
                 val notice = try {
                     ExternalPurchaseCustomLinkNoticeResultIOS.fromJson(map)
@@ -528,6 +538,16 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType.rawValue) { result, error ->
                 if (error != null) {
                     continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@getExternalPurchaseCustomLinkTokenIOSWithTokenType
+                }
+
+                if (result == null) {
+                    continuation.resume(
+                        ExternalPurchaseCustomLinkTokenResultIOS(
+                            token = null,
+                            error = "Null result from OpenIAP"
+                        )
+                    )
                     return@getExternalPurchaseCustomLinkTokenIOSWithTokenType
                 }
 
