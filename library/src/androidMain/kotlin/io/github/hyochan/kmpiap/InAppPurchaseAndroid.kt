@@ -27,6 +27,10 @@ import io.github.hyochan.kmpiap.ConnectionResult
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
 import io.github.hyochan.kmpiap.openiap.ErrorCode
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeResultIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkNoticeTypeIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenResultIOS
+import io.github.hyochan.kmpiap.openiap.ExternalPurchaseCustomLinkTokenTypeIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseLinkResultIOS
 import io.github.hyochan.kmpiap.openiap.ExternalPurchaseNoticeResultIOS
 import io.github.hyochan.kmpiap.openiap.InitConnectionConfig
@@ -512,6 +516,30 @@ internal class InAppPurchaseAndroid : KmpInAppPurchase, Application.ActivityLife
     override suspend fun getTransactionJwsIOS(sku: String): String? = null
 
     override suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean = false
+
+    override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean = false
+
+    override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
+        noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ): ExternalPurchaseCustomLinkNoticeResultIOS {
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "showExternalPurchaseCustomLinkNoticeIOS is an iOS-only API (iOS 18.1+)."
+            )
+        )
+    }
+
+    override suspend fun getExternalPurchaseCustomLinkTokenIOS(
+        tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ): ExternalPurchaseCustomLinkTokenResultIOS {
+        failWith(
+            PurchaseError(
+                code = ErrorCode.FeatureNotSupported,
+                message = "getExternalPurchaseCustomLinkTokenIOS is an iOS-only API (iOS 18.1+)."
+            )
+        )
+    }
 
     override suspend fun isTransactionVerifiedIOS(sku: String): Boolean = false
 

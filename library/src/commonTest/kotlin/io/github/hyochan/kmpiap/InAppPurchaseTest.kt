@@ -732,4 +732,149 @@ class InAppPurchaseTest {
         assertNotNull(props.google?.developerBillingOption)
         assertEquals(BillingProgramAndroid.ExternalPayments, props.google?.developerBillingOption?.billingProgram)
     }
+
+    // =========================================================================
+    // ExternalPurchaseCustomLink API Tests (iOS 18.1+)
+    // =========================================================================
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeTypeIOSEnum() {
+        val noticeType = ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+        assertEquals("browser", noticeType.rawValue)
+        assertEquals(noticeType.toJson(), "browser")
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeTypeIOSFromJson() {
+        assertEquals(
+            ExternalPurchaseCustomLinkNoticeTypeIOS.Browser,
+            ExternalPurchaseCustomLinkNoticeTypeIOS.fromJson("browser")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkNoticeTypeIOS.Browser,
+            ExternalPurchaseCustomLinkNoticeTypeIOS.fromJson("BROWSER")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkNoticeTypeIOS.Browser,
+            ExternalPurchaseCustomLinkNoticeTypeIOS.fromJson("Browser")
+        )
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenTypeIOSEnum() {
+        assertEquals("acquisition", ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition.rawValue)
+        assertEquals("services", ExternalPurchaseCustomLinkTokenTypeIOS.Services.rawValue)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenTypeIOSFromJson() {
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("acquisition")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("ACQUISITION")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.Services,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("services")
+        )
+        assertEquals(
+            ExternalPurchaseCustomLinkTokenTypeIOS.Services,
+            ExternalPurchaseCustomLinkTokenTypeIOS.fromJson("SERVICES")
+        )
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeResultIOSCreation() {
+        val result = ExternalPurchaseCustomLinkNoticeResultIOS(
+            continued = true,
+            error = null
+        )
+
+        assertTrue(result.continued)
+        assertNull(result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeResultIOSWithError() {
+        val result = ExternalPurchaseCustomLinkNoticeResultIOS(
+            continued = false,
+            error = "User dismissed the notice"
+        )
+
+        assertEquals(false, result.continued)
+        assertEquals("User dismissed the notice", result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeResultIOSFromJson() {
+        val json = mapOf(
+            "continued" to true,
+            "error" to null
+        )
+
+        val result = ExternalPurchaseCustomLinkNoticeResultIOS.fromJson(json)
+        assertTrue(result.continued)
+        assertNull(result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkNoticeResultIOSToJson() {
+        val result = ExternalPurchaseCustomLinkNoticeResultIOS(
+            continued = true,
+            error = "test error"
+        )
+
+        val json = result.toJson()
+        assertEquals(true, json["continued"])
+        assertEquals("test error", json["error"])
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenResultIOSCreation() {
+        val result = ExternalPurchaseCustomLinkTokenResultIOS(
+            token = "external_purchase_token_abc123",
+            error = null
+        )
+
+        assertEquals("external_purchase_token_abc123", result.token)
+        assertNull(result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenResultIOSWithError() {
+        val result = ExternalPurchaseCustomLinkTokenResultIOS(
+            token = null,
+            error = "Not eligible for external purchase"
+        )
+
+        assertNull(result.token)
+        assertEquals("Not eligible for external purchase", result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenResultIOSFromJson() {
+        val json = mapOf(
+            "token" to "token_xyz",
+            "error" to null
+        )
+
+        val result = ExternalPurchaseCustomLinkTokenResultIOS.fromJson(json)
+        assertEquals("token_xyz", result.token)
+        assertNull(result.error)
+    }
+
+    @Test
+    fun testExternalPurchaseCustomLinkTokenResultIOSToJson() {
+        val result = ExternalPurchaseCustomLinkTokenResultIOS(
+            token = "my_token",
+            error = null
+        )
+
+        val json = result.toJson()
+        assertEquals("my_token", json["token"])
+        assertNull(json["error"])
+    }
 }

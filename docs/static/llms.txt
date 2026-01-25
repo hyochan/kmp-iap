@@ -2,7 +2,7 @@
 
 > Kotlin Multiplatform In-App Purchase Library for Android & iOS
 > OpenIAP Specification Compliant: https://openiap.dev
-> Version: 1.3.3
+> Version: 1.3.6
 
 ## Overview
 
@@ -271,6 +271,10 @@ enum class SubscriptionPeriodUnit { Day, Week, Month, Year }
 // v1.3.2+ New Enums
 enum class ProductStatusAndroid { Ok, NotFound, NoOffersAvailable, Unknown }  // Billing 8.0+
 enum class SubscriptionOfferTypeIOS { Introductory, Promotional, WinBack }    // WinBack = iOS 18+
+
+// v1.3.6+ ExternalPurchaseCustomLink Enums (iOS 18.1+)
+enum class ExternalPurchaseCustomLinkNoticeTypeIOS { Browser }
+enum class ExternalPurchaseCustomLinkTokenTypeIOS { Acquisition, Services }
 ```
 
 ## Event Listeners
@@ -381,6 +385,28 @@ try {
 - `NotPrepared` - Connection not initialized
 - `DeferredPayment` - Pending approval (Ask to Buy)
 
+## iOS-Specific APIs
+
+### ExternalPurchaseCustomLink (iOS 18.1+)
+
+```kotlin
+// Check eligibility for external purchase custom link
+val isEligible = kmpIapInstance.isEligibleForExternalPurchaseCustomLinkIOS()
+
+// Show notice sheet before linking to external purchase
+val noticeResult = kmpIapInstance.showExternalPurchaseCustomLinkNoticeIOS(
+    ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+)
+if (noticeResult.continued) {
+    // User agreed to continue - link to external purchase
+}
+
+// Get token for reporting to Apple's External Purchase Server API
+val tokenResult = kmpIapInstance.getExternalPurchaseCustomLinkTokenIOS(
+    ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
+)
+```
+
 ## Platform Requirements
 
 ### Android
@@ -391,6 +417,7 @@ try {
 ### iOS
 - iOS 15.0+
 - StoreKit 2
+- ExternalPurchaseCustomLink: iOS 18.1+
 
 ## Links
 

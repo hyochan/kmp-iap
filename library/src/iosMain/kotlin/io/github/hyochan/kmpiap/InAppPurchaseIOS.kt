@@ -489,6 +489,58 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
+    override suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean =
+        suspendCoroutine { continuation ->
+            openIapModule.isEligibleForExternalPurchaseCustomLinkIOSWithCompletion { isEligible, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@isEligibleForExternalPurchaseCustomLinkIOSWithCompletion
+                }
+
+                continuation.resume(isEligible)
+            }
+        }
+
+    override suspend fun showExternalPurchaseCustomLinkNoticeIOS(
+        noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+    ): ExternalPurchaseCustomLinkNoticeResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.showExternalPurchaseCustomLinkNoticeIOSWithNoticeType(noticeType.rawValue) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@showExternalPurchaseCustomLinkNoticeIOSWithNoticeType
+                }
+
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                val notice = try {
+                    ExternalPurchaseCustomLinkNoticeResultIOS.fromJson(map)
+                } catch (e: Exception) {
+                    ExternalPurchaseCustomLinkNoticeResultIOS(continued = false, error = e.message)
+                }
+                continuation.resume(notice)
+            }
+        }
+
+    override suspend fun getExternalPurchaseCustomLinkTokenIOS(
+        tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+    ): ExternalPurchaseCustomLinkTokenResultIOS =
+        suspendCoroutine { continuation ->
+            openIapModule.getExternalPurchaseCustomLinkTokenIOSWithTokenType(tokenType.rawValue) { result, error ->
+                if (error != null) {
+                    continuation.resumeWithException(Exception(error.localizedDescription))
+                    return@getExternalPurchaseCustomLinkTokenIOSWithTokenType
+                }
+
+                val map = (result as? Map<*, *>)?.mapKeys { it.key.toString() } ?: emptyMap()
+                val tokenResult = try {
+                    ExternalPurchaseCustomLinkTokenResultIOS.fromJson(map)
+                } catch (e: Exception) {
+                    ExternalPurchaseCustomLinkTokenResultIOS(token = null, error = e.message)
+                }
+                continuation.resume(tokenResult)
+            }
+        }
+
     override suspend fun isTransactionVerifiedIOS(sku: String): Boolean =
         suspendCoroutine { continuation ->
             openIapModule.isTransactionVerifiedIOSWithSku(sku) { isVerified, error ->
