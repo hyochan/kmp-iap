@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[9538],{6381:a=>{a.exports=JSON.parse('{"label":"iapkit","permalink":"/kmp-iap/blog/tags/iapkit","allTagsPath":"/kmp-iap/blog/tags","count":1,"unlisted":false}')}}]);

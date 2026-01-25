@@ -1,0 +1,2052 @@
+# kmp-iap - Complete API Reference for AI Assistants
+
+> Kotlin Multiplatform In-App Purchase Library for Android & iOS
+> OpenIAP Specification Compliant: https://openiap.dev
+> Version: 1.3.6
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. Overview & Installation
+2. Quick Start Guide
+3. Connection Management
+4. Product Loading & Management
+5. Purchase Operations
+6. Transaction Management
+7. Subscription Management
+8. Purchase Verification
+9. Event Listeners
+10. Platform-Specific APIs (iOS)
+11. Platform-Specific APIs (Android)
+12. Alternative Billing (Android)
+13. Complete Type Definitions
+14. Error Codes Reference
+15. Common Patterns & Examples
+16. Troubleshooting Guide
+17. Platform Requirements
+18. Links & Resources
+
+================================================================================
+1. OVERVIEW & INSTALLATION
+================================================================================
+
+kmp-iap is a Kotlin Multiplatform library for implementing in-app purchases
+on Android and iOS platforms. It follows the OpenIAP specification for
+standardized cross-platform IAP implementation.
+
+## Supported Platforms
+
+- Android: Google Play Billing Library 8.x (minSdk 21)
+- iOS: StoreKit 2 (iOS 15.0+)
+
+## Installation
+
+### Gradle (Kotlin DSL)
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("io.github.hyochan:kmp-iap:1.3.3")
+}
+```
+
+### Gradle (Groovy)
+
+```groovy
+// build.gradle
+dependencies {
+    implementation "io.github.hyochan:kmp-iap:1.3.3"
+}
+```
+
+### Version Catalog
+
+```toml
+# libs.versions.toml
+[versions]
+kmp-iap = "1.3.3"
+
+[libraries]
+kmp-iap = { module = "io.github.hyochan:kmp-iap", version.ref = "kmp-iap" }
+```
+
+================================================================================
+2. QUICK START GUIDE
+================================================================================
+
+## Option 1: Global Instance (Simple Usage)
+
+```kotlin
+import io.github.hyochan.kmpiap.kmpIapInstance
+import io.github.hyochan.kmpiap.*
+
+class IAPManager {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    suspend fun initialize() {
+        // 1. Initialize connection
+        val connected = kmpIapInstance.initConnection()
+        if (!connected) {
+            throw Exception("Failed to initialize IAP")
+        }
+
+        // 2. Set up listeners
+        setupListeners()
+    }
+
+    private fun setupListeners() {
+        scope.launch {
+            kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
+                handlePurchase(purchase)
+            }
+        }
+
+        scope.launch {
+            kmpIapInstance.purchaseErrorListener.collectLatest { error ->
+                handleError(error)
+            }
+        }
+    }
+
+    suspend fun loadProducts(): List<Product> {
+        val result = kmpIapInstance.fetchProducts {
+            skus = listOf("coins_100", "premium_monthly")
+            type = ProductQueryType.All
+        }
+        return result.products
+    }
+
+    suspend fun purchase(productId: String) {
+        kmpIapInstance.requestPurchase {
+            ios { sku = productId }
+            android { skus = listOf(productId) }
+        }
+    }
+
+    private suspend fun handlePurchase(purchase: Purchase) {
+        // Validate purchase
+        val isValid = validateOnServer(purchase)
+
+        if (isValid) {
+            // Grant entitlement
+            grantAccess(purchase.productId)
+
+            // Finish transaction
+            kmpIapInstance.finishTransaction(
+                purchase = purchase.toPurchaseInput(),
+                isConsumable = determineConsumable(purchase.productId)
+            )
+        }
+    }
+}
+```
+
+## Option 2: Custom Instance (Recommended for Testing & DI)
+
+```kotlin
+import io.github.hyochan.kmpiap.KmpIAP
+
+class IAPRepository(
+    private val kmpIAP: KmpIAP = KmpIAP()
+) {
+    suspend fun initConnection() = kmpIAP.initConnection()
+    suspend fun fetchProducts(skus: List<String>) = kmpIAP.fetchProducts {
+        this.skus = skus
+        type = ProductQueryType.All
+    }
+}
+```
+
+================================================================================
+3. CONNECTION MANAGEMENT
+================================================================================
+
+## initConnection()
+
+Establishes connection with the platform store.
+
+```kotlin
+suspend fun initConnection(config: InitConnectionConfig? = null): Boolean
+```
+
+**Parameters:**
+- `config` - Optional configuration for billing programs (Android)
+
+**Returns:** `true` if connection successful
+
+**Example:**
+```kotlin
+// Basic initialization
+val connected = kmpIapInstance.initConnection()
+
+// With billing program configuration (Android)
+val config = InitConnectionConfig(
+    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+)
+val connected = kmpIapInstance.initConnection(config)
+```
+
+## endConnection()
+
+Closes the store connection and releases resources.
+
+```kotlin
+suspend fun endConnection(): Boolean
+```
+
+**Example:**
+```kotlin
+// Call when IAP is no longer needed
+override fun onCleared() {
+    scope.launch {
+        kmpIapInstance.endConnection()
+    }
+}
+```
+
+## canMakePayments()
+
+Checks if the device can make payments.
+
+```kotlin
+suspend fun canMakePayments(): Boolean
+```
+
+**Example:**
+```kotlin
+if (kmpIapInstance.canMakePayments()) {
+    showPurchaseUI()
+} else {
+    showPaymentsDisabledMessage()
+}
+```
+
+## getStore()
+
+Returns the current store type.
+
+```kotlin
+fun getStore(): Store
+// Returns: Store.APP_STORE, Store.PLAY_STORE, Store.AMAZON, or Store.NONE
+```
+
+## getVersion()
+
+Returns the library version string.
+
+```kotlin
+fun getVersion(): String
+// Returns: "KMP-IAP v1.3.0 (Android)" or "KMP-IAP v1.3.0 (iOS)"
+```
+
+================================================================================
+4. PRODUCT LOADING & MANAGEMENT
+================================================================================
+
+## fetchProducts()
+
+Loads product information from the store.
+
+```kotlin
+suspend fun fetchProducts(
+    builder: ProductsRequestBuilder.() -> Unit
+): FetchProductsResult
+```
+
+**DSL Properties:**
+- `skus: List<String>` - Product IDs to fetch
+- `type: ProductQueryType` - InApp, Subs, or All
+
+**Returns:** `FetchProductsResult` containing products list
+
+**Examples:**
+
+```kotlin
+// Fetch all product types
+val allProducts = kmpIapInstance.fetchProducts {
+    skus = listOf("coins_100", "coins_500", "premium_monthly", "premium_yearly")
+    type = ProductQueryType.All
+}
+
+// Fetch only in-app products
+val consumables = kmpIapInstance.fetchProducts {
+    skus = listOf("coins_100", "coins_500", "remove_ads")
+    type = ProductQueryType.InApp
+}
+
+// Fetch only subscriptions
+val subscriptions = kmpIapInstance.fetchProducts {
+    skus = listOf("premium_monthly", "premium_yearly")
+    type = ProductQueryType.Subs
+}
+
+// Display products
+allProducts.products.forEach { product ->
+    println("ID: ${product.id}")
+    println("Title: ${product.title}")
+    println("Price: ${product.displayPrice}")
+    println("Type: ${product.type}")
+}
+```
+
+## Product Type Handling
+
+```kotlin
+fun displayProduct(product: Product) {
+    // Common fields (all platforms)
+    val id = product.id
+    val title = product.title
+    val description = product.description
+    val displayPrice = product.displayPrice
+    val currency = product.currency
+    val price = product.price
+
+    // Platform-specific handling
+    when (product) {
+        is ProductIOS -> {
+            if (product.isFamilyShareableIOS) {
+                println("Family sharing available")
+            }
+            product.subscriptionInfoIOS?.let { info ->
+                println("Subscription group: ${info.subscriptionGroupId}")
+            }
+        }
+        is ProductAndroid -> {
+            product.oneTimePurchaseOfferDetailsAndroid?.forEach { offer ->
+                println("Offer price: ${offer.formattedPrice}")
+            }
+            product.subscriptionOfferDetailsAndroid?.forEach { offer ->
+                println("Base plan: ${offer.basePlanId}")
+                offer.pricingPhases.forEach { phase ->
+                    println("Phase: ${phase.formattedPrice} for ${phase.billingPeriod}")
+                }
+            }
+        }
+    }
+}
+```
+
+================================================================================
+5. PURCHASE OPERATIONS
+================================================================================
+
+## requestPurchase()
+
+Initiates a purchase flow.
+
+```kotlin
+suspend fun requestPurchase(
+    builder: PurchaseRequestBuilder.() -> Unit
+): RequestPurchaseResult
+```
+
+**DSL Properties:**
+
+iOS:
+- `sku: String` - Product ID (required)
+- `quantity: Int?` - Quantity for consumables
+- `appAccountToken: String?` - User account token for fraud prevention
+- `withOffer: DiscountOfferInputIOS?` - Promotional offer
+- `advancedCommerceData: String?` - Attribution tracking (v1.3.7+)
+
+Android:
+- `skus: List<String>` - Product IDs (required)
+- `obfuscatedAccountId: String?` - Obfuscated user ID
+- `obfuscatedProfileId: String?` - Obfuscated profile ID
+- `isOfferPersonalized: Boolean?` - EU personalized pricing disclosure
+- `offerToken: String?` - (v1.3.3+) Offer token for one-time purchase discounts (Android 7.0+)
+
+**Examples:**
+
+```kotlin
+// Cross-platform purchase
+val result = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "premium_monthly"
+        quantity = 1
+    }
+    android {
+        skus = listOf("premium_monthly")
+    }
+}
+
+// iOS-only with advanced options
+val iosResult = kmpIapInstance.requestPurchase {
+    ios {
+        sku = "coins_100"
+        quantity = 5
+        appAccountToken = "user_account_uuid"
+        advancedCommerceData = "campaign_summer_2025"
+    }
+}
+
+// Android-only with user tracking
+val androidResult = kmpIapInstance.requestPurchase {
+    android {
+        skus = listOf("coins_100")
+        obfuscatedAccountId = "obfuscated_user_123"
+        obfuscatedProfileId = "obfuscated_profile_456"
+        isOfferPersonalized = true
+        offerToken = "discount_token"  // v1.3.3+: For one-time purchase discounts
+    }
+}
+
+// Using google {} alias (v1.3.15+)
+val googleResult = kmpIapInstance.requestPurchase {
+    google {
+        skus = listOf("premium_monthly")
+    }
+}
+```
+
+## requestSubscription()
+
+Initiates a subscription purchase (with upgrade/downgrade support).
+
+```kotlin
+suspend fun requestSubscription(
+    builder: SubscriptionRequestBuilder.() -> Unit
+): RequestPurchaseResult
+```
+
+**Android-specific options:**
+- `purchaseToken: String?` - Token of existing subscription for upgrade/downgrade
+- `replacementMode: Int?` - Replacement mode for subscription changes
+- `obfuscatedAccountId: String?` - Obfuscated user ID
+- `obfuscatedProfileId: String?` - Obfuscated profile ID
+- `subscriptionOffers: List<SubscriptionOfferAndroid>` - Specific offer selection
+
+**Example:**
+
+```kotlin
+// New subscription
+val newSub = kmpIapInstance.requestSubscription {
+    ios {
+        sku = "premium_yearly"
+    }
+    android {
+        skus = listOf("premium_yearly")
+        subscriptionOffers = listOf(
+            SubscriptionOfferAndroid(
+                basePlanId = "yearly-base",
+                offerId = "intro-offer",
+                offerToken = "token_from_product"
+            )
+        )
+    }
+}
+
+// Upgrade existing subscription (Android)
+val upgrade = kmpIapInstance.requestSubscription {
+    android {
+        skus = listOf("premium_yearly")
+        purchaseToken = existingSubscription.purchaseToken
+        replacementMode = BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE
+        subscriptionOffers = listOf(offer)
+    }
+}
+```
+
+## restorePurchases()
+
+Restores previous purchases.
+
+```kotlin
+suspend fun restorePurchases(): Unit
+```
+
+**Example:**
+```kotlin
+try {
+    kmpIapInstance.restorePurchases()
+    // Restored purchases will come through purchaseUpdatedListener
+} catch (e: PurchaseException) {
+    handleError(e.error)
+}
+```
+
+## getAvailablePurchases()
+
+Gets all available (unconsumed/active) purchases.
+
+```kotlin
+suspend fun getAvailablePurchases(
+    options: PurchaseOptions? = null
+): List<Purchase>
+```
+
+**Example:**
+```kotlin
+val purchases = kmpIapInstance.getAvailablePurchases()
+purchases.forEach { purchase ->
+    println("Product: ${purchase.productId}")
+    println("State: ${purchase.purchaseState}")
+    println("Date: ${purchase.transactionDate}")
+}
+```
+
+================================================================================
+6. TRANSACTION MANAGEMENT
+================================================================================
+
+## finishTransaction()
+
+Completes a transaction after successful processing.
+
+```kotlin
+suspend fun finishTransaction(
+    purchase: PurchaseInput,
+    isConsumable: Boolean? = null
+): Boolean
+```
+
+**Parameters:**
+- `purchase` - The purchase to finish
+- `isConsumable` - `true` for consumables, `false` for subscriptions/non-consumables
+
+**Platform Behavior:**
+- iOS: Calls `finish()` on the transaction
+- Android Consumables: Calls `consumeAsync`
+- Android Non-consumables/Subscriptions: Calls `acknowledgePurchase`
+
+**Example:**
+```kotlin
+// For consumable products
+kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = true
+)
+
+// For subscriptions (acknowledge only)
+kmpIapInstance.finishTransaction(
+    purchase = purchase.toPurchaseInput(),
+    isConsumable = false
+)
+```
+
+**IMPORTANT:** Never consume subscriptions. They should only be acknowledged.
+
+## Android-Specific Transaction Methods
+
+```kotlin
+// Acknowledge a purchase (Android only)
+suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean
+
+// Consume a purchase (Android only)
+suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
+
+// Example
+if (purchase is PurchaseAndroid && purchase.acknowledgedAndroid == false) {
+    kmpIapInstance.acknowledgePurchaseAndroid(purchase.purchaseToken!!)
+}
+```
+
+## iOS-Specific Transaction Methods
+
+```kotlin
+// Clear pending transactions
+suspend fun clearTransactionIOS(): Boolean
+
+// Sync with App Store
+suspend fun syncIOS(): Boolean
+```
+
+================================================================================
+7. SUBSCRIPTION MANAGEMENT
+================================================================================
+
+## getActiveSubscriptions()
+
+Gets all active subscriptions with detailed information.
+
+```kotlin
+suspend fun getActiveSubscriptions(
+    subscriptionIds: List<String>? = null
+): List<ActiveSubscription>
+```
+
+**ActiveSubscription Properties:**
+- `productId: String` - Subscription product ID
+- `isActive: Boolean` - Always true for active subscriptions
+- `transactionId: String` - Transaction identifier
+- `transactionDate: Double` - Purchase timestamp
+- `currentPlanId: String?` - Current plan identifier
+- `willExpireSoon: Boolean?` - True if expiring within 7 days
+
+iOS-specific:
+- `expirationDateIOS: Double?` - Expiration timestamp
+- `environmentIOS: String?` - "Sandbox" or "Production"
+- `daysUntilExpirationIOS: Double?` - Days until expiration
+- `renewalInfoIOS: RenewalInfoIOS?` - Renewal details
+
+Android-specific:
+- `autoRenewingAndroid: Boolean?` - Auto-renewal status
+- `purchaseTokenAndroid: String?` - Token for upgrades
+- `basePlanIdAndroid: String?` - Base plan identifier
+
+**Example:**
+```kotlin
+val subscriptions = kmpIapInstance.getActiveSubscriptions(
+    listOf("premium_monthly", "premium_yearly")
+)
+
+subscriptions.forEach { sub ->
+    println("Product: ${sub.productId}")
+    println("Active: ${sub.isActive}")
+
+    // iOS-specific
+    sub.expirationDateIOS?.let { expDate ->
+        val date = Instant.fromEpochMilliseconds(expDate.toLong())
+        println("Expires: $date")
+    }
+    sub.daysUntilExpirationIOS?.let { days ->
+        println("Days until expiration: $days")
+    }
+    sub.environmentIOS?.let { env ->
+        println("Environment: $env")
+    }
+
+    // Android-specific
+    sub.autoRenewingAndroid?.let { autoRenew ->
+        println("Auto-renewing: $autoRenew")
+    }
+
+    // Cross-platform
+    if (sub.willExpireSoon == true) {
+        showExpirationWarning()
+    }
+}
+```
+
+## hasActiveSubscriptions()
+
+Checks if the user has any active subscriptions.
+
+```kotlin
+suspend fun hasActiveSubscriptions(
+    subscriptionIds: List<String>? = null
+): Boolean
+```
+
+**Example:**
+```kotlin
+// Check any active subscription
+val hasSubscription = kmpIapInstance.hasActiveSubscriptions()
+
+// Check specific subscriptions
+val hasPremium = kmpIapInstance.hasActiveSubscriptions(
+    listOf("premium_monthly", "premium_yearly")
+)
+
+if (hasPremium) {
+    enablePremiumFeatures()
+} else {
+    showSubscriptionOffer()
+}
+```
+
+## subscriptionStatusIOS()
+
+Gets detailed subscription status from StoreKit 2 (iOS only).
+
+```kotlin
+suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>
+```
+
+**Example:**
+```kotlin
+val statuses = kmpIapInstance.subscriptionStatusIOS("premium_monthly")
+statuses.forEach { status ->
+    println("Will renew: ${status.willRenew}")
+    println("Auto-renew status: ${status.autoRenewStatusIOS}")
+    println("Expiration: ${status.expirationDateIOS}")
+}
+```
+
+## deepLinkToSubscriptions()
+
+Opens platform subscription management.
+
+```kotlin
+suspend fun deepLinkToSubscriptions(options: DeepLinkOptions? = null): Unit
+```
+
+**Example:**
+```kotlin
+// Open subscription management
+kmpIapInstance.deepLinkToSubscriptions(
+    DeepLinkOptions(
+        skuAndroid = "premium_monthly",
+        skuIOS = "premium_monthly"
+    )
+)
+```
+
+================================================================================
+8. PURCHASE VERIFICATION
+================================================================================
+
+## verifyPurchase()
+
+Verifies a purchase using platform-native verification.
+
+```kotlin
+suspend fun verifyPurchase(
+    options: VerifyPurchaseProps
+): VerifyPurchaseResult
+```
+
+**VerifyPurchaseProps:**
+```kotlin
+data class VerifyPurchaseProps(
+    val apple: VerifyPurchaseAppleOptions? = null,
+    val google: VerifyPurchaseGoogleOptions? = null,
+    val horizon: VerifyPurchaseHorizonOptions? = null
+)
+
+data class VerifyPurchaseAppleOptions(
+    val sku: String
+)
+
+data class VerifyPurchaseGoogleOptions(
+    val sku: String,
+    val accessToken: String,      // From your backend
+    val packageName: String,
+    val purchaseToken: String,
+    val isSub: Boolean? = null
+)
+```
+
+**Example:**
+```kotlin
+// iOS verification
+val iosResult = kmpIapInstance.verifyPurchase(
+    VerifyPurchaseProps(
+        apple = VerifyPurchaseAppleOptions(sku = "premium_upgrade")
+    )
+)
+
+// Android verification
+val androidResult = kmpIapInstance.verifyPurchase(
+    VerifyPurchaseProps(
+        google = VerifyPurchaseGoogleOptions(
+            sku = "premium_upgrade",
+            accessToken = backendProvidedToken,
+            packageName = "com.yourapp.id",
+            purchaseToken = purchase.purchaseToken ?: "",
+            isSub = false
+        )
+    )
+)
+```
+
+## verifyPurchaseWithProvider()
+
+Verifies purchases using external verification services (IAPKit).
+
+```kotlin
+suspend fun verifyPurchaseWithProvider(
+    options: VerifyPurchaseWithProviderProps
+): VerifyPurchaseWithProviderResult
+```
+
+**IapkitPurchaseState Values:**
+- `Entitled` - Purchase valid, user has access
+- `PendingAcknowledgment` - Needs acknowledgment (Android)
+- `Pending` - Purchase being processed
+- `Canceled` - Purchase was canceled
+- `Expired` - Subscription has expired
+- `ReadyToConsume` - Consumable ready to be consumed
+- `Consumed` - Consumable has been consumed
+- `Inauthentic` - Failed verification (potential fraud)
+- `Unknown` - Unknown state
+
+**Example:**
+```kotlin
+// Verify iOS purchase with IAPKit
+val result = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-iapkit-api-key",
+            apple = RequestVerifyPurchaseWithIapkitAppleProps(
+                jws = purchase.jwsRepresentationIOS ?: ""
+            ),
+            google = null
+        )
+    )
+)
+
+// Check result
+result.iapkit?.let { iapkit ->
+    when (iapkit.state) {
+        IapkitPurchaseState.Entitled -> {
+            grantAccess()
+        }
+        IapkitPurchaseState.Expired -> {
+            revokeAccess()
+        }
+        IapkitPurchaseState.Inauthentic -> {
+            reportFraud()
+        }
+        else -> {
+            handleOtherState(iapkit.state)
+        }
+    }
+}
+
+// Verify Android purchase
+val androidResult = kmpIapInstance.verifyPurchaseWithProvider(
+    VerifyPurchaseWithProviderProps(
+        provider = PurchaseVerificationProvider.Iapkit,
+        iapkit = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "your-iapkit-api-key",
+            apple = null,
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = purchase.purchaseToken ?: ""
+            )
+        )
+    )
+)
+```
+
+================================================================================
+9. EVENT LISTENERS
+================================================================================
+
+## purchaseUpdatedListener
+
+Flow that emits successful purchase events.
+
+```kotlin
+val purchaseUpdatedListener: Flow<Purchase>
+```
+
+**Example:**
+```kotlin
+scope.launch {
+    kmpIapInstance.purchaseUpdatedListener.collectLatest { purchase ->
+        println("Purchase received: ${purchase.productId}")
+
+        // Validate on your server
+        val isValid = validateOnServer(purchase)
+
+        if (isValid) {
+            // Grant entitlement
+            grantEntitlement(purchase.productId)
+
+            // Finish transaction
+            kmpIapInstance.finishTransaction(
+                purchase = purchase.toPurchaseInput(),
+                isConsumable = isConsumable(purchase.productId)
+            )
+        }
+    }
+}
+```
+
+## purchaseErrorListener
+
+Flow that emits purchase error events.
+
+```kotlin
+val purchaseErrorListener: Flow<PurchaseError>
+```
+
+**Example:**
+```kotlin
+scope.launch {
+    kmpIapInstance.purchaseErrorListener.collectLatest { error ->
+        when (error.code) {
+            ErrorCode.E_USER_CANCELLED.name -> {
+                // User cancelled - no action needed
+            }
+            ErrorCode.E_NETWORK_ERROR.name -> {
+                showRetryDialog()
+            }
+            ErrorCode.E_ALREADY_OWNED.name -> {
+                // Restore purchases
+                kmpIapInstance.restorePurchases()
+            }
+            else -> {
+                showError(error.message)
+            }
+        }
+    }
+}
+```
+
+## promotedProductListener (iOS)
+
+Flow that emits App Store promoted product events.
+
+```kotlin
+val promotedProductListener: Flow<String?>
+```
+
+**Example:**
+```kotlin
+scope.launch {
+    kmpIapInstance.promotedProductListener.collectLatest { productId ->
+        productId?.let {
+            // Handle promoted product from App Store
+            showPurchasePrompt(it)
+        }
+    }
+}
+```
+
+## userChoiceBillingAndroid
+
+Flow for user choice billing events (Android).
+
+```kotlin
+suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails
+```
+
+## developerProvidedBillingAndroid
+
+Flow for developer-provided billing events (Android 8.3.0+).
+
+```kotlin
+suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid
+```
+
+================================================================================
+10. PLATFORM-SPECIFIC APIs (iOS)
+================================================================================
+
+## getPromotedProductIOS()
+
+Gets the currently promoted product.
+
+```kotlin
+suspend fun getPromotedProductIOS(): ProductIOS?
+```
+
+## presentCodeRedemptionSheetIOS()
+
+Presents the App Store code redemption sheet.
+
+```kotlin
+suspend fun presentCodeRedemptionSheetIOS(): Boolean
+```
+
+**Example:**
+```kotlin
+kmpIapInstance.presentCodeRedemptionSheetIOS()
+```
+
+## beginRefundRequestIOS()
+
+Initiates a refund request (iOS 15+).
+
+```kotlin
+suspend fun beginRefundRequestIOS(sku: String): String?
+```
+
+**Example:**
+```kotlin
+val result = kmpIapInstance.beginRefundRequestIOS("premium_monthly")
+when (result) {
+    "success" -> showRefundSuccess()
+    "userCancelled" -> { /* User cancelled */ }
+    else -> showRefundError(result)
+}
+```
+
+## showManageSubscriptionsIOS()
+
+Opens subscription management (iOS 15+).
+
+```kotlin
+suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS>
+```
+
+## getAppTransactionIOS()
+
+Gets app transaction information (iOS 16+).
+
+```kotlin
+suspend fun getAppTransactionIOS(): AppTransaction?
+```
+
+**AppTransaction Properties:**
+- `appId: Double`
+- `appTransactionId: String?`
+- `appVersion: String`
+- `bundleId: String`
+- `environment: String`
+- `originalAppVersion: String`
+- `originalPurchaseDate: Double`
+
+## getStorefrontIOS()
+
+Gets the App Store storefront country code.
+
+```kotlin
+suspend fun getStorefrontIOS(): String
+```
+
+## isEligibleForIntroOfferIOS()
+
+Checks intro offer eligibility.
+
+```kotlin
+suspend fun isEligibleForIntroOfferIOS(groupID: String): Boolean
+```
+
+## getReceiptDataIOS()
+
+Gets base64-encoded receipt data.
+
+```kotlin
+suspend fun getReceiptDataIOS(): String?
+```
+
+## getTransactionJwsIOS()
+
+Gets transaction JWS for a product.
+
+```kotlin
+suspend fun getTransactionJwsIOS(sku: String): String?
+```
+
+## currentEntitlementIOS()
+
+Gets current StoreKit 2 entitlement.
+
+```kotlin
+suspend fun currentEntitlementIOS(sku: String): PurchaseIOS?
+```
+
+## latestTransactionIOS()
+
+Gets the latest transaction for a product.
+
+```kotlin
+suspend fun latestTransactionIOS(sku: String): PurchaseIOS?
+```
+
+## getPendingTransactionsIOS()
+
+Gets pending transactions.
+
+```kotlin
+suspend fun getPendingTransactionsIOS(): List<PurchaseIOS>
+```
+
+## External Purchase Links (iOS 17.4+)
+
+```kotlin
+// Check if external purchase notice can be presented
+suspend fun canPresentExternalPurchaseNoticeIOS(): Boolean
+
+// Present external purchase notice sheet
+suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS
+
+// Open external purchase link
+suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS
+```
+
+**Example:**
+```kotlin
+// Check availability
+if (kmpIapInstance.canPresentExternalPurchaseNoticeIOS()) {
+    // Present notice sheet first
+    val noticeResult = kmpIapInstance.presentExternalPurchaseNoticeSheetIOS()
+
+    if (noticeResult.result == ExternalPurchaseNoticeAction.Continue) {
+        // User accepted, open external link
+        val linkResult = kmpIapInstance.presentExternalPurchaseLinkIOS(
+            "https://your-site.com/checkout"
+        )
+    }
+}
+```
+
+## ExternalPurchaseCustomLink (iOS 18.1+)
+
+The ExternalPurchaseCustomLink API allows apps to link users to external purchase flows with proper disclosure.
+
+```kotlin
+// Check eligibility
+suspend fun isEligibleForExternalPurchaseCustomLinkIOS(): Boolean
+
+// Show notice sheet
+suspend fun showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS
+): ExternalPurchaseCustomLinkNoticeResultIOS
+
+// Get token for reporting
+suspend fun getExternalPurchaseCustomLinkTokenIOS(
+    tokenType: ExternalPurchaseCustomLinkTokenTypeIOS
+): ExternalPurchaseCustomLinkTokenResultIOS
+```
+
+**Example:**
+```kotlin
+// Check if app is eligible
+if (kmpIapInstance.isEligibleForExternalPurchaseCustomLinkIOS()) {
+    // Show disclosure notice
+    val noticeResult = kmpIapInstance.showExternalPurchaseCustomLinkNoticeIOS(
+        ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+    )
+
+    if (noticeResult.continued) {
+        // User agreed to continue to external purchase
+        // Get token for reporting to Apple
+        val tokenResult = kmpIapInstance.getExternalPurchaseCustomLinkTokenIOS(
+            ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
+        )
+
+        if (tokenResult.token != null) {
+            // Report to Apple's External Purchase Server API
+        }
+    }
+}
+```
+
+================================================================================
+11. PLATFORM-SPECIFIC APIs (Android)
+================================================================================
+
+## acknowledgePurchaseAndroid()
+
+Acknowledges a purchase.
+
+```kotlin
+suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean
+```
+
+**Note:** Subscriptions must be acknowledged within 3 days or they will be refunded.
+
+## consumePurchaseAndroid()
+
+Consumes a purchase (for consumables only).
+
+```kotlin
+suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
+```
+
+**Warning:** Never consume subscriptions.
+
+## getStorefront()
+
+Gets the storefront country code.
+
+```kotlin
+suspend fun getStorefront(): String
+```
+
+================================================================================
+12. ALTERNATIVE BILLING (Android)
+================================================================================
+
+## User Choice Billing (Google Play 7.0+)
+
+### Step 1: Check Availability
+
+```kotlin
+suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
+```
+
+### Step 2: Show Required Dialog
+
+```kotlin
+suspend fun showAlternativeBillingDialogAndroid(): Boolean
+```
+
+### Step 3: Create Reporting Token
+
+```kotlin
+suspend fun createAlternativeBillingTokenAndroid(): String?
+```
+
+### Complete Flow Example
+
+```kotlin
+suspend fun purchaseWithAlternativeBilling(productId: String) {
+    // 1. Check availability
+    val isAvailable = kmpIapInstance.checkAlternativeBillingAvailabilityAndroid()
+    if (!isAvailable) {
+        throw Exception("Alternative billing not available")
+    }
+
+    // 2. Show required dialog
+    val accepted = kmpIapInstance.showAlternativeBillingDialogAndroid()
+    if (!accepted) {
+        throw Exception("User declined")
+    }
+
+    // 3. Process payment in your system
+    val paymentResult = processPaymentInYourSystem(productId)
+
+    // 4. Create reporting token
+    val token = kmpIapInstance.createAlternativeBillingTokenAndroid()
+        ?: throw Exception("Failed to create token")
+
+    // 5. Report to Google (within 24 hours)
+    reportToGooglePlayBackend(token, productId, paymentResult)
+}
+```
+
+## Billing Programs API (Google Play 8.2.0+)
+
+### BillingProgramAndroid Enum
+
+```kotlin
+enum class BillingProgramAndroid {
+    Unspecified,
+    UserChoiceBilling,       // 7.0+
+    ExternalContentLink,     // 8.2.0+
+    ExternalOffer,           // 8.2.0+
+    ExternalPayments         // 8.3.0+ (Japan only)
+}
+```
+
+### Check Program Availability
+
+```kotlin
+suspend fun isBillingProgramAvailableAndroid(
+    program: BillingProgramAndroid
+): BillingProgramAvailabilityResultAndroid
+```
+
+### Create Reporting Details
+
+```kotlin
+suspend fun createBillingProgramReportingDetailsAndroid(
+    program: BillingProgramAndroid
+): BillingProgramReportingDetailsAndroid
+```
+
+### Launch External Link
+
+```kotlin
+suspend fun launchExternalLinkAndroid(
+    params: LaunchExternalLinkParamsAndroid
+): Boolean
+```
+
+**Example:**
+```kotlin
+// Check availability
+val availability = kmpIapInstance.isBillingProgramAvailableAndroid(
+    BillingProgramAndroid.ExternalOffer
+)
+
+if (availability.isAvailable) {
+    // Launch external link
+    kmpIapInstance.launchExternalLinkAndroid(
+        LaunchExternalLinkParamsAndroid(
+            billingProgram = BillingProgramAndroid.ExternalOffer,
+            launchMode = ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+            linkType = ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+            linkUri = "https://your-payment-site.com/offer"
+        )
+    )
+
+    // After user completes purchase, get reporting token
+    val details = kmpIapInstance.createBillingProgramReportingDetailsAndroid(
+        BillingProgramAndroid.ExternalOffer
+    )
+
+    // Report to Google within 24 hours
+    reportToGoogle(details.externalTransactionToken)
+}
+```
+
+### Configuration
+
+```kotlin
+// Initialize with billing program
+val config = InitConnectionConfig(
+    enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
+)
+kmpIapInstance.initConnection(config)
+```
+
+================================================================================
+13. COMPLETE TYPE DEFINITIONS
+================================================================================
+
+## Product Types
+
+```kotlin
+// Base interface
+interface ProductCommon {
+    val id: String
+    val title: String
+    val description: String
+    val type: ProductType
+    val displayName: String?
+    val displayPrice: String
+    val currency: String
+    val price: Double?
+    val debugDescription: String?
+    val platform: IapPlatform
+}
+
+// iOS Product
+data class ProductIOS(
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType,
+    override val displayName: String?,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double?,
+    override val debugDescription: String?,
+    override val platform: IapPlatform = IapPlatform.Ios,
+    val displayNameIOS: String,
+    val isFamilyShareableIOS: Boolean,
+    val jsonRepresentationIOS: String,
+    val subscriptionInfoIOS: SubscriptionInfoIOS?,
+    val typeIOS: ProductTypeIOS
+) : ProductCommon, Product
+
+// Android Product
+data class ProductAndroid(
+    override val id: String,
+    override val title: String,
+    override val description: String,
+    override val type: ProductType,
+    override val displayName: String?,
+    override val displayPrice: String,
+    override val currency: String,
+    override val price: Double?,
+    override val debugDescription: String?,
+    override val platform: IapPlatform = IapPlatform.Android,
+    val nameAndroid: String,
+    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>?,
+    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetail>?
+) : ProductCommon, Product
+```
+
+## Purchase Types
+
+```kotlin
+// Base interface
+interface PurchaseCommon {
+    val id: String
+    val productId: String
+    val ids: List<String>?
+    val transactionDate: Double
+    val purchaseToken: String?
+    val purchaseState: PurchaseState
+    val platform: IapPlatform
+    val store: IapStore
+    val quantity: Int
+    val currentPlanId: String?
+    val isAutoRenewing: Boolean
+}
+
+// iOS Purchase
+data class PurchaseIOS(
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>?,
+    override val transactionDate: Double,
+    override val purchaseToken: String?,
+    override val purchaseState: PurchaseState,
+    override val platform: IapPlatform = IapPlatform.Ios,
+    override val store: IapStore = IapStore.Apple,
+    override val quantity: Int,
+    override val currentPlanId: String?,
+    override val isAutoRenewing: Boolean,
+    val appAccountToken: String?,
+    val appBundleIdIOS: String?,
+    val countryCodeIOS: String?,
+    val currencyCodeIOS: String?,
+    val environmentIOS: String?,
+    val expirationDateIOS: Double?,
+    val isUpgradedIOS: Boolean?,
+    val offerIOS: PurchaseOfferIOS?,
+    val originalTransactionDateIOS: Double?,
+    val originalTransactionIdentifierIOS: String?,
+    val ownershipTypeIOS: String?,
+    val quantityIOS: Int?,
+    val renewalInfoIOS: RenewalInfoIOS?,
+    val revocationDateIOS: Double?,
+    val revocationReasonIOS: String?,
+    val storefrontCountryCodeIOS: String?,
+    val subscriptionGroupIdIOS: String?,
+    val transactionId: String,
+    val webOrderLineItemIdIOS: String?
+) : PurchaseCommon, Purchase
+
+// Android Purchase
+data class PurchaseAndroid(
+    override val id: String,
+    override val productId: String,
+    override val ids: List<String>?,
+    override val transactionDate: Double,
+    override val purchaseToken: String?,
+    override val purchaseState: PurchaseState,
+    override val platform: IapPlatform = IapPlatform.Android,
+    override val store: IapStore = IapStore.Google,
+    override val quantity: Int,
+    override val currentPlanId: String?,
+    override val isAutoRenewing: Boolean,
+    val autoRenewingAndroid: Boolean?,
+    val dataAndroid: String?,
+    val developerPayloadAndroid: String?,
+    val isAcknowledgedAndroid: Boolean?,
+    val isSuspendedAndroid: Boolean?,
+    val obfuscatedAccountIdAndroid: String?,
+    val obfuscatedProfileIdAndroid: String?,
+    val packageNameAndroid: String?,
+    val signatureAndroid: String?,
+    val transactionId: String?
+) : PurchaseCommon, Purchase
+```
+
+## Subscription Types
+
+```kotlin
+data class ActiveSubscription(
+    val productId: String,
+    val isActive: Boolean,
+    val transactionId: String,
+    val transactionDate: Double,
+    val purchaseToken: String?,
+    val currentPlanId: String?,
+    val willExpireSoon: Boolean?,
+    // iOS-specific
+    val expirationDateIOS: Double?,
+    val environmentIOS: String?,
+    val daysUntilExpirationIOS: Double?,
+    val renewalInfoIOS: RenewalInfoIOS?,
+    // Android-specific
+    val autoRenewingAndroid: Boolean?,
+    val purchaseTokenAndroid: String?,
+    val basePlanIdAndroid: String?
+)
+```
+
+## Cross-Platform Offer Types
+
+### SubscriptionOffer
+
+Cross-platform type for subscription promotional/introductory offers with platform-specific fields.
+
+```kotlin
+data class SubscriptionOffer(
+    /**
+     * Unique identifier for the offer.
+     * - iOS: Discount identifier from App Store Connect
+     * - Android: offerId from ProductSubscriptionAndroidOfferDetails
+     */
+    val id: String,
+
+    /**
+     * Formatted display price string (e.g., "$9.99/month")
+     */
+    val displayPrice: String,
+
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String?,
+
+    /**
+     * Type of subscription offer (Introductory or Promotional)
+     */
+    val type: DiscountOfferType,
+
+    /**
+     * Payment mode during the offer period
+     */
+    val paymentMode: PaymentMode?,
+
+    /**
+     * Subscription period for this offer
+     */
+    val period: SubscriptionPeriod?,
+
+    /**
+     * Number of periods the offer applies
+     */
+    val periodCount: Int?,
+
+    // iOS-specific fields
+    val keyIdentifierIOS: String?,       // Key identifier for signature validation
+    val nonceIOS: String?,               // UUID nonce for signature validation
+    val signatureIOS: String?,           // Server-generated signature for promotional offers
+    val timestampIOS: Double?,           // Timestamp when signature was generated
+    val localizedPriceIOS: String?,      // Localized price string
+    val numberOfPeriodsIOS: Int?,        // Number of billing periods
+
+    // Android-specific fields
+    val basePlanIdAndroid: String?,      // Base plan identifier
+    val offerTokenAndroid: String?,      // Offer token required for purchase
+    val offerTagsAndroid: List<String>?, // Tags associated with this offer
+    val pricingPhasesAndroid: PricingPhasesAndroid? // Pricing phases for this offer
+)
+```
+
+**Usage Example:**
+
+```kotlin
+// Access subscription offers from a product
+val product = fetchProducts { skus = listOf("premium_monthly") }.products.first()
+
+when (product) {
+    is ProductSubscriptionAndroid -> {
+        product.subscriptionOffers.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")  // Introductory, Promotional
+            println("Payment Mode: ${offer.paymentMode}")  // FreeTrial, PayAsYouGo, PayUpFront
+
+            // Use offer token for purchase
+            offer.offerTokenAndroid?.let { token ->
+                requestSubscription {
+                    android {
+                        skus = listOf("premium_monthly")
+                        subscriptionOffers = listOf(
+                            AndroidSubscriptionOfferInput(
+                                sku = "premium_monthly",
+                                offerToken = token
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+    is ProductSubscriptionIOS -> {
+        product.subscriptionOffers?.forEach { offer ->
+            println("Offer: ${offer.id}")
+            println("Price: ${offer.displayPrice}")
+            println("Type: ${offer.type}")
+        }
+    }
+}
+```
+
+### DiscountOffer
+
+Cross-platform type for one-time purchase discounts (primarily Android).
+
+```kotlin
+data class DiscountOffer(
+    /**
+     * Currency code (ISO 4217, e.g., "USD")
+     */
+    val currency: String,
+
+    /**
+     * Formatted display price string (e.g., "$4.99")
+     */
+    val displayPrice: String,
+
+    /**
+     * Numeric price value
+     */
+    val price: Double,
+
+    /**
+     * Type of discount offer
+     */
+    val type: DiscountOfferType,
+
+    /**
+     * Unique identifier for the offer
+     */
+    val id: String?,
+
+    // Android-specific fields
+    val discountAmountMicrosAndroid: String?,      // Fixed discount in micro-units
+    val formattedDiscountAmountAndroid: String?,   // Formatted discount string (e.g., "$5.00 OFF")
+    val fullPriceMicrosAndroid: String?,           // Original price in micro-units
+    val offerTagsAndroid: List<String>?,           // Tags for this offer
+    val offerTokenAndroid: String?,                // Token required for purchase
+    val percentageDiscountAndroid: Int?,           // Percentage discount (e.g., 33 for 33% off)
+    val validTimeWindowAndroid: ValidTimeWindowAndroid? // Offer validity window
+)
+```
+
+### Supporting Enums
+
+```kotlin
+/**
+ * Type of discount/offer
+ */
+enum class DiscountOfferType {
+    Introductory,   // First-time subscriber discount
+    Promotional,    // Promotional/winback offer
+    OneTime         // One-time purchase discount (Android)
+}
+
+/**
+ * Payment mode during offer period
+ */
+enum class PaymentMode {
+    FreeTrial,    // Free trial period
+    PayAsYouGo,   // Pay each billing cycle
+    PayUpFront    // Pay full amount upfront
+}
+
+/**
+ * Subscription period unit
+ */
+enum class SubscriptionPeriodUnit {
+    Day,
+    Week,
+    Month,
+    Year
+}
+
+/**
+ * Subscription period
+ */
+data class SubscriptionPeriod(
+    val value: Int,           // Number of units
+    val unit: SubscriptionPeriodUnit
+)
+
+data class SubscriptionInfoIOS(
+    val subscriptionGroupId: String,
+    val subscriptionPeriod: SubscriptionOfferPeriod
+)
+
+data class RenewalInfoIOS(
+    val autoRenewPreference: String?,
+    val autoRenewStatus: String?,
+    val expirationReason: String?,
+    val gracePeriodExpirationDate: Double?,
+    val isInBillingRetry: Boolean?,
+    val offerIdentifier: String?,
+    val offerType: String?,
+    val originalTransactionId: String?,
+    val priceIncreaseStatus: String?,
+    val productId: String?,
+    val recentSubscriptionStartDate: Double?,
+    val renewalDate: Double?,
+    val renewalPrice: Double?,
+    val renewalPriceCurrency: String?,
+    val willRenew: Boolean?
+)
+```
+
+## Enums
+
+```kotlin
+enum class ProductType { InApp, Subs }
+enum class ProductQueryType { InApp, Subs, All }
+enum class PurchaseState { Pending, Purchased, Unknown }
+enum class Store { NONE, PLAY_STORE, AMAZON, APP_STORE }
+enum class IapPlatform { Ios, Android }
+enum class IapStore { Unknown, Apple, Google, Horizon }
+
+// iOS-specific
+enum class ProductTypeIOS { Consumable, NonConsumable, AutoRenewableSubscription, NonRenewingSubscription }
+enum class PaymentModeIOS { Empty, FreeTrial, PayAsYouGo, PayUpFront }
+enum class SubscriptionPeriodIOS { Day, Week, Month, Year, Empty }
+enum class SubscriptionOfferTypeIOS { Introductory, Promotional }
+
+// Android-specific
+enum class BillingProgramAndroid { Unspecified, UserChoiceBilling, ExternalContentLink, ExternalOffer, ExternalPayments }
+enum class ExternalLinkLaunchModeAndroid { Unspecified, LaunchInExternalBrowserOrApp, CallerWillLaunchLink }
+enum class ExternalLinkTypeAndroid { Unspecified, LinkToDigitalContentOffer, LinkToAppDownload }
+```
+
+================================================================================
+14. ERROR CODES REFERENCE
+================================================================================
+
+## ErrorCode Enum
+
+```kotlin
+enum class ErrorCode {
+    // General Errors
+    Unknown,
+    DeveloperError,
+
+    // User Action Errors
+    UserCancelled,
+    UserError,
+    DeferredPayment,
+    Interrupted,
+
+    // Product Errors
+    ItemUnavailable,
+    SkuNotFound,
+    AlreadyOwned,
+    ItemNotOwned,
+    EmptySkuList,
+    SkuOfferMismatch,
+
+    // Network & Service Errors
+    NetworkError,
+    ServiceError,
+    RemoteError,
+    ConnectionClosed,
+    ServiceDisconnected,
+    IapNotAvailable,
+    BillingUnavailable,
+    FeatureNotSupported,
+    SyncError,
+    QueryProduct,
+
+    // Validation Errors
+    ReceiptFailed,
+    ReceiptFinished,
+    ReceiptFinishedFailed,
+    PurchaseVerificationFailed,
+    PurchaseVerificationFinished,
+    PurchaseVerificationFinishFailed,
+    TransactionValidationFailed,
+
+    // Platform-Specific Errors
+    Pending,
+    NotEnded,
+    NotPrepared,
+    AlreadyPrepared,
+    InitConnection,
+    BillingResponseJsonParseError,
+    PurchaseError,
+    ActivityUnavailable
+}
+```
+
+## PurchaseError Class
+
+```kotlin
+data class PurchaseError(
+    val code: ErrorCode,
+    val message: String,
+    val productId: String? = null
+)
+
+class PurchaseException(val error: PurchaseError) : Exception(error.message)
+```
+
+## Error Handling Example
+
+```kotlin
+try {
+    val purchase = kmpIapInstance.requestPurchase { /* ... */ }
+} catch (e: PurchaseException) {
+    when (e.error.code) {
+        ErrorCode.UserCancelled -> {
+            // Silent - user intended to cancel
+        }
+        ErrorCode.NetworkError, ErrorCode.ServiceError -> {
+            showRetryDialog("Network error. Please try again.")
+        }
+        ErrorCode.AlreadyOwned -> {
+            // Item already owned - restore purchases
+            kmpIapInstance.restorePurchases()
+        }
+        ErrorCode.ItemUnavailable, ErrorCode.SkuNotFound -> {
+            showError("Product not available")
+        }
+        ErrorCode.NotPrepared -> {
+            // Connection not initialized
+            kmpIapInstance.initConnection()
+        }
+        ErrorCode.DeferredPayment -> {
+            showInfo("Purchase pending approval")
+        }
+        ErrorCode.ActivityUnavailable -> {
+            showError("Please try again from the main screen")
+        }
+        else -> {
+            logError(e.error)
+            showGenericError()
+        }
+    }
+}
+```
+
+================================================================================
+15. COMMON PATTERNS & EXAMPLES
+================================================================================
+
+## Complete Purchase Flow
+
+```kotlin
+class PurchaseManager(
+    private val kmpIap: KmpIAP = KmpIAP()
+) {
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    suspend fun initialize() {
+        kmpIap.initConnection()
+        setupListeners()
+    }
+
+    private fun setupListeners() {
+        // Purchase success listener
+        scope.launch {
+            kmpIap.purchaseUpdatedListener.collectLatest { purchase ->
+                handlePurchase(purchase)
+            }
+        }
+
+        // Error listener
+        scope.launch {
+            kmpIap.purchaseErrorListener.collectLatest { error ->
+                handleError(error)
+            }
+        }
+    }
+
+    private suspend fun handlePurchase(purchase: Purchase) {
+        // 1. Validate purchase
+        val verificationResult = kmpIap.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                provider = PurchaseVerificationProvider.Iapkit,
+                iapkit = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey = BuildConfig.IAPKIT_API_KEY,
+                    apple = if (purchase is PurchaseIOS) {
+                        RequestVerifyPurchaseWithIapkitAppleProps(
+                            jws = purchase.jwsRepresentationIOS ?: ""
+                        )
+                    } else null,
+                    google = if (purchase is PurchaseAndroid) {
+                        RequestVerifyPurchaseWithIapkitGoogleProps(
+                            purchaseToken = purchase.purchaseToken ?: ""
+                        )
+                    } else null
+                )
+            )
+        )
+
+        // 2. Check verification result
+        val iapkitResult = verificationResult.iapkit
+        if (iapkitResult?.isValid == true &&
+            iapkitResult.state == IapkitPurchaseState.Entitled) {
+
+            // 3. Grant entitlement
+            grantEntitlement(purchase.productId)
+
+            // 4. Finish transaction
+            kmpIap.finishTransaction(
+                purchase = purchase.toPurchaseInput(),
+                isConsumable = isConsumable(purchase.productId)
+            )
+        }
+    }
+
+    suspend fun purchaseProduct(productId: String) {
+        kmpIap.requestPurchase {
+            ios { sku = productId }
+            android { skus = listOf(productId) }
+        }
+    }
+
+    fun cleanup() {
+        scope.launch {
+            kmpIap.endConnection()
+        }
+        scope.cancel()
+    }
+}
+```
+
+## Subscription Status Check
+
+```kotlin
+suspend fun checkSubscriptionStatus(): SubscriptionStatus {
+    val subscriptions = kmpIap.getActiveSubscriptions(
+        listOf("premium_monthly", "premium_yearly")
+    )
+
+    return when {
+        subscriptions.isEmpty() -> SubscriptionStatus.None
+        subscriptions.any { it.willExpireSoon == true } -> {
+            SubscriptionStatus.ExpiringSoon(
+                subscriptions.first { it.willExpireSoon == true }
+            )
+        }
+        else -> SubscriptionStatus.Active(subscriptions.first())
+    }
+}
+
+sealed class SubscriptionStatus {
+    object None : SubscriptionStatus()
+    data class Active(val subscription: ActiveSubscription) : SubscriptionStatus()
+    data class ExpiringSoon(val subscription: ActiveSubscription) : SubscriptionStatus()
+}
+```
+
+## Restore Purchases
+
+```kotlin
+suspend fun restoreUserPurchases() {
+    try {
+        kmpIap.restorePurchases()
+
+        // After restore, check purchases
+        val purchases = kmpIap.getAvailablePurchases()
+
+        purchases.forEach { purchase ->
+            if (purchase.purchaseState == PurchaseState.Purchased) {
+                grantEntitlement(purchase.productId)
+            }
+        }
+
+        if (purchases.isEmpty()) {
+            showMessage("No purchases to restore")
+        } else {
+            showMessage("Restored ${purchases.size} purchase(s)")
+        }
+    } catch (e: PurchaseException) {
+        showError("Restore failed: ${e.error.message}")
+    }
+}
+```
+
+================================================================================
+16. TROUBLESHOOTING GUIDE
+================================================================================
+
+## Common Issues
+
+### "E_NOT_PREPARED" Error
+**Cause:** Connection not initialized
+**Solution:**
+```kotlin
+kmpIap.initConnection()
+```
+
+### "E_ALREADY_OWNED" Error
+**Cause:** Non-consumable already purchased or consumable not finished
+**Solution:**
+```kotlin
+// For non-consumables: restore purchases
+kmpIap.restorePurchases()
+
+// For consumables: finish pending transactions
+val purchases = kmpIap.getAvailablePurchases()
+purchases.forEach {
+    kmpIap.finishTransaction(it.toPurchaseInput(), isConsumable = true)
+}
+```
+
+### Products Not Loading
+**Check:**
+1. Product IDs match store configuration
+2. Products approved and ready for sale
+3. Correct product type (InApp vs Subs)
+
+```kotlin
+val result = kmpIap.fetchProducts {
+    skus = listOf("correct_product_id")
+    type = ProductQueryType.All
+}
+println("Found ${result.products.size} products")
+```
+
+### Purchase Not Completing
+**Check:**
+1. Listener set up before purchase
+2. `finishTransaction()` called after validation
+3. No exceptions in purchase handler
+
+### Android: Activity Unavailable
+**Cause:** No foreground activity
+**Solution:** Ensure purchase is initiated from an activity context
+
+### iOS: Sandbox Testing Issues
+**Check:**
+1. Using sandbox account
+2. Signed out of production App Store
+3. StoreKit configuration file set up
+
+================================================================================
+17. PLATFORM REQUIREMENTS
+================================================================================
+
+## Android
+
+- minSdk: 21 (Android 5.0+)
+- Kotlin: 2.0+
+- Google Play Billing Library: 8.x
+- Google Play Services required
+
+### Android Setup
+
+```kotlin
+// build.gradle.kts
+android {
+    compileSdk = 34
+    defaultConfig {
+        minSdk = 21
+    }
+}
+
+dependencies {
+    implementation("io.github.hyochan:kmp-iap:1.3.3")
+}
+```
+
+### ProGuard/R8 Rules
+
+```proguard
+-keep class io.github.hyochan.kmpiap.** { *; }
+-keep class com.android.vending.billing.** { *; }
+```
+
+## iOS
+
+- iOS 15.0+ (StoreKit 2)
+- Xcode 15+
+
+### iOS Setup
+
+Add In-App Purchase capability in Xcode:
+1. Select target → Signing & Capabilities
+2. Add "In-App Purchase" capability
+
+### CocoaPods (if applicable)
+
+```ruby
+# Podfile
+pod 'kmp-iap', '~> 1.3.0'
+```
+
+================================================================================
+18. LINKS & RESOURCES
+================================================================================
+
+## Official Links
+
+- GitHub Repository: https://github.com/hyochan/kmp-iap
+- Documentation: https://hyochan.github.io/kmp-iap
+- Maven Central: https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
+
+## OpenIAP Specification
+
+- OpenIAP Website: https://openiap.dev
+- API Reference: https://openiap.dev/docs/apis
+- Type Definitions: https://openiap.dev/docs/types
+- Error Codes: https://openiap.dev/docs/errors
+- Events: https://openiap.dev/docs/events
+
+## Related Projects
+
+- IAPKit (Verification Service): https://iapkit.com
+- expo-iap (React Native): https://github.com/hyochan/expo-iap
+- flutter_inapp_purchase (Flutter): https://github.com/hyochan/flutter_inapp_purchase
+
+## Platform Documentation
+
+- Google Play Billing: https://developer.android.com/google/play/billing
+- Apple StoreKit 2: https://developer.apple.com/storekit/
+
+## Support
+
+- GitHub Issues: https://github.com/hyochan/kmp-iap/issues
+- OpenIAP Discussions: https://github.com/hyochan/openiap.dev/discussions
