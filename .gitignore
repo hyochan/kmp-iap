@@ -21,7 +21,7 @@ key.*
 deploy.md
 PUBLISHING.md
 gpg_key_escaped.txt
-.claude
+.claude/settings.local.json
 node_modules/
 docs/build/
 docs/.docusaurus/
