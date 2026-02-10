@@ -253,7 +253,20 @@ data class DiscountOffer(
     // Android-specific
     val offerTokenAndroid: String?,
     val percentageDiscountAndroid: Int?,
-    val formattedDiscountAmountAndroid: String?
+    val formattedDiscountAmountAndroid: String?,
+    val purchaseOptionIdAndroid: String?  // v1.3.7+, Billing Library 7.0+
+)
+
+// Installment plan details (v1.3.7+, Billing Library 7.0+)
+data class InstallmentPlanDetailsAndroid(
+    val commitmentPaymentsCount: Int,       // Initial commitment (e.g., 12 months)
+    val subsequentCommitmentPaymentsCount: Int  // Renewal commitment (0 if reverts to normal)
+)
+
+// Pending subscription update (v1.3.7+, Billing Library 5.0+)
+data class PendingPurchaseUpdateAndroid(
+    val products: List<String>,   // New products being switched to
+    val purchaseToken: String     // Pending transaction token
 )
 ```
 
