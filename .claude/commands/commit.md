@@ -156,6 +156,26 @@ EOF
 )"
 ```
 
+### 8. Auto-Label PR
+
+After creating the PR, **automatically add a label** based on commit type:
+
+```bash
+gh pr edit <number> --add-label "<label>"
+```
+
+| Commit Type | Label |
+|-------------|-------|
+| `feat` | `:tea: integration` |
+| `fix` | `⌚️ regression` |
+| `chore` (deps/version) | `:package: update packages` |
+| `chore` (other) | `✨ configuration` |
+| `docs` | `:earth_americas: web` |
+| `refactor` | `፦ refactor` |
+| `test` | `testing` |
+
+Choose the most appropriate label. If multiple apply, add all relevant ones.
+
 ---
 
 ## Commit Order (CRITICAL)

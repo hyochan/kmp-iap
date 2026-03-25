@@ -35,6 +35,26 @@ When reviewing, check these project-specific rules:
 
 See [CLAUDE.md](../../CLAUDE.md) for full conventions.
 
+## Auto-Label (CRITICAL)
+
+After reviewing, check if the PR has labels. If no labels are assigned, **automatically add appropriate labels** using `gh pr edit <number> --add-label "<label>"`.
+
+Choose labels based on PR title prefix and changed files:
+
+| PR Title / Change Pattern | Label |
+|---------------------------|-------|
+| `feat:` or new feature | `:tea: integration` |
+| `fix:` or bug fix | `⌚️ regression` |
+| `chore:` with dependency/version updates | `:package: update packages` |
+| `chore:` other maintenance | `✨ configuration` |
+| `docs:` | `:earth_americas: web` |
+| `refactor:` | `፦ refactor` |
+| `test:` | `testing` |
+| UI/UX changes | `:stadium: ui` |
+| Type definition changes | `❄️ types` |
+
+If the PR already has labels, skip this step.
+
 ## Reply Format Rules (CRITICAL)
 
 When replying to PR comments:
