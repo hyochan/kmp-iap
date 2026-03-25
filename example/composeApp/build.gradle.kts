@@ -98,12 +98,12 @@ kotlin {
 
 android {
     namespace = "dev.hyo.martie"
-    compileSdk = 35
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "dev.hyo.martie"
-        minSdk = 24
-        targetSdk = 35
+        minSdk = libs.versions.android.minSdk.get().toInt()
+        targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
 
