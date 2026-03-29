@@ -50,6 +50,7 @@ const sidebars: SidebarsConfig = {
       ],
     },
     'guides/ai-assistants',
+    'openiap',
   ],
 };
 

@@ -123,6 +123,21 @@ kmpIAP.finishTransaction(
 )
 ```
 
+## Powered by OpenIAP
+
+<a href="https://openiap.dev"><img src="https://github.com/hyodotdev/openiap/blob/main/logo.png" alt="OpenIAP" height="50" /></a>
+
+kmp-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
+
+- **Shared specification** — Common types, error codes, and purchase flows across all platforms
+- **Generated type-safe bindings** — Swift, Kotlin, Dart, and GDScript from a single GraphQL schema
+- **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 8.x)
+- **Verification profiles** — Standardized receipt validation and purchase verification patterns
+
+Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyochan/react-native-iap) · [expo-iap](https://github.com/hyochan/expo-iap) · [flutter_inapp_purchase](https://github.com/hyochan/flutter_inapp_purchase) · [godot-iap](https://github.com/hyochan/godot-iap)
+
+**[Learn more about the OpenIAP standard →](https://openiap.dev/docs/foundation/about)**
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
