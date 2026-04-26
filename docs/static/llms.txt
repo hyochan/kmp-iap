@@ -437,5 +437,5 @@ val tokenResult = kmpIapInstance.getExternalPurchaseCustomLinkTokenIOS(
 - GitHub: https://github.com/hyochan/kmp-iap
 - Documentation: https://hyochan.github.io/kmp-iap
 - OpenIAP Specification: https://openiap.dev
-- IAPKit (Verification): https://iapkit.com
+- IAPKit (Verification): https://kit.openiap.dev
 - Maven Central: https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap

@@ -1173,7 +1173,7 @@ IAPKIT_API_KEY=your_iapkit_api_key_here
 Never hardcode API keys in your source code.
 :::
 
-**Note**: You need an IAPKit API key to use this feature. Visit <IapKitLink>iapkit.com</IapKitLink> to get started.
+**Note**: You need an IAPKit API key to use this feature. Visit <IapKitLink>kit.openiap.dev</IapKitLink> to get started.
 
 :::warning Error Handling Best Practice
 **Verification error ≠ Invalid purchase**. When verification fails due to network issues or server errors, don't penalize the customer. Use a "fail-open" approach.

@@ -91,7 +91,7 @@ For production apps, always verify purchases server-side. <IapKitLink>IAPKit</Ia
 
 ### Setup
 
-1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
+1. Get your API key from <IapKitLink>kit.openiap.dev</IapKitLink>
 2. Configure environment variables:
 
 **Android** (`.env` or `local.properties`):
@@ -178,7 +178,7 @@ val store = result.iapkit?.store         // IapStore.Apple or IapStore.Google
 - Sandbox/Production environment detection
 - No backend infrastructure needed
 
-For more details, visit the <IapKitLink href="https://iapkit.com/docs">IAPKit Documentation</IapKitLink>.
+For more details, visit the <IapKitLink href="https://kit.openiap.dev/docs">IAPKit Documentation</IapKitLink>.
 
 ## IAPKit Purchase States
 

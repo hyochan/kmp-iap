@@ -155,7 +155,7 @@ For subscription apps, server-side verification is critical for managing access 
 
 ### Setup
 
-1. Get your API key from <IapKitLink>iapkit.com</IapKitLink>
+1. Get your API key from <IapKitLink>kit.openiap.dev</IapKitLink>
 2. Configure environment variables (see [Purchase Flow](./purchase-flow.md#setup) for details)
 
 ### Subscription Verification

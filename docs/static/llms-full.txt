@@ -2037,7 +2037,7 @@ pod 'kmp-iap', '~> 1.3.0'
 
 ## Related Projects
 
-- IAPKit (Verification Service): https://iapkit.com
+- IAPKit (Verification Service): https://kit.openiap.dev
 - expo-iap (React Native): https://github.com/hyochan/expo-iap
 - flutter_inapp_purchase (Flutter): https://github.com/hyochan/flutter_inapp_purchase
 
