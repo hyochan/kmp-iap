@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[6974],{49:a=>{a.exports=JSON.parse('{"label":"api-enhancement","permalink":"/kmp-iap/blog/tags/api-enhancement","allTagsPath":"/kmp-iap/blog/tags","count":1,"unlisted":false}')}}]);

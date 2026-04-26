@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[9339],{9225:a=>{a.exports=JSON.parse('{"label":"alternative-billing","permalink":"/kmp-iap/blog/tags/alternative-billing","allTagsPath":"/kmp-iap/blog/tags","count":1,"unlisted":false}')}}]);

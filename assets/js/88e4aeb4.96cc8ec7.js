@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[3680],{1799:a=>{a.exports=JSON.parse('{"label":"kotlin-multiplatform","permalink":"/kmp-iap/blog/tags/kotlin-multiplatform","allTagsPath":"/kmp-iap/blog/tags","count":1,"unlisted":false}')}}]);
