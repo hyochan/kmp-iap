@@ -9,6 +9,12 @@ import Logo from '@site/static/img/logo.png';
 
 # 🛒 kmp-iap
 
+:::warning This repository has moved
+
+**kmp-iap** now lives in the **[OpenIAP monorepo](https://github.com/hyodotdev/openiap)** — the source is at **[libraries/kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)** and the package name is unchanged. The current documentation lives at **[openiap.dev/docs/setup/kmp](https://openiap.dev/docs/setup/kmp)**. Please report issues and feature requests at [hyodotdev/openiap/issues](https://github.com/hyodotdev/openiap/issues).
+
+:::
+
 <IapKitBanner />
 
 :::info Version

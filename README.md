@@ -1,6 +1,32 @@
-> **⚠️ This repository has moved to the [OpenIAP monorepo](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap).** This repository is deprecated and will be archived soon. All future development happens in the monorepo. See the [📢 announcement issue](https://github.com/hyochan/kmp-iap/issues/38) or the [discussion thread](https://github.com/hyochan/kmp-iap/discussions/37) for details.
-> This repository is deprecated and will be archived soon. All future development happens in the monorepo.
-> Please see the [announcement](https://github.com/hyochan/kmp-iap/discussions/37) for details.
+> [!IMPORTANT]
+> **⚠️ This repository has moved to [hyodotdev/openiap](https://github.com/hyodotdev/openiap).** kmp-iap is now developed in the monorepo at [`libraries/kmp-iap`](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap) — this repository is archived and read-only.
+
+<div align="center">
+
+<a href="https://github.com/hyodotdev/openiap">
+  <img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="OpenIAP" height="56" />
+</a>
+
+## 📦 This project now lives in the OpenIAP monorepo
+
+**kmp-iap is actively maintained — development simply moved home.**<br/>
+This repository is archived and kept read-only as history.
+
+|                    |                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| 🧭 **Source code** | [hyodotdev/openiap → libraries/kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap)        |
+| 🏠 **Monorepo**    | [hyodotdev/openiap](https://github.com/hyodotdev/openiap)                                                    |
+| 📚 **Docs**        | [openiap.dev/docs/setup/kmp](https://openiap.dev/docs/setup/kmp) · [legacy docs](https://hyochan.github.io/kmp-iap)                                    |
+| 🐛 **Issues**      | [hyodotdev/openiap/issues](https://github.com/hyodotdev/openiap/issues)                                      |
+| 💬 **Q&A**         | [kmp-iap discussions](https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap)                       |
+
+The Maven coordinates are unchanged — `io.github.hyochan:kmp-iap` keeps working as always.
+
+<sub>Background: [📢 announcement issue](https://github.com/hyochan/kmp-iap/issues/38) · [discussion thread](https://github.com/hyochan/kmp-iap/discussions/37)</sub>
+
+</div>
+
+---
 
 # kmp-iap
 
@@ -22,7 +48,7 @@
 
 Visit the documentation site for installation guides, API reference, and examples:
 
-### **[hyochan.github.io/kmp-iap](https://hyochan.github.io/kmp-iap)**
+### **[openiap.dev/docs/setup/kmp](https://openiap.dev/docs/setup/kmp)**
 
 ## Using with AI Assistants
 
@@ -138,7 +164,7 @@ kmp-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — an 
 - **Platform implementations** — [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) (StoreKit 2) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) (Play Billing 8.x)
 - **Verification profiles** — Standardized receipt validation and purchase verification patterns
 
-Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyochan/react-native-iap) · [expo-iap](https://github.com/hyochan/expo-iap) · [flutter_inapp_purchase](https://github.com/hyochan/flutter_inapp_purchase) · [godot-iap](https://github.com/hyochan/godot-iap)
+Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap) · [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap) · [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) · [maui-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap) · [godot-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap)
 
 **[Learn more about the OpenIAP standard →](https://openiap.dev/docs/foundation/about)**
 
