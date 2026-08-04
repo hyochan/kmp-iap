@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[7714],{3706:e=>{e.exports=JSON.parse('{"permalink":"/kmp-iap/blog/tags/naming-conventions","page":1,"postsPerPage":10,"totalPages":1,"totalCount":1,"blogDescription":"Blog","blogTitle":"Blog"}')}}]);

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkmp_iap_docs=self.webpackChunkkmp_iap_docs||[]).push([[4583],{6866:(e,c,s)=>{s.r(c),s.d(c,{default:()=>t});var u=s(6540),n=s(6347),p=s(6025);function t(){const e=(0,n.W6)(),c=(0,p.A)("/docs/intro");return(0,u.useEffect)(()=>{e.replace(c)},[e,c]),null}}}]);
